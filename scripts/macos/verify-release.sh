@@ -4,8 +4,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
 version="$(tr -d '[:space:]' < "$repo_root/VERSION")"
-app_path="$repo_root/dist/Fastpotify Keys.app"
-dmg_path="$repo_root/dist/FastpotifyKeys-${version}-universal.dmg"
+app_path="$repo_root/dist/SpotiBind.app"
+dmg_path="$repo_root/dist/SpotiBind-${version}-universal.dmg"
 checksums_path="$repo_root/dist/SHA256SUMS"
 
 while (($# > 0)); do
@@ -42,7 +42,7 @@ for path in "$app_path" "$dmg_path" "$checksums_path"; do
     fi
 done
 
-binary="$app_path/Contents/MacOS/FastpotifyKeys"
+binary="$app_path/Contents/MacOS/SpotiBind"
 plist="$app_path/Contents/Info.plist"
 if [[ ! -x "$binary" ]]; then
     printf 'App executable is missing or not executable: %s\n' "$binary" >&2
@@ -67,7 +67,7 @@ fi
 minimum="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$plist")"
 [[ "$minimum" == "13.0" ]] || { printf 'Unexpected minimum system version: %s\n' "$minimum" >&2; exit 1; }
 identifier="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")"
-[[ "$identifier" == "cc.ivanli.fastpotifykeys" ]] || { printf 'Unexpected bundle identifier: %s\n' "$identifier" >&2; exit 1; }
+[[ "$identifier" == "cc.ivanli.spotibind" ]] || { printf 'Unexpected bundle identifier: %s\n' "$identifier" >&2; exit 1; }
 
 hdiutil imageinfo "$dmg_path" >/dev/null
 checksum_dir="$(cd "$(dirname "$checksums_path")" && pwd)"

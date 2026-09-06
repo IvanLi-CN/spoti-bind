@@ -1,6 +1,6 @@
-# Fastpotify Keys
+# SpotiBind
 
-Fastpotify Keys is a small macOS menu-bar companion that routes the standard
+SpotiBind is a small macOS menu-bar companion that routes the standard
 play/pause, next, and previous media keys to a running Fastpotify instance.
 When the app is ready, it consumes those three system-defined events even when
 another media player is in the foreground. If permission, the executable, or
@@ -12,9 +12,9 @@ the health probe is missing, macOS keeps its normal media-key behavior.
 - Fastpotify 0.4.1 or later
 - Fastpotify's `fastpotify` executable, either in a known location or selected
   from the app menu
-- Accessibility permission for Fastpotify Keys
+- Accessibility permission for SpotiBind
 
-Fastpotify Keys does not require an administrator password, root access, a
+SpotiBind does not require an administrator password, root access, a
 System Extension, or an Automation permission. It is intentionally a
 non-sandboxed Ad Hoc app because public event taps and launching the separately
 installed CLI need those boundaries.
@@ -22,7 +22,7 @@ installed CLI need those boundaries.
 ## Install
 
 Download the universal DMG from the GitHub Draft Release, open it, and move
-`Fastpotify Keys.app` to `/Applications`. The first launch may require opening
+`SpotiBind.app` to `/Applications`. The first launch may require opening
 the app from Finder's context menu because an Ad Hoc build is not notarized.
 Then open the menu-bar item and grant Accessibility access when prompted.
 
@@ -75,11 +75,11 @@ with an Ad Hoc identity, creates a compressed DMG, and writes `dist/SHA256SUMS`.
 
 ## Architecture
 
-- `FastpotifyKeysCore` contains decoding, readiness-gated routing, executable
+- `SpotiBindCore` contains decoding, readiness-gated routing, executable
   location, and a serial direct-process dispatcher.
-- `FastpotifyKeys` contains the SwiftUI `MenuBarExtra`, Accessibility/login
+- `SpotiBind` contains the SwiftUI `MenuBarExtra`, Accessibility/login
   item lifecycle, and the Core Graphics event-tap bridge.
-- `Tests/FastpotifyKeysCoreTests` covers the Core contract with XCTest and an
+- `Tests/SpotiBindCoreTests` covers the Core contract with XCTest and an
   injected process runner.
 
 The tap callback performs only synchronous decoding and routing. It never
@@ -90,6 +90,8 @@ See [docs/architecture.md](docs/architecture.md),
 [docs/permissions.md](docs/permissions.md),
 [docs/testing.md](docs/testing.md), and
 [docs/release.md](docs/release.md) for the operational details.
+
+SpotiBind is an independent project and is not affiliated with or endorsed by Spotify.
 
 ## License
 

@@ -1,6 +1,6 @@
-# Fastpotify Keys
+# SpotiBind
 
-Fastpotify Keys is a macOS menu-bar companion that directs hardware media controls to an existing Fastpotify instance. It owns interception, routing, and delivery reporting; Fastpotify owns playback.
+SpotiBind is a macOS menu-bar companion that directs hardware media controls to an existing Fastpotify instance. It owns interception, routing, and delivery reporting; Fastpotify owns playback.
 
 ## Input and Routing
 
@@ -27,11 +27,11 @@ _Avoid_: Retry, pass-through
 ## Integration and Distribution
 
 **Control Verb**:
-One member of the fixed Fastpotify command vocabulary that Fastpotify Keys supports, initially `play-pause`, `next`, or `previous`.
+One member of the fixed Fastpotify command vocabulary that SpotiBind supports, initially `play-pause`, `next`, or `previous`.
 _Avoid_: Arbitrary command, script
 
 **Application Identity**:
-The stable macOS bundle identifier `cc.ivanli.fastpotifykeys`, used to associate the app with its Accessibility authorization, preferences, and login-item registration.
+The stable macOS bundle identifier `cc.ivanli.spotibind`, used to associate the app with its Accessibility authorization, preferences, and login-item registration.
 _Avoid_: Package name, display name
 
 **Ad Hoc Build**:

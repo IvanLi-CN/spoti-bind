@@ -1,6 +1,6 @@
 # Use public event capture and Fastpotify CLI integration
 
-Fastpotify Keys captures media-key events with the public Swift `CGEvent.tapCreate` API after Accessibility authorization and sends documented Fastpotify CLI control verbs as process arguments. It supports Fastpotify `0.4.1` and later, the earliest verified release with the required CLI contract. It deliberately avoids private `MediaRemote` APIs, Apple Events, and Fastpotify's internal loopback socket, so the app can consume keys without depending on private platform or Fastpotify implementation details.
+SpotiBind captures media-key events with the public Swift `CGEvent.tapCreate` API after Accessibility authorization and sends documented Fastpotify CLI control verbs as process arguments. It supports Fastpotify `0.4.1` and later, the earliest verified release with the required CLI contract. It deliberately avoids private `MediaRemote` APIs, Apple Events, and Fastpotify's internal loopback socket, so the app can consume keys without depending on private platform or Fastpotify implementation details.
 
 ## Considered Options
 

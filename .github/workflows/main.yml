@@ -30,11 +30,11 @@ jobs:
       - name: Select Swift 6 toolchain
         run: scripts/ci/select-swift6.sh
       - name: Build universal Ad Hoc app
-        run: scripts/macos/package.sh --output-dir "$RUNNER_TEMP/fastpotify-keys-dist"
+        run: scripts/macos/package.sh --output-dir "$RUNNER_TEMP/spotibind-dist"
       - name: Verify release artifact
         run: |
           version="$(tr -d '[:space:]' < VERSION)"
           scripts/macos/verify-release.sh \
-            --app "$RUNNER_TEMP/fastpotify-keys-dist/Fastpotify Keys.app" \
-            --dmg "$RUNNER_TEMP/fastpotify-keys-dist/FastpotifyKeys-${version}-universal.dmg" \
-            --checksums "$RUNNER_TEMP/fastpotify-keys-dist/SHA256SUMS"
+            --app "$RUNNER_TEMP/spotibind-dist/SpotiBind.app" \
+            --dmg "$RUNNER_TEMP/spotibind-dist/SpotiBind-${version}-universal.dmg" \
+            --checksums "$RUNNER_TEMP/spotibind-dist/SHA256SUMS"

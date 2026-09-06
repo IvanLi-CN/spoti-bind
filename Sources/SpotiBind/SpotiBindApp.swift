@@ -1,18 +1,18 @@
 import SwiftUI
 
 @main
-struct FastpotifyKeysApp: App {
+struct SpotiBindApp: App {
     @NSApplicationDelegateAdaptor(ApplicationDelegate.self) private var applicationDelegate
 
     var body: some Scene {
-        MenuBarExtra("Fastpotify Keys", systemImage: "music.note") {
-            FastpotifyKeysMenu(state: applicationDelegate.state)
+        MenuBarExtra("SpotiBind", systemImage: "music.note") {
+            SpotiBindMenu(state: applicationDelegate.state)
         }
         .menuBarExtraStyle(.menu)
     }
 }
 
-private struct FastpotifyKeysMenu: View {
+private struct SpotiBindMenu: View {
     @ObservedObject var state: AppState
 
     var body: some View {

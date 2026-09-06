@@ -1,5 +1,5 @@
 import XCTest
-@testable import FastpotifyKeysCore
+@testable import SpotiBindCore
 
 final class MediaKeyDecoderTests: XCTestCase {
     private let decoder = SystemDefinedMediaKeyDecoder()

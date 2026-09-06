@@ -1,5 +1,5 @@
 import XCTest
-@testable import FastpotifyKeysCore
+@testable import SpotiBindCore
 
 final class RoutingPolicyTests: XCTestCase {
     private let policy = RoutingPolicy()

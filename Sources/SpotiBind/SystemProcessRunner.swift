@@ -1,5 +1,5 @@
 @preconcurrency import Foundation
-import FastpotifyKeysCore
+import SpotiBindCore
 
 struct SystemProcessRunner: FastpotifyProcessRunner {
     func run(

@@ -7,36 +7,36 @@ let strictSwift6: [SwiftSetting] = [
 ]
 
 let package = Package(
-    name: "FastpotifyKeys",
+    name: "SpotiBind",
     platforms: [
         .macOS(.v13)
     ],
     products: [
         .library(
-            name: "FastpotifyKeysCore",
-            targets: ["FastpotifyKeysCore"]
+            name: "SpotiBindCore",
+            targets: ["SpotiBindCore"]
         ),
         .executable(
-            name: "FastpotifyKeys",
-            targets: ["FastpotifyKeys"]
+            name: "SpotiBind",
+            targets: ["SpotiBind"]
         )
     ],
     targets: [
         .target(
-            name: "FastpotifyKeysCore",
-            path: "Sources/FastpotifyKeysCore",
+            name: "SpotiBindCore",
+            path: "Sources/SpotiBindCore",
             swiftSettings: strictSwift6
         ),
         .executableTarget(
-            name: "FastpotifyKeys",
-            dependencies: ["FastpotifyKeysCore"],
-            path: "Sources/FastpotifyKeys",
+            name: "SpotiBind",
+            dependencies: ["SpotiBindCore"],
+            path: "Sources/SpotiBind",
             swiftSettings: strictSwift6
         ),
         .testTarget(
-            name: "FastpotifyKeysCoreTests",
-            dependencies: ["FastpotifyKeysCore"],
-            path: "Tests/FastpotifyKeysCoreTests",
+            name: "SpotiBindCoreTests",
+            dependencies: ["SpotiBindCore"],
+            path: "Tests/SpotiBindCoreTests",
             swiftSettings: strictSwift6
         )
     ]

@@ -12,4 +12,4 @@
 
 | Topic | Lifecycle | Implementation | Spec | Successor | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Fastpotify Keys media forwarding | active | 初始化中 | `fastpotify-keys/SPEC.md` | - | 固定媒体键路由与 Ad Hoc 分发边界 |
+| SpotiBind media forwarding | active | 初始化中 | `spotibind/SPEC.md` | - | 固定媒体键路由与 Ad Hoc 分发边界 |

@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import FastpotifyKeysCore
+@testable import SpotiBindCore
 
 final class FastpotifyIntegrationTests: XCTestCase {
     func testCommandsExposeOnlyDocumentedArguments() {
@@ -59,7 +59,7 @@ final class FastpotifyIntegrationTests: XCTestCase {
     func testSelectedExecutableTakesPrecedenceAndAppBundlesResolve() throws {
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
-            .appendingPathComponent("FastpotifyKeysTests-\(UUID().uuidString)")
+            .appendingPathComponent("SpotiBindTests-\(UUID().uuidString)")
         let app = root.appendingPathComponent("Fastpotify.app")
         let executable = app
             .appendingPathComponent("Contents", isDirectory: true)

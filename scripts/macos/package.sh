@@ -46,7 +46,7 @@ for tool in swift lipo codesign hdiutil shasum; do
     fi
 done
 
-build_root="$(mktemp -d "${TMPDIR:-/tmp}/fastpotify-keys-build.XXXXXX")"
+build_root="$(mktemp -d "${TMPDIR:-/tmp}/spotibind-build.XXXXXX")"
 trap 'rm -rf "$build_root"' EXIT
 
 build_arch() {
@@ -55,7 +55,7 @@ build_arch() {
     local scratch="$build_root/$arch"
     local bin_dir
     swift build \
-        --product FastpotifyKeys \
+        --product SpotiBind \
         --configuration release \
         --triple "$triple" \
         --scratch-path "$scratch" \
@@ -68,21 +68,21 @@ build_arch() {
         --scratch-path "$scratch" \
         --disable-sandbox \
         --disable-index-store)"
-    if [[ ! -x "$bin_dir/FastpotifyKeys" ]]; then
-        printf 'Missing %s release binary at %s\n' "$arch" "$bin_dir/FastpotifyKeys" >&2
+    if [[ ! -x "$bin_dir/SpotiBind" ]]; then
+        printf 'Missing %s release binary at %s\n' "$arch" "$bin_dir/SpotiBind" >&2
         exit 1
     fi
-    printf '%s\n' "$bin_dir/FastpotifyKeys"
+    printf '%s\n' "$bin_dir/SpotiBind"
 }
 
 arm64_binary="$(build_arch arm64)"
 x86_64_binary="$(build_arch x86_64)"
 
-app_path="$output_dir/Fastpotify Keys.app"
-dmg_path="$output_dir/FastpotifyKeys-${version}-universal.dmg"
+app_path="$output_dir/SpotiBind.app"
+dmg_path="$output_dir/SpotiBind-${version}-universal.dmg"
 checksums_path="$output_dir/SHA256SUMS"
 plist_path="$app_path/Contents/Info.plist"
-merged_binary="$app_path/Contents/MacOS/FastpotifyKeys"
+merged_binary="$app_path/Contents/MacOS/SpotiBind"
 
 rm -rf "$app_path"
 rm -f "$dmg_path" "$checksums_path"
@@ -95,7 +95,7 @@ cp "$repo_root/packaging/macos/Info.plist" "$plist_path"
 codesign --force --sign - --timestamp=none "$app_path"
 codesign --verify --strict --verbose=2 "$app_path"
 hdiutil create \
-    -volname "Fastpotify Keys $version" \
+    -volname "SpotiBind $version" \
     -srcfolder "$app_path" \
     -ov \
     -format UDZO \
