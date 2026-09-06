@@ -139,6 +139,7 @@ final class AppState: ObservableObject {
         defaults.set(mode.rawValue, forKey: Keys.playerMode)
         dispatchFailure = nil
         updateAvailability()
+        probeTarget()
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -209,6 +210,11 @@ final class AppState: ObservableObject {
 
     private func probeTarget() {
         probeTask?.cancel()
+        guard playerMode == .automatic || playerMode == .fastpotify else {
+            probeHealthy = false
+            updateAvailability()
+            return
+        }
         guard let targetExecutable else {
             probeHealthy = false
             updateAvailability()
