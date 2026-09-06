@@ -11,7 +11,8 @@
 
 ## Replacements / Background
 
-- The topic records the fresh implementation of the public event-capture and Fastpotify CLI boundary described by ADR-0001.
+- The topic records the original public event-capture and Fastpotify CLI boundary described by ADR-0001, then its multi-player successor in ADR-0007.
+- Player Mode migration preserves `targetPath` as a Fastpotify-only override while replacing the old forwarding toggle with Automatic, three player modes, and Off.
 - SwiftPM is the single repository build entrypoint according to ADR-0006; Xcode remains an optional IDE.
 
 ## Related Changes

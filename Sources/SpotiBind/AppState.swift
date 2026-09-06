@@ -6,7 +6,7 @@ import ServiceManagement
 
 @MainActor
 final class AppState: ObservableObject {
-    @Published var forwardingEnabled: Bool
+    @Published var playerMode: PlayerMode
     @Published var launchAtLogin: Bool
     @Published private(set) var accessibilityTrusted = false
     @Published private(set) var targetExecutable: FastpotifyExecutable?
@@ -16,7 +16,12 @@ final class AppState: ObservableObject {
 
     private let defaults: UserDefaults
     private let locator = FastpotifyExecutableLocator()
+    private let catalog = PlayerWorkspaceCatalog()
+    private let resolver = PlayerSelectionResolver()
     private let dispatcher: FastpotifyCommandDispatcher
+    private let runtime: SystemPlayerRuntime
+    private let coordinator: PlayerLaunchCoordinator
+    private var availability = PlayerAvailabilitySnapshot()
     private var refreshTimer: Timer?
     private var activationObserver: NSObjectProtocol?
     private var probeTask: Task<Void, Never>?
@@ -25,48 +30,69 @@ final class AppState: ObservableObject {
         defaults: UserDefaults = .standard,
         dispatcher: FastpotifyCommandDispatcher? = nil
     ) {
+        let actualDispatcher = dispatcher ?? FastpotifyCommandDispatcher(runner: SystemProcessRunner())
         self.defaults = defaults
-        self.forwardingEnabled = defaults.object(forKey: Keys.forwardingEnabled) as? Bool ?? true
+        self.playerMode = PlayerModeMigration.mode(
+            storedMode: defaults.string(forKey: Keys.playerMode),
+            legacyForwardingEnabled: defaults.object(forKey: Keys.forwardingEnabled) as? Bool
+        )
         self.launchAtLogin = defaults.object(forKey: Keys.launchAtLogin) as? Bool ?? false
-        self.dispatcher = dispatcher ?? FastpotifyCommandDispatcher(runner: SystemProcessRunner())
+        self.dispatcher = actualDispatcher
+        self.runtime = SystemPlayerRuntime(dispatcher: actualDispatcher)
+        self.coordinator = PlayerLaunchCoordinator(runtime: runtime)
     }
 
     var readiness: ForwardingReadiness {
         ForwardingReadiness(
-            forwardingEnabled: forwardingEnabled,
+            forwardingEnabled: playerMode != .off,
             accessibilityTrusted: accessibilityTrusted,
-            targetUsable: targetExecutable != nil,
-            probeHealthy: probeHealthy
+            targetUsable: resolvedSelection != .none
         )
     }
 
+    private var resolvedSelection: PlayerSelection {
+        resolver.resolve(mode: playerMode, snapshot: availability)
+    }
+
     var statusTitle: String {
-        if !forwardingEnabled {
+        if playerMode == .off {
             return "Forwarding disabled"
         }
         if !accessibilityTrusted {
             return "Accessibility permission required"
         }
-        if targetExecutable == nil {
-            return "Fastpotify not found"
+        switch resolvedSelection {
+        case .none:
+            return "No supported player found"
+        case .launch(let player):
+            return "Starting \(player.displayName)"
+        case .running(let player):
+            if tapStatus != "Ready" {
+                return tapStatus
+            }
+            return "Forwarding to \(player.displayName)"
         }
-        if !probeHealthy {
-            return "Fastpotify is not ready"
-        }
-        if tapStatus != "Ready" {
-            return tapStatus
-        }
-        return "Forwarding to Fastpotify"
     }
 
     var statusDetail: String {
         if let dispatchFailure {
             return dispatchFailure
         }
-        if let targetExecutable {
-            return targetExecutable.url.path
+        switch resolvedSelection {
+        case .none:
+            return "Install or start a supported player to continue."
+        case .launch(let player), .running(let player):
+            if player == .fastpotify, let targetExecutable {
+                return targetExecutable.url.path
+            }
+            if let applicationURL = catalog.applicationURL(
+                for: player,
+                fastpotifyExecutable: targetExecutable
+            ) {
+                return applicationURL.path
+            }
+            return player.displayName
         }
-        return "Choose a Fastpotify app or executable to continue."
     }
 
     func start() {
@@ -104,12 +130,15 @@ final class AppState: ObservableObject {
             : nil
         accessibilityTrusted = AXIsProcessTrustedWithOptions(options)
         resolveTarget()
+        updateAvailability()
         probeTarget()
     }
 
-    func setForwardingEnabled(_ enabled: Bool) {
-        forwardingEnabled = enabled
-        defaults.set(enabled, forKey: Keys.forwardingEnabled)
+    func setPlayerMode(_ mode: PlayerMode) {
+        playerMode = mode
+        defaults.set(mode.rawValue, forKey: Keys.playerMode)
+        dispatchFailure = nil
+        updateAvailability()
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -127,20 +156,6 @@ final class AppState: ObservableObject {
         }
     }
 
-    func chooseTarget() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = true
-        panel.allowsMultipleSelection = false
-        panel.message = "Choose the Fastpotify app or executable"
-        guard panel.runModal() == .OK, let url = panel.url else {
-            return
-        }
-        defaults.set(url.path, forKey: Keys.targetPath)
-        resolveTarget()
-        probeTarget()
-    }
-
     func openAccessibilitySettings() {
         let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
         NSWorkspace.shared.open(url)
@@ -150,23 +165,27 @@ final class AppState: ObservableObject {
         tapStatus = status
     }
 
-    func dispatch(_ command: FastpotifyCommand) {
-        guard let executable = targetExecutable else {
+    func dispatch(_ key: MediaKey) {
+        guard readiness.isReady, let player = resolvedSelection.player else {
             return
         }
-        let dispatcher = dispatcher
-        let targetURL = executable.url
-        probeHealthy = true
+        let request = PlayerDispatchRequest(
+            selection: resolvedSelection,
+            executableURL: player == .fastpotify ? targetExecutable?.url : nil,
+            applicationURL: catalog.applicationURL(
+                for: player,
+                fastpotifyExecutable: targetExecutable
+            )
+        )
+        let coordinator = coordinator
         Task { @MainActor [weak self] in
-            let result = await dispatcher.dispatch(command, executableURL: targetURL)
+            let succeeded = await coordinator.dispatch(key, request: request)
             guard let self else { return }
-            if result.succeeded {
-                self.dispatchFailure = nil
+            if succeeded {
+                dispatchFailure = nil
             } else {
-                self.dispatchFailure = result.timedOut
-                    ? "Fastpotify command timed out."
-                    : "Fastpotify command failed."
-                self.probeHealthy = false
+                dispatchFailure = "\(player.displayName) media-key dispatch failed."
+                refreshStatus(promptForAccessibility: false)
             }
         }
     }
@@ -181,10 +200,18 @@ final class AppState: ObservableObject {
         targetExecutable = resolvedTarget
     }
 
+    private func updateAvailability() {
+        availability = catalog.snapshot(
+            fastpotifyExecutable: targetExecutable,
+            fastpotifyProbeHealthy: probeHealthy
+        )
+    }
+
     private func probeTarget() {
         probeTask?.cancel()
         guard let targetExecutable else {
             probeHealthy = false
+            updateAvailability()
             return
         }
         let dispatcher = dispatcher
@@ -193,10 +220,12 @@ final class AppState: ObservableObject {
             let healthy = await dispatcher.probe(executableURL: targetURL)
             guard !Task.isCancelled, let self else { return }
             self.probeHealthy = healthy
+            self.updateAvailability()
         }
     }
 
     private enum Keys {
+        static let playerMode = "playerMode"
         static let forwardingEnabled = "forwardingEnabled"
         static let launchAtLogin = "launchAtLogin"
         static let targetPath = "targetPath"

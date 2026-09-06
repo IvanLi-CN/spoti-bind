@@ -56,8 +56,8 @@ final class MediaKeyTapController {
             return Unmanaged.passUnretained(event)
         case .consume:
             return nil
-        case .dispatch(let command):
-            state.dispatch(command)
+        case .dispatch(let key):
+            state.dispatch(key)
             return nil
         }
     }
@@ -98,14 +98,14 @@ final class MediaKeyTapController {
 
     private func handleDisabledTap() {
         guard let eventTap else {
-            state?.setForwardingEnabled(false)
+            state?.setPlayerMode(.off)
             state?.setTapStatus("Media key capture disabled after repeated failures")
             return
         }
 
         switch failureTracker.recordFailure(at: Date()) {
         case .disableForwarding:
-            state?.setForwardingEnabled(false)
+            state?.setPlayerMode(.off)
             state?.setTapStatus("Media key capture disabled after repeated failures")
         case .retryOnce:
             CGEvent.tapEnable(tap: eventTap, enable: true)

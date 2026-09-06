@@ -2,10 +2,15 @@
 
 SpotiBind validates its behavior at four layers.
 
-- Core XCTest cases cover media-key decoding, forwarding readiness, executable discovery, CLI arguments, timeouts, and event-tap recovery policy.
+- Core XCTest cases cover media-key decoding, mode migration, deterministic
+  player selection, shortcut mappings, executable discovery, CLI arguments,
+  cold-start timeouts, serial dispatch, and event-tap recovery policy.
 - macOS CI runs the SwiftPM core tests and builds the app for both advertised target triples.
 - Release validation verifies both universal architectures, the Ad Hoc signature, DMG mountability, and published SHA-256 checksums.
-- A real Mac release checklist covers Accessibility authorization changes, target liveness, another player in the foreground, sleep/wake, and event-tap recovery.
+- A real Mac release checklist covers Accessibility authorization changes,
+  target liveness, another player in the foreground, sleep/wake, and event-tap
+  recovery. Fastpotify and Sonora checks run on macOS 13+; Spotifly checks run
+  only on a macOS 26.2+ environment that can install its current release.
 
 The real-Mac checklist is a release gate because CI cannot grant Accessibility authorization or reproduce physical media-key routing.
 
@@ -29,3 +34,7 @@ configuration failure rather than a reason to lower the package's language
 mode.
 
 Because V1 supports macOS 13 and later, a release must include a real macOS 13 validation run for every architecture it claims to support. A build-only deployment-target check is not evidence that Accessibility and physical media-key routing work on that system.
+
+The automated contract names are `PlayerSelectionTests`, `PlayerDispatchTests`,
+`PlayerLaunchCoordinatorTests`, `RoutingPolicyTests`,
+`MediaKeyDecoderTests`, and `FastpotifyIntegrationTests`.

@@ -12,4 +12,4 @@
 
 | Topic | Lifecycle | Implementation | Spec | Successor | Notes |
 | --- | --- | --- | --- | --- | --- |
-| SpotiBind media forwarding | active | 初始化中 | `spotibind/SPEC.md` | - | 固定媒体键路由与 Ad Hoc 分发边界 |
+| SpotiBind media forwarding | active | 多播放器路由已实现，实机验收待完成 | `spotibind/SPEC.md` | - | 持久化目标选择、PID 快捷键路由与 Ad Hoc 分发边界 |

@@ -7,13 +7,13 @@ menu-bar executable.
 CGEvent.tapCreate (public event tap)
         |
         v
-NSEvent systemDefined decoder -> RoutingPolicy -> pass-through / consume / dispatch
+NSEvent systemDefined decoder -> RoutingPolicy -> pass-through / consume / dispatch(MediaKey)
                                                         |
                                                         v
-                                      FastpotifyCommandDispatcher actor
-                                                        |
-                                                        v
-                                  Process(executableURL, arguments)
+                                      PlayerSelectionResolver + launch queue
+                                      /                    |                  \
+                                     /                     |                   \
+                 Fastpotify CLI dispatcher       Sonora CGEvent PID       Spotifly CGEvent PID
 ```
 
 ## Core boundary
@@ -22,12 +22,16 @@ NSEvent systemDefined decoder -> RoutingPolicy -> pass-through / consume / dispa
 
 - `SystemDefinedMediaKeyDecoder`, which recognizes NX key types 16, 17, and 18
   and distinguishes press, release, and repeat payloads.
-- `ForwardingReadiness` and `RoutingPolicy`, which require all four readiness
-  conditions before consuming an event.
+- `PlayerMode`, `PlayerAvailabilitySnapshot`, and `PlayerSelectionResolver`,
+  which implement persistent modes and deterministic Automatic ordering.
+- `ForwardingReadiness` and `RoutingPolicy`, which require a selected target,
+  Accessibility authorization, and a non-Off mode before consuming an event.
 - `FastpotifyExecutableLocator`, which gives a user-selected app/executable
   precedence over a short list of known paths.
 - `FastpotifyCommandDispatcher`, an actor that serializes commands and probes
   `now-playing --raw` through a `FastpotifyProcessRunner` interface.
+- `PlayerDispatch` and `PlayerLaunchCoordinator`, which map media keys to the
+  three adapter contracts and serialize asynchronous cold-start handoffs.
 - `TapFailureTracker`, which makes the event-tap recovery rule deterministic
   and unit-testable.
 
@@ -40,19 +44,24 @@ documented CLI verbs.
 The executable target owns only platform lifecycle:
 
 - `MenuBarExtra(.menu)` renders the status and V1 controls.
-- `AppState` polls Accessibility, target availability, and Fastpotify health,
-  persisting only the forwarding, login-item, and selected-path preferences.
+- `AppState` polls Accessibility, installed/running player availability, and
+  Fastpotify health, persisting the Player Mode, login-item, and legacy
+  Fastpotify path override.
 - `ApplicationDelegate` sets the accessory activation policy and starts/stops
   the tap.
 - `MediaKeyTapController` installs the public session event tap after
   Accessibility authorization. The callback returns the original event for
   pass-through or `nil` for a consumed event.
+- `SystemPlayerRuntime` discovers and starts application bundles with
+  `NSWorkspace`, sends Space/arrow shortcuts to the selected PID through
+  `CGEvent.postToPid`, and never activates the target application.
 - `SystemProcessRunner` bridges Foundation `Process` callbacks into the Core
   process-runner protocol and applies the two-second timeout.
 
 The callback runs synchronously because Core Graphics requires a synchronous
-return value. Dispatch work is scheduled only after the policy has decided to
-consume a press, so the callback never blocks on Fastpotify.
+return value. Dispatch and cold-start work is scheduled only after the policy
+has decided to consume a press, so the callback never waits for a process or
+application launch.
 
 ## Availability baseline
 

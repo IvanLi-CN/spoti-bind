@@ -9,11 +9,11 @@ A hardware media-control key gesture whose press and release represent one suppo
 _Avoid_: Hotkey, shortcut
 
 **Forwarding**:
-The choice to consume a supported Media Key and request its matching Fastpotify control verb.
+The choice to consume a supported Media Key and request its matching command from the selected player adapter.
 _Avoid_: Synchronization, media control
 
 **Forwarding Readiness**:
-The state in which forwarding is enabled, Accessibility is authorized, a usable Fastpotify executable is known, and a recent CLI probe has confirmed a running Fastpotify instance before an event is consumed.
+The state in which a non-Off Player Mode resolves to a usable target and Accessibility is authorized before an event is consumed.
 _Avoid_: Connected, installed
 
 **Pass-through**:
@@ -27,7 +27,7 @@ _Avoid_: Retry, pass-through
 ## Integration and Distribution
 
 **Control Verb**:
-One member of the fixed Fastpotify command vocabulary that SpotiBind supports, initially `play-pause`, `next`, or `previous`.
+One member of the fixed Fastpotify command vocabulary that SpotiBind supports, initially `play-pause`, `next`, or `previous`; other players use their released keyboard shortcuts.
 _Avoid_: Arbitrary command, script
 
 **Application Identity**:

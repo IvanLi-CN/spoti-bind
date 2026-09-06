@@ -22,11 +22,20 @@ tap is not re-created until access is restored.
 
 The non-sandboxed Ad Hoc boundary is a distribution constraint, not a request
 for elevated user privileges. The process is still launched as the logged-in
-user and only receives the selected Fastpotify executable and fixed arguments.
+user and only receives the selected Fastpotify executable and fixed arguments,
+or posts ordinary keyboard events to a selected player's existing PID.
+
+## Player delivery boundary
+
+Fastpotify delivery uses the documented CLI verbs `play-pause`, `next`, and
+`previous`. Sonora and Spotifly delivery uses public Core Graphics
+`CGEvent.postToPid` with their released keyboard shortcuts. The app does not
+send Apple Events, inspect private media services, run Accessibility UI
+scripts, or bring a player to the foreground.
 
 ## Event-tap failures
 
 If macOS disables the tap once, the controller enables it again. A second
 failure within the ten-second recovery window disables forwarding visibly and
-persists the off state. A successful installation resets that window. No
+persists the Off mode. A successful installation resets that window. No
 failure path replays a consumed event.

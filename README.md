@@ -1,17 +1,20 @@
 # SpotiBind
 
 SpotiBind is a small macOS menu-bar companion that routes the standard
-play/pause, next, and previous media keys to a running Fastpotify instance.
-When the app is ready, it consumes those three system-defined events even when
-another media player is in the foreground. If permission, the executable, or
-the health probe is missing, macOS keeps its normal media-key behavior.
+play/pause, next, and previous media keys to Fastpotify, Sonora, or Spotifly.
+The menu persists an Automatic, player-specific, or Off choice. Automatic uses
+running players in Fastpotify, Sonora, Spotifly order and otherwise starts the
+first installed launchable player. If permission or a usable target is
+missing, macOS keeps its normal media-key behavior.
 
 ## Requirements
 
 - macOS 13.0 or later
-- Fastpotify 0.4.1 or later
-- Fastpotify's `fastpotify` executable, either in a known location or selected
-  from the app menu
+- Fastpotify 0.4.1 or later when Fastpotify is selected or installed for
+  Automatic mode
+- Sonora when Sonora is selected or installed for Automatic mode
+- Spotifly on macOS 26.2 or later when Spotifly is selected or installed for
+  Automatic mode
 - Accessibility permission for SpotiBind
 
 SpotiBind does not require an administrator password, root access, a
@@ -32,20 +35,21 @@ release compatibility.
 
 ## Behavior
 
-| Media key gesture | Fastpotify command |
-| --- | --- |
-| Play/pause press | `fastpotify play-pause` |
-| Next press | `fastpotify next` |
-| Previous press | `fastpotify previous` |
+| Player | Play/pause | Next | Previous |
+| --- | --- | --- | --- |
+| Fastpotify | `fastpotify play-pause` | `fastpotify next` | `fastpotify previous` |
+| Sonora | Space | Ctrl-Right | Ctrl-Left |
+| Spotifly | Space | Cmd-Right | Cmd-Left |
 
 One command is sent for each press. Repeated events during one hold and the
 release event are consumed without sending another command. A command failure
 is shown in the menu and is never replayed to another player.
 
-The menu provides the current readiness status, a forwarding toggle, target
-selection, an Accessibility settings link, and an opt-in Launch at Login
-toggle. The target must answer `fastpotify now-playing --raw` successfully
-before media keys are consumed.
+The menu provides the current readiness status, a single-choice target picker,
+an Accessibility settings link, and an opt-in Launch at Login toggle. A cold
+start waits asynchronously for up to ten seconds and sends the initiating key
+once; a timeout never replays it. The legacy `targetPath` preference remains a
+Fastpotify CLI override and is not used for the other players.
 
 ## Build and test
 
@@ -75,12 +79,14 @@ with an Ad Hoc identity, creates a compressed DMG, and writes `dist/SHA256SUMS`.
 
 ## Architecture
 
-- `SpotiBindCore` contains decoding, readiness-gated routing, executable
-  location, and a serial direct-process dispatcher.
-- `SpotiBind` contains the SwiftUI `MenuBarExtra`, Accessibility/login
-  item lifecycle, and the Core Graphics event-tap bridge.
-- `Tests/SpotiBindCoreTests` covers the Core contract with XCTest and an
-  injected process runner.
+- `SpotiBindCore` contains decoding, player selection, readiness-gated
+  routing, shortcut mappings, executable location, and serial launch/dispatch
+  coordinators.
+- `SpotiBind` contains the SwiftUI `MenuBarExtra`, NSWorkspace discovery
+  and launch, PID-directed Core Graphics shortcuts, Accessibility/login item
+  lifecycle, and the event-tap bridge.
+- `Tests/SpotiBindCoreTests` covers the Core contract with XCTest and
+  injected process/player runtimes.
 
 The tap callback performs only synchronous decoding and routing. It never
 waits for or launches a process; the actor-backed dispatcher owns the serial

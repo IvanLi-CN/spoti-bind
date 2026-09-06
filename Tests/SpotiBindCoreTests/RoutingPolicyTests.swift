@@ -32,10 +32,9 @@ final class RoutingPolicyTests: XCTestCase {
 
     func testEveryReadinessConditionIsRequiredBeforeConsumption() {
         let states = [
-            ForwardingReadiness(forwardingEnabled: false, accessibilityTrusted: true, targetUsable: true, probeHealthy: true),
-            ForwardingReadiness(forwardingEnabled: true, accessibilityTrusted: false, targetUsable: true, probeHealthy: true),
-            ForwardingReadiness(forwardingEnabled: true, accessibilityTrusted: true, targetUsable: false, probeHealthy: true),
-            ForwardingReadiness(forwardingEnabled: true, accessibilityTrusted: true, targetUsable: true, probeHealthy: false)
+            ForwardingReadiness(forwardingEnabled: false, accessibilityTrusted: true, targetUsable: true),
+            ForwardingReadiness(forwardingEnabled: true, accessibilityTrusted: false, targetUsable: true),
+            ForwardingReadiness(forwardingEnabled: true, accessibilityTrusted: true, targetUsable: false)
         ]
 
         for state in states {
@@ -91,8 +90,7 @@ final class RoutingPolicyTests: XCTestCase {
         ForwardingReadiness(
             forwardingEnabled: true,
             accessibilityTrusted: true,
-            targetUsable: true,
-            probeHealthy: true
+            targetUsable: true
         )
     }
 }
