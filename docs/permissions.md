@@ -7,10 +7,11 @@ The app requests Accessibility authorization with the public
 standard prompt; later checks are silent. The menu always exposes a direct
 link to System Settings > Privacy & Security > Accessibility.
 
-Without authorization, no event tap is installed and all media keys remain
-normal system events. Revoking authorization while the app is running is
-handled by the periodic status refresh; forwarding becomes unready and the
-tap is not re-created until access is restored.
+Without authorization, or while forwarding is Off or has no usable target, no
+event tap is installed and all media keys remain normal system events. Revoking
+authorization while the app is running is handled by the periodic status
+refresh; forwarding becomes unready, the existing tap is removed, and it is not
+re-created until access and a usable target are restored.
 
 ## What the app does not request
 

@@ -23,6 +23,10 @@ final class MediaKeyTapController {
     func stop() {
         retryTimer?.invalidate()
         retryTimer = nil
+        removeEventTap()
+    }
+
+    private func removeEventTap() {
         if let eventTap {
             CGEvent.tapEnable(tap: eventTap, enable: false)
         }
@@ -72,11 +76,14 @@ final class MediaKeyTapController {
     }
 
     private func installIfPossible() {
-        guard eventTap == nil else { return }
-        guard state?.accessibilityTrusted == true else {
-            state?.setTapStatus("Waiting for Accessibility")
+        guard let state, state.readiness.isReady else {
+            removeEventTap()
+            if state?.accessibilityTrusted == false {
+                state?.setTapStatus("Waiting for Accessibility")
+            }
             return
         }
+        guard eventTap == nil else { return }
 
         let mask = CGEventMask(1) << CGEventMask(NSEvent.EventType.systemDefined.rawValue)
         let userInfo = Unmanaged.passUnretained(self).toOpaque()
@@ -88,13 +95,13 @@ final class MediaKeyTapController {
             callback: mediaKeyTapCallback,
             userInfo: userInfo
         ) else {
-            state?.setTapStatus("Media key capture unavailable")
+            state.setTapStatus("Media key capture unavailable")
             return
         }
 
         guard let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0) else {
             CFMachPortInvalidate(tap)
-            state?.setTapStatus("Media key capture unavailable")
+            state.setTapStatus("Media key capture unavailable")
             return
         }
 
@@ -103,7 +110,7 @@ final class MediaKeyTapController {
         failureTracker.reset()
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
-        state?.setTapStatus("Ready")
+        state.setTapStatus("Ready")
     }
 
     private func handleDisabledTap() {
