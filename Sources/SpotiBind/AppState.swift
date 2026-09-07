@@ -13,6 +13,7 @@ final class AppState: ObservableObject {
     @Published private(set) var probeHealthy = false
     @Published private(set) var tapStatus = "Starting"
     @Published private(set) var dispatchFailure: String?
+    var onReadinessChanged: (() -> Void)?
 
     private let defaults: UserDefaults
     private let locator = FastpotifyExecutableLocator()
@@ -131,6 +132,7 @@ final class AppState: ObservableObject {
         accessibilityTrusted = AXIsProcessTrustedWithOptions(options)
         resolveTarget()
         updateAvailability()
+        onReadinessChanged?()
         probeTarget()
     }
 
@@ -139,6 +141,7 @@ final class AppState: ObservableObject {
         defaults.set(mode.rawValue, forKey: Keys.playerMode)
         dispatchFailure = nil
         updateAvailability()
+        onReadinessChanged?()
         probeTarget()
     }
 
@@ -213,11 +216,13 @@ final class AppState: ObservableObject {
         guard playerMode == .automatic || playerMode == .fastpotify else {
             probeHealthy = false
             updateAvailability()
+            onReadinessChanged?()
             return
         }
         guard let targetExecutable else {
             probeHealthy = false
             updateAvailability()
+            onReadinessChanged?()
             return
         }
         let dispatcher = dispatcher
@@ -227,6 +232,7 @@ final class AppState: ObservableObject {
             guard !Task.isCancelled, let self else { return }
             self.probeHealthy = healthy
             self.updateAvailability()
+            self.onReadinessChanged?()
         }
     }
 

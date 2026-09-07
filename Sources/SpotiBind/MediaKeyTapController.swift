@@ -20,6 +20,10 @@ final class MediaKeyTapController {
         }
     }
 
+    func reconcile() {
+        installIfPossible()
+    }
+
     func stop() {
         retryTimer?.invalidate()
         retryTimer = nil
