@@ -29,6 +29,9 @@ final class MediaKeyTapController {
         if let runLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         }
+        if let eventTap {
+            CFMachPortInvalidate(eventTap)
+        }
         runLoopSource = nil
         eventTap = nil
     }
@@ -90,6 +93,7 @@ final class MediaKeyTapController {
         }
 
         guard let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0) else {
+            CFMachPortInvalidate(tap)
             state?.setTapStatus("Media key capture unavailable")
             return
         }
