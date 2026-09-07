@@ -97,7 +97,7 @@
 - [Use macOS 13 as the V1 deployment target](../../adr/0005-use-macos-13-as-the-v1-deployment-target.md)
 - [Use SwiftPM as the single build entrypoint](../../adr/0006-use-swiftpm-as-the-single-build-entrypoint.md)
 - [Rename the pre-release application identity to SpotiBind](../../adr/0007-rename-the-pre-release-application-identity-to-spotibind.md)
-- [Use player adapters and public PID-directed key routing](../../adr/0007-use-player-adapters-and-public-pid-key-routing.md)
+- [Use player adapters and public PID-directed key routing](../../adr/0008-use-player-adapters-and-public-pid-key-routing.md)
 
 ## Visual Evidence
 

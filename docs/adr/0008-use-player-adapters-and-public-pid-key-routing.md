@@ -1,7 +1,7 @@
 # Use player adapters and public PID-directed key routing
 
-The multi-player forwarding feature keeps one routing contract in Fastpotify
-Keys and delegates delivery through adapters. Fastpotify remains a fixed,
+The multi-player forwarding feature keeps one routing contract in SpotiBind and
+delegates delivery through adapters. Fastpotify remains a fixed,
 direct CLI integration. Spotifly and Sonora receive ordinary keyboard events
 posted to the already-running application PID with the public Core Graphics
 `CGEvent.postToPid` API. The app never changes those upstream projects.

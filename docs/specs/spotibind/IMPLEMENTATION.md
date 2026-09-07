@@ -30,7 +30,7 @@
 
 ## Related Changes
 
-- The multi-player routing and adapter boundary are defined by ADR-0007; record PR, commit, review, and compatibility references here after delivery.
+- The multi-player routing and adapter boundary are defined by ADR-0008; record PR, commit, review, and compatibility references here after delivery.
 
 ## References
 
