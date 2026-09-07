@@ -1,6 +1,6 @@
 # Testing
 
-Fastpotify Keys validates its behavior at four layers.
+SpotiBind validates its behavior at four layers.
 
 - Core XCTest cases cover media-key decoding, forwarding readiness, executable discovery, CLI arguments, timeouts, and event-tap recovery policy.
 - macOS CI runs the SwiftPM core tests and builds the app for both advertised target triples.

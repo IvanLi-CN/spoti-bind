@@ -1,6 +1,6 @@
 @preconcurrency import AppKit
 @preconcurrency import CoreGraphics
-import FastpotifyKeysCore
+import SpotiBindCore
 
 @MainActor
 final class MediaKeyTapController {

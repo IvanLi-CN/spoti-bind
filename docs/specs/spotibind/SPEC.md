@@ -1,10 +1,10 @@
-# Fastpotify Keys 媒体键转发
+# SpotiBind 媒体键转发
 
 > This file is the durable topic requirements contract. Current implementation facts belong in `IMPLEMENTATION.md`; lifecycle and change references belong in `HISTORY.md`.
 
 ## Context and Scope
 
-- Context: macOS hardware media keys normally follow the system's current Now Playing owner, while this companion app must direct supported transport commands to a running Fastpotify instance.
+- Context: macOS hardware media keys normally follow the system's current Now Playing owner, while SpotiBind must direct supported transport commands to a running Fastpotify instance.
 - In scope: public event capture, readiness-gated routing, Fastpotify CLI control, Accessibility status, menu-bar control, and Ad Hoc universal distribution.
 - Out of scope: playback ownership inside Fastpotify, private MediaRemote APIs, vendor-specific key remapping, and unrelated distribution channels.
 
@@ -83,13 +83,13 @@
 - [Use public event capture and Fastpotify CLI integration](../../adr/0001-use-public-event-capture-and-cli-integration.md)
 - [Use MenuBarExtra with a thin AppKit bridge around a testable Swift core](../../adr/0002-keep-the-appkit-shell-thin.md)
 - [Ship V1 outside the App Sandbox with Ad Hoc universal distribution](../../adr/0003-ship-v1-outside-the-app-sandbox-with-ad-hoc-signing.md)
-- [Fix the application identity before first release](../../adr/0004-fix-the-application-identity-before-first-release.md)
 - [Use macOS 13 as the V1 deployment target](../../adr/0005-use-macos-13-as-the-v1-deployment-target.md)
 - [Use SwiftPM as the single build entrypoint](../../adr/0006-use-swiftpm-as-the-single-build-entrypoint.md)
+- [Rename the pre-release application identity to SpotiBind](../../adr/0007-rename-the-pre-release-application-identity-to-spotibind.md)
 
 ## Visual Evidence
 
-- Surface: the Fastpotify Keys menu-bar popover only (`target_app_window`).
+- Surface: the SpotiBind menu-bar popover only (`target_app_window`).
 - Scope: status, forwarding toggle, target selection, Accessibility settings,
   Launch at Login, and Quit controls; no desktop or unrelated menu-bar content.
 - Evidence: [menu-popover.png](./assets/menu-popover.png).

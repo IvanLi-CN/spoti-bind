@@ -1,6 +1,6 @@
 # Architecture
 
-Fastpotify Keys is split into a testable Swift package core and a thin native
+SpotiBind is split into a testable Swift package core and a thin native
 menu-bar executable.
 
 ```text
@@ -18,7 +18,7 @@ NSEvent systemDefined decoder -> RoutingPolicy -> pass-through / consume / dispa
 
 ## Core boundary
 
-`FastpotifyKeysCore` has no AppKit or SwiftUI dependency. It owns:
+`SpotiBindCore` has no AppKit or SwiftUI dependency. It owns:
 
 - `SystemDefinedMediaKeyDecoder`, which recognizes NX key types 16, 17, and 18
   and distinguishes press, release, and repeat payloads.

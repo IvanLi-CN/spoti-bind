@@ -6,7 +6,7 @@
 2. Run `scripts/macos/test.sh` with a full Xcode developer toolchain.
 3. Run `scripts/macos/package.sh` and `scripts/macos/verify-release.sh`.
 4. Confirm `lipo -archs` reports both `arm64` and `x86_64`, the bundle
-   identifier is `cc.ivanli.fastpotifykeys`, and the signature is Ad Hoc.
+   identifier is `cc.ivanli.spotibind`, and the signature is Ad Hoc.
 
 Pushing a matching `vX.Y.Z` tag runs the same package/verify commands and
 creates a GitHub Draft Release with the DMG and `SHA256SUMS`. The workflow does

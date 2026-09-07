@@ -3,15 +3,15 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>Fastpotify Keys</string>
+	<string>SpotiBind</string>
 	<key>CFBundleExecutable</key>
-	<string>FastpotifyKeys</string>
+	<string>SpotiBind</string>
 	<key>CFBundleIdentifier</key>
-	<string>cc.ivanli.fastpotifykeys</string>
+	<string>cc.ivanli.spotibind</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Fastpotify Keys</string>
+	<string>SpotiBind</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

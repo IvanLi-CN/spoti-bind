@@ -1,4 +1,4 @@
-# Fastpotify Keys 媒体键转发实现状态
+# SpotiBind 媒体键转发实现状态
 
 > 当前有效规范仍以 `./SPEC.md` 为准；这里记录实现覆盖、交付进度与 rollout 相关事实，避免这些细节散落到 PR / Git 历史里。
 
@@ -7,6 +7,9 @@
 - Implementation: V1 implementation present; real-Mac release validation pending
 - Lifecycle: active
 - Catalog note: SwiftPM app/core/test targets, an explicit `MenuBarExtra(.menu)` surface, Ad Hoc packaging, CI, and user-facing docs are checked in.
+- Product identity: SpotiBind is used for the executable, bundle, release
+  artifacts, and public documentation; the Fastpotify CLI integration remains
+  unchanged.
 
 ## Implementation Coverage
 

@@ -25,27 +25,27 @@ jobs:
       - name: Run Swift tests
         run: scripts/macos/test.sh
       - name: Build universal Ad Hoc app
-        run: scripts/macos/package.sh --output-dir "$RUNNER_TEMP/fastpotify-keys-dist"
+        run: scripts/macos/package.sh --output-dir "$RUNNER_TEMP/spotibind-dist"
       - name: Verify release artifact
         run: |
           scripts/macos/verify-release.sh \
-            --app "$RUNNER_TEMP/fastpotify-keys-dist/Fastpotify Keys.app" \
-            --dmg "$RUNNER_TEMP/fastpotify-keys-dist/FastpotifyKeys-$(tr -d '[:space:]' < VERSION)-universal.dmg" \
-            --checksums "$RUNNER_TEMP/fastpotify-keys-dist/SHA256SUMS"
+            --app "$RUNNER_TEMP/spotibind-dist/SpotiBind.app" \
+            --dmg "$RUNNER_TEMP/spotibind-dist/SpotiBind-$(tr -d '[:space:]' < VERSION)-universal.dmg" \
+            --checksums "$RUNNER_TEMP/spotibind-dist/SHA256SUMS"
       - name: Create Draft Release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ github.ref_name }}
         run: |
-          notes="$RUNNER_TEMP/fastpotify-keys-release-notes.md"
+          notes="$RUNNER_TEMP/spotibind-release-notes.md"
           printf '%s\n' \
-            'Fastpotify Keys is distributed as an unsigned-by-Developer-ID Ad Hoc macOS app.' \
+            'SpotiBind is distributed as an unsigned-by-Developer-ID Ad Hoc macOS app.' \
             '' \
             'Keep this release in Draft until the macOS 13 arm64 and x86_64 physical-key checklist is complete.' \
             > "$notes"
           gh release create "$TAG_NAME" \
             --draft \
-            --title "Fastpotify Keys $TAG_NAME" \
+            --title "SpotiBind $TAG_NAME" \
             --notes-file "$notes" \
-            "$RUNNER_TEMP/fastpotify-keys-dist/FastpotifyKeys-$(tr -d '[:space:]' < VERSION)-universal.dmg" \
-            "$RUNNER_TEMP/fastpotify-keys-dist/SHA256SUMS"
+            "$RUNNER_TEMP/spotibind-dist/SpotiBind-$(tr -d '[:space:]' < VERSION)-universal.dmg" \
+            "$RUNNER_TEMP/spotibind-dist/SHA256SUMS"

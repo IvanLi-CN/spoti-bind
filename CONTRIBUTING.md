@@ -1,6 +1,6 @@
 # Contributing
 
-Fastpotify Keys is a SwiftPM-only macOS project. Keep changes inside the
+SpotiBind is a SwiftPM-only macOS project. Keep changes inside the
 existing package targets and preserve the public API boundary described in
 `docs/architecture.md`.
 

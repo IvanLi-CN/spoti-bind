@@ -1,7 +1,7 @@
 import ApplicationServices
 import AppKit
 import Combine
-import FastpotifyKeysCore
+import SpotiBindCore
 import ServiceManagement
 
 @MainActor
