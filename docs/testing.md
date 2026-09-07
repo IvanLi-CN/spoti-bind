@@ -38,3 +38,7 @@ Because V1 supports macOS 13 and later, a release must include a real macOS 13 v
 The automated contract names are `PlayerSelectionTests`, `PlayerDispatchTests`,
 `PlayerLaunchCoordinatorTests`, `RoutingPolicyTests`,
 `MediaKeyDecoderTests`, and `FastpotifyIntegrationTests`.
+
+`MediaKeyEventRouterTests` is the input-safety regression suite: it asserts
+that mouse and ordinary keyboard event types cannot enter media-key routing or
+be consumed by the event tap.

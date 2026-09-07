@@ -51,7 +51,9 @@ The executable target owns only platform lifecycle:
   the tap.
 - `MediaKeyTapController` installs the public session event tap after
   Accessibility authorization. The callback returns the original event for
-  pass-through or `nil` for a consumed event.
+  pass-through or `nil` for a consumed event. It filters the exact
+  `systemDefined` event type before decoding; mouse, keyboard, and all other
+  event types are always returned unchanged.
 - `SystemPlayerRuntime` discovers and starts application bundles with
   `NSWorkspace`, sends Space/arrow shortcuts to the selected PID through
   `CGEvent.postToPid`, and never activates the target application.
