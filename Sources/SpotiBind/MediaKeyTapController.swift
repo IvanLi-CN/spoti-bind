@@ -57,6 +57,8 @@ final class MediaKeyTapController {
             return Unmanaged.passUnretained(event)
         }
 
+        state.refreshRoutingAvailability()
+
         let systemDefinedEventType = UInt32(NSEvent.EventType.systemDefined.rawValue)
         let data1 = type.rawValue == systemDefinedEventType
             ? UInt32(truncatingIfNeeded: NSEvent(cgEvent: event)?.data1 ?? 0)

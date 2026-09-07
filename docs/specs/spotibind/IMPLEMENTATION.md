@@ -20,6 +20,9 @@
 ## Coverage / rollout summary
 
 - The multi-player implementation is assembled from the fixed macOS 13 baseline. Local app compilation and XCTest have passed; physical media-key checks remain environment-dependent. Spotifly requires macOS 26.2+ for real-device validation.
+- Sonora's tray-only activation policy is treated as a launchable input state.
+  The next media key reopens and activates Sonora's main window, waits for its
+  PID keyboard input surface, and dispatches the captured gesture once.
 
 ## Remaining Gaps
 

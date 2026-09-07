@@ -7,6 +7,9 @@ running players in Fastpotify, Sonora, Spotifly order and otherwise starts the
 first installed launchable player. If permission or a usable target is
 missing, macOS keeps its normal media-key behavior.
 
+When selected Sonora is resident only in the menu bar, its next media key
+reopens and activates the Sonora main window, then performs that command once.
+
 ## Requirements
 
 - macOS 13.0 or later

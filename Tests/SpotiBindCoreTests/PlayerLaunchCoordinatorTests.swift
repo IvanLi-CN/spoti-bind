@@ -33,10 +33,15 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
         let coordinator = PlayerLaunchCoordinator(runtime: runtime)
         let request = PlayerDispatchRequest(selection: .running(.sonora))
 
-        async let firstResult = coordinator.dispatch(.playPause, request: request)
-        async let secondResult = coordinator.dispatch(.next, request: request)
-        let first = await firstResult
-        let second = await secondResult
+        let firstTask = Task {
+            await coordinator.dispatch(.playPause, request: request)
+        }
+        await runtime.waitForDispatchCount(1)
+        let secondTask = Task {
+            await coordinator.dispatch(.next, request: request)
+        }
+        let first = await firstTask.value
+        let second = await secondTask.value
         let dispatches = await runtime.dispatches
         let maximumConcurrentDispatches = await runtime.maximumConcurrentDispatches
         XCTAssertTrue(first)
@@ -84,6 +89,12 @@ private actor RecordingPlayerRuntime: PlayerLaunchRuntime {
         }
         activeDispatches -= 1
         return true
+    }
+
+    func waitForDispatchCount(_ expected: Int) async {
+        while dispatches.count < expected {
+            await Task.yield()
+        }
     }
 }
 

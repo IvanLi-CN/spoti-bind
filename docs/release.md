@@ -22,7 +22,8 @@ architecture:
 - with Fastpotify selected, confirm `now-playing --raw` health and verify
   play/pause, next, and previous each reach Fastpotify exactly once per press;
 - with Sonora selected, verify Space, Ctrl-Right, and Ctrl-Left reach Sonora
-  by PID without changing focus;
+  by PID; close Sonora to its tray and confirm the next media key reopens and
+  activates its main window before reaching Sonora exactly once;
 - with Spotifly selected, verify Space, Cmd-Right, and Cmd-Left reach Spotifly
   by PID on a macOS 26.2+ environment;
 - with no supported player running, confirm Automatic starts the first

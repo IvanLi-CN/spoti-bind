@@ -24,7 +24,10 @@ re-created until access and a usable target are restored.
 The non-sandboxed Ad Hoc boundary is a distribution constraint, not a request
 for elevated user privileges. The process is still launched as the logged-in
 user and only receives the selected Fastpotify executable and fixed arguments,
-or posts ordinary keyboard events to a selected player's existing PID.
+or posts ordinary keyboard events to a selected player's existing PID. When
+Sonora is tray-resident, the activation-policy check causes `NSWorkspace` to
+reopen and activate Sonora before PID delivery; this is the documented
+exception to background-only routing and does not inspect its UI.
 
 ## Player delivery boundary
 
@@ -32,7 +35,8 @@ Fastpotify delivery uses the documented CLI verbs `play-pause`, `next`, and
 `previous`. Sonora and Spotifly delivery uses public Core Graphics
 `CGEvent.postToPid` with their released keyboard shortcuts. The app does not
 send Apple Events, inspect private media services, run Accessibility UI
-scripts, or bring a player to the foreground.
+scripts, or bring Fastpotify or Spotifly to the foreground. Sonora may come to
+the foreground only when it must recreate its main-window input surface.
 
 ## Event-tap failures
 

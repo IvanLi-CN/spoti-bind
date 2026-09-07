@@ -49,6 +49,24 @@ final class PlayerSelectionTests: XCTestCase {
         XCTAssertEqual(resolver.resolve(mode: .automatic, snapshot: empty), .none)
     }
 
+    func testTrayResidentSonoraIsReopenedBeforePIDShortcutRouting() {
+        let snapshot = PlayerAvailabilitySnapshot([
+            availability(.sonora, installed: true, running: true, launchable: true, requiresLaunch: true)
+        ])
+
+        XCTAssertEqual(resolver.resolve(mode: .sonora, snapshot: snapshot), .launch(.sonora))
+        XCTAssertEqual(resolver.resolve(mode: .automatic, snapshot: snapshot), .launch(.sonora))
+    }
+
+    func testAutomaticReopensTrayResidentSonoraBeforeLaterRunningPlayer() {
+        let snapshot = PlayerAvailabilitySnapshot([
+            availability(.sonora, installed: true, running: true, launchable: true, requiresLaunch: true),
+            availability(.spotifly, installed: true, running: true, launchable: true)
+        ])
+
+        XCTAssertEqual(resolver.resolve(mode: .automatic, snapshot: snapshot), .launch(.sonora))
+    }
+
     func testLegacyDisabledPreferenceMigratesToOffAndMissingPreferenceToAutomatic() {
         XCTAssertEqual(PlayerModeMigration.mode(storedMode: nil, legacyForwardingEnabled: false), .off)
         XCTAssertEqual(PlayerModeMigration.mode(storedMode: nil, legacyForwardingEnabled: true), .automatic)
@@ -60,13 +78,15 @@ final class PlayerSelectionTests: XCTestCase {
         _ player: SupportedPlayer,
         installed: Bool,
         running: Bool,
-        launchable: Bool
+        launchable: Bool,
+        requiresLaunch: Bool = false
     ) -> PlayerAvailability {
         PlayerAvailability(
             player: player,
             isInstalled: installed,
             isRunning: running,
-            canLaunch: launchable
+            canLaunch: launchable,
+            requiresLaunch: requiresLaunch
         )
     }
 }

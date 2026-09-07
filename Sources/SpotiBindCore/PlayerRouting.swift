@@ -65,17 +65,20 @@ public struct PlayerAvailability: Sendable, Equatable {
     public let isInstalled: Bool
     public let isRunning: Bool
     public let canLaunch: Bool
+    public let requiresLaunch: Bool
 
     public init(
         player: SupportedPlayer,
         isInstalled: Bool,
         isRunning: Bool,
-        canLaunch: Bool
+        canLaunch: Bool,
+        requiresLaunch: Bool = false
     ) {
         self.player = player
         self.isInstalled = isInstalled
         self.isRunning = isRunning
         self.canLaunch = canLaunch
+        self.requiresLaunch = requiresLaunch
     }
 }
 
@@ -126,7 +129,7 @@ public struct PlayerSelectionResolver: Sendable {
         case .automatic:
             let ordered = SupportedPlayer.allCases.sorted { $0.automaticSortOrder < $1.automaticSortOrder }
             if let running = ordered.first(where: { snapshot[$0].isRunning }) {
-                return .running(running)
+                return snapshot[running].requiresLaunch ? .launch(running) : .running(running)
             }
             if let launchable = ordered.first(where: {
                 let availability = snapshot[$0]
@@ -139,7 +142,7 @@ public struct PlayerSelectionResolver: Sendable {
             guard let player = mode.player else { return .none }
             let availability = snapshot[player]
             if availability.isRunning {
-                return .running(player)
+                return availability.requiresLaunch ? .launch(player) : .running(player)
             }
             if availability.isInstalled && availability.canLaunch {
                 return .launch(player)

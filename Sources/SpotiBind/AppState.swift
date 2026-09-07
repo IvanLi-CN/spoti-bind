@@ -169,12 +169,20 @@ final class AppState: ObservableObject {
         tapStatus = status
     }
 
+    func refreshRoutingAvailability() {
+        updateAvailability()
+    }
+
     func dispatch(_ key: MediaKey) {
-        guard readiness.isReady, let player = resolvedSelection.player else {
+        // The catalog is sampled periodically for the menu, but a press must
+        // use the current running-instance state before deciding to launch.
+        updateAvailability()
+        let selection = resolvedSelection
+        guard readiness.isReady, let player = selection.player else {
             return
         }
         let request = PlayerDispatchRequest(
-            selection: resolvedSelection,
+            selection: selection,
             executableURL: player == .fastpotify ? targetExecutable?.url : nil,
             applicationURL: catalog.applicationURL(
                 for: player,

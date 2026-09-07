@@ -18,8 +18,10 @@ principles remain compatible and are retained as historical context.
   non-blocking cold-start handoff.
 - Spotifly and Sonora do not expose a supported third-party command protocol;
   their documented in-app keyboard shortcuts are the stable public behavior.
-- Private MediaRemote APIs, Apple Events, Accessibility UI scripting, and
-  foreground activation would add permissions or violate the target boundary.
+- Private MediaRemote APIs, Apple Events, and Accessibility UI scripting would
+  add permissions or violate the target boundary. Sonora is the explicit
+  exception to background-only routing: its tray state requires reopening and
+  activating the main window before its released keyboard shortcuts exist.
 - A standalone Fastpotify CLI must remain a direct-control fallback and must
   never be started with no arguments.
 
@@ -49,7 +51,9 @@ timeout.
 
 The app now requires Accessibility for both event capture and PID-directed
 keyboard delivery, but it does not request Automation or private media
-permissions. macOS 13 remains the baseline for Fastpotify and Sonora. Spotifly
+permissions. A Sonora media key may bring its main window to the foreground
+when the app is tray-resident; Fastpotify and Spotifly retain background-only
+routing. macOS 13 remains the baseline for Fastpotify and Sonora. Spotifly
 real-device validation is only advertised on an environment that supports its
 current macOS 26.2 requirement. The menu visual evidence must cover only this
 app's MenuBarExtra popover.

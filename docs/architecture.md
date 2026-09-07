@@ -46,7 +46,9 @@ The executable target owns only platform lifecycle:
 - `MenuBarExtra(.menu)` renders the status and V1 controls.
 - `AppState` polls Accessibility, installed/running player availability, and
   Fastpotify health, persisting the Player Mode, login-item, and legacy
-  Fastpotify path override.
+  Fastpotify path override. Running availability includes the adapter's input
+  surface; a Sonora process with only a tray icon is launchable so its main
+  window can be reopened before PID keyboard delivery.
 - `ApplicationDelegate` sets the accessory activation policy and starts/stops
   the tap.
 - `MediaKeyTapController` installs the public session event tap only while
@@ -56,8 +58,10 @@ The executable target owns only platform lifecycle:
   It filters the exact `systemDefined` event type before decoding; mouse,
   keyboard, and all other event types are always returned unchanged.
 - `SystemPlayerRuntime` discovers and starts application bundles with
-  `NSWorkspace`, sends Space/arrow shortcuts to the selected PID through
-  `CGEvent.postToPid`, and never activates the target application.
+  `NSWorkspace`, checks Sonora's public `NSRunningApplication.activationPolicy`
+  to determine whether its main-window input surface is ready, reopens and
+  activates Sonora when it is tray-resident, and sends Space/arrow shortcuts
+  to the selected PID. Fastpotify and Spotifly are never activated by routing.
 - `SystemProcessRunner` bridges Foundation `Process` callbacks into the Core
   process-runner protocol and applies the two-second timeout.
 

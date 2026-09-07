@@ -5,6 +5,9 @@ SpotiBind validates its behavior at four layers.
 - Core XCTest cases cover media-key decoding, mode migration, deterministic
   player selection, shortcut mappings, executable discovery, CLI arguments,
   cold-start timeouts, serial dispatch, and event-tap recovery policy.
+- Real-Mac routing must include a Sonora tray-only case: the next media key
+  must reopen and activate Sonora's main window, then reach its PID shortcut
+  exactly once without replaying the captured gesture.
 - macOS CI runs the SwiftPM core tests and builds the app for both advertised target triples.
 - Release validation verifies both universal architectures, the Ad Hoc signature, DMG mountability, and published SHA-256 checksums.
 - A real Mac release checklist covers Accessibility authorization changes,

@@ -18,7 +18,10 @@ final class SystemPlayerRuntime: PlayerLaunchRuntime, @unchecked Sendable {
         return await withCheckedContinuation { continuation in
             Task { @MainActor in
                 let configuration = NSWorkspace.OpenConfiguration()
-                configuration.activates = false
+                // Sonora only installs its keyboard shortcut context while a
+                // main window is present. Reopening a tray-resident instance
+                // restores that input surface before dispatch.
+                configuration.activates = player == .sonora
                 NSWorkspace.shared.openApplication(at: url, configuration: configuration) { application, error in
                     continuation.resume(returning: application != nil && error == nil)
                 }
@@ -28,7 +31,10 @@ final class SystemPlayerRuntime: PlayerLaunchRuntime, @unchecked Sendable {
 
     func isRunning(player: SupportedPlayer, applicationURL: URL?) async -> Bool {
         await MainActor.run {
-            runningApplication(for: player, applicationURL: applicationURL) != nil
+            guard let application = runningApplication(for: player, applicationURL: applicationURL) else {
+                return false
+            }
+            return acceptsKeyboardInput(for: player, application: application)
         }
     }
 
@@ -45,6 +51,9 @@ final class SystemPlayerRuntime: PlayerLaunchRuntime, @unchecked Sendable {
         case .keyboard(let shortcut):
             return await MainActor.run {
                 guard let application = runningApplication(for: player, applicationURL: applicationURL) else {
+                    return false
+                }
+                guard acceptsKeyboardInput(for: player, application: application) else {
                     return false
                 }
                 return post(shortcut, to: application.processIdentifier)
@@ -80,6 +89,15 @@ final class SystemPlayerRuntime: PlayerLaunchRuntime, @unchecked Sendable {
         return applications.first {
             $0.localizedName?.localizedCaseInsensitiveCompare(player.displayName) == .orderedSame
         }
+    }
+
+    @MainActor
+    private func acceptsKeyboardInput(
+        for player: SupportedPlayer,
+        application: NSRunningApplication
+    ) -> Bool {
+        guard player == .sonora else { return true }
+        return application.activationPolicy == .regular
     }
 
     @MainActor
@@ -132,13 +150,18 @@ final class PlayerWorkspaceCatalog {
 
         for player in [SupportedPlayer.sonora, .spotifly] {
             let applicationURL = applicationURL(for: player)
-            let running = runningApplication(for: player) != nil
+            let application = runningApplication(for: player)
+            let requiresLaunch = player == .sonora && application?.activationPolicy != .regular
+            // A tray-resident Sonora needs a workspace reopen to restore its
+            // main-window shortcut context, so it remains launchable.
+            let canLaunch = applicationURL != nil
             values.append(
                 PlayerAvailability(
                     player: player,
                     isInstalled: applicationURL != nil,
-                    isRunning: running,
-                    canLaunch: applicationURL != nil
+                    isRunning: application != nil,
+                    canLaunch: canLaunch,
+                    requiresLaunch: requiresLaunch
                 )
             )
         }

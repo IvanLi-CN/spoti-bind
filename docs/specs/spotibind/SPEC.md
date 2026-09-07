@@ -5,14 +5,15 @@
 ## Context and Scope
 
 - Context: macOS hardware media keys normally follow the system's current Now Playing owner, while SpotiBind must direct supported transport commands to one selected supported player.
-- In scope: public event capture, persistent player selection, deterministic automatic discovery, Fastpotify CLI control, PID-directed Spotifly/Sonora shortcuts, Accessibility status, menu-bar control, and Ad Hoc universal distribution.
-- Out of scope: playback ownership inside any player, private MediaRemote APIs, Apple Events, Accessibility UI scripting, focus stealing, upstream player changes, and unrelated distribution channels.
+- In scope: public event capture, persistent player selection, deterministic automatic discovery, Fastpotify CLI control, PID-directed Spotifly/Sonora shortcuts, Sonora main-window reopening when required for its input surface, Accessibility status, menu-bar control, and Ad Hoc universal distribution.
+- Out of scope: playback ownership inside any player, private MediaRemote APIs, Apple Events, Accessibility UI scripting, upstream player changes, and unrelated distribution channels.
 
 ## Terms and Interfaces
 
 - `Media Key`: A hardware media-control gesture whose press and release represent one supported transport intent.
 - `Player Mode`: One of Automatic, Fastpotify, Sonora, Spotifly, or Off; the value is persisted in `UserDefaults`.
-- `Player Availability Snapshot`: An injected, testable view of whether each supported player is installed, running, or launchable.
+- `Player Availability Snapshot`: An injected, testable view of whether each supported player is installed, running, launchable, or must be reopened before dispatch.
+- `Player Input Surface`: The public input surface required by a PID keyboard adapter. Sonora's on-screen main window provides that surface; a tray-resident instance must be reopened before it can receive the adapter shortcut.
 - `Player Selection`: The target resolved from the current mode and availability snapshot. Automatic prefers running players in `Fastpotify`, `Sonora`, `Spotifly` order, then the first launchable installed player in that order.
 - `Forwarding Readiness`: The cached state where a non-Off mode is selected, Accessibility is authorized, and the resolver has a usable target.
 - `Pass-through`: Leaving the original event unconsumed so macOS performs normal routing.
@@ -29,14 +30,15 @@
 ### REQ-FASTPOTIFY-002
 
 - The system MUST persist one Player Mode and consume a supported key only when Accessibility is authorized and that mode resolves to a usable target; Off and unresolved modes MUST pass the event through.
-- Automatic mode MUST prefer running targets in `Fastpotify`, `Sonora`, `Spotifly` order, then launch the first installed launchable target in that order. A standalone Fastpotify CLI MUST NOT be launched without an application bundle.
+- Automatic mode MUST prefer running targets in `Fastpotify`, `Sonora`, `Spotifly` order, then launch the first installed launchable target in that order. A tray-resident Sonora counts as running for this ordering but resolves to a reopen handoff. A standalone Fastpotify CLI MUST NOT be launched without an application bundle.
+- A player MUST be considered running for PID routing only when its adapter has a usable input surface. Sonora running with only its tray icon MUST resolve as a launchable target; the system MUST reopen its main window before consuming and dispatching the media-key gesture.
 - Inputs: Player Mode, Accessibility state, and a Player Availability Snapshot.
 - Outputs: an exclusive route to the resolved player when ready, normal macOS routing when not ready.
 
 ### REQ-FASTPOTIFY-003
 
 - The system MUST execute one player-specific command for each distinct key gesture, ignore repeats within one hold, serialize commands, and never replay an event after dispatch failure.
-- Fastpotify MUST use fixed direct CLI arguments. Spotifly and Sonora MUST receive ordinary keyboard events targeted by PID without activating or focusing the application.
+- Fastpotify MUST use fixed direct CLI arguments. Spotifly MUST receive ordinary keyboard events targeted by PID without activating or focusing the application. Sonora MUST receive ordinary keyboard events targeted by PID; when it is cold or tray-resident, the system MUST launch or reopen and activate Sonora's main window, wait for its input surface, then dispatch the first key exactly once. Sonora MUST NOT be hidden because its released shortcuts require the main window's workspace context.
 - Inputs: decoded control keys and the target captured when the press is submitted.
 - Outputs: a player dispatch result and user-visible failure state without shell interpretation.
 
