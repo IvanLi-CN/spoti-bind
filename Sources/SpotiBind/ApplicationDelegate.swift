@@ -7,6 +7,9 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.accessory)
+        state.onReadinessChanged = { [weak self] in
+            self?.mediaKeyTapController.reconcile()
+        }
         state.start()
         mediaKeyTapController.start(state: state)
     }

@@ -1,4 +1,5 @@
 import SwiftUI
+import SpotiBindCore
 
 @main
 struct SpotiBindApp: App {
@@ -23,12 +24,18 @@ private struct SpotiBindMenu: View {
 
         Divider()
 
-        Toggle("Forward media keys", isOn: $state.forwardingEnabled)
-            .onChange(of: state.forwardingEnabled) { newValue in
-                state.setForwardingEnabled(newValue)
+        Picker(
+            "Forward media keys to",
+            selection: Binding(
+                get: { state.playerMode },
+                set: { state.setPlayerMode($0) }
+            )
+        ) {
+            ForEach(PlayerMode.allCases, id: \.self) { mode in
+                Text(mode.displayName).tag(mode)
             }
+        }
 
-        Button("Choose Fastpotify…", action: state.chooseTarget)
         Button("Open Accessibility Settings", action: state.openAccessibilitySettings)
 
         Toggle("Launch at login", isOn: $state.launchAtLogin)

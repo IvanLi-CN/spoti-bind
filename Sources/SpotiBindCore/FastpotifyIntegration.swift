@@ -13,10 +13,23 @@ public struct FastpotifyExecutable: Sendable, Equatable {
         self.url = url
         self.source = source
     }
+
+    public var applicationURL: URL? {
+        FastpotifyExecutableLocator.applicationURL(for: url)
+    }
 }
 
 public struct FastpotifyExecutableLocator: Sendable {
     public init() {}
+
+    public static func applicationURL(for executableURL: URL) -> URL? {
+        let standardizedPath = executableURL.standardizedFileURL.path
+        guard let appRange = standardizedPath.range(of: ".app/", options: [.caseInsensitive, .backwards]) else {
+            return nil
+        }
+        let appPath = String(standardizedPath[..<appRange.upperBound]).dropLast()
+        return URL(fileURLWithPath: String(appPath), isDirectory: true)
+    }
 
     public func locate(userSelectedURL: URL? = nil) -> FastpotifyExecutable? {
         if let userSelectedURL, let executableURL = executableURL(for: userSelectedURL) {
