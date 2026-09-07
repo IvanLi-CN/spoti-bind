@@ -2,10 +2,12 @@
 
 ## Accessibility
 
-The app requests Accessibility authorization with the public
-`AXIsProcessTrustedWithOptions` API. The initial check asks macOS to show its
-standard prompt; later checks are silent. The menu always exposes a direct
-link to System Settings > Privacy & Security > Accessibility.
+The app checks Accessibility authorization with the public
+`AXIsProcessTrustedWithOptions` API. Startup checks are silent. The first
+explicit active-mode selection or menu media-control click may ask macOS to
+show its standard prompt; later checks are silent. The menu and Advanced
+Settings window expose a direct link to System Settings > Privacy & Security >
+Accessibility.
 
 Without authorization, or while forwarding is Off or has no usable target, no
 event tap is installed and all media keys remain normal system events. Revoking

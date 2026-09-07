@@ -4,7 +4,11 @@ SpotiBind validates its behavior at four layers.
 
 - Core XCTest cases cover media-key decoding, mode migration, deterministic
   player selection, shortcut mappings, executable discovery, CLI arguments,
-  cold-start timeouts, serial dispatch, and event-tap recovery policy.
+  player path settings and legacy Reset behavior, cold-start timeouts, serial
+  dispatch, and event-tap recovery policy.
+- The app UI smoke pass covers the window-style menu, the retained settings
+  window, 3+2 routing selection, visible problem actions, path chooser/reset,
+  and deferred Accessibility prompting in both system appearances.
 - Real-Mac routing must include a Sonora tray-only case: the next media key
   must reopen and activate Sonora's main window, then reach its PID shortcut
   exactly once without replaying the captured gesture.

@@ -6,7 +6,9 @@
 
 - Implementation: multi-player routing implementation present; real-Mac release validation pending
 - Lifecycle: active
-- Catalog note: SwiftPM app/core/test targets, an explicit `MenuBarExtra(.menu)` surface, Ad Hoc packaging, CI, and user-facing docs are checked in.
+- Catalog note: SwiftPM app/core/test targets, a window-style `MenuBarExtra`
+  surface, a retained Advanced Settings window, Ad Hoc packaging, CI, and
+  user-facing docs are checked in.
 - Product identity: SpotiBind is used for the executable, bundle, release
   artifacts, and public documentation; the Fastpotify CLI integration remains
   unchanged.
@@ -23,6 +25,12 @@
 - Sonora's tray-only activation policy is treated as a launchable input state.
   The next media key reopens and activates Sonora's main window, waits for its
   PID keyboard input surface, and dispatches the captured gesture once.
+- Advanced Settings persists Automatic or custom locations for Fastpotify,
+  Sonora, and Spotifly. Fastpotify accepts an app bundle or CLI; Sonora and
+  Spotifly validate the selected bundle identifier. Invalid saved locations
+  remain unavailable and expose a settings action rather than falling back.
+- Accessibility checks are silent at startup. The system prompt is deferred
+  until an explicit active-mode selection or a menu media-control click.
 
 ## Remaining Gaps
 

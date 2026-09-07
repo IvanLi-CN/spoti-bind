@@ -32,10 +32,17 @@ public struct FastpotifyExecutableLocator: Sendable {
     }
 
     public func locate(userSelectedURL: URL? = nil) -> FastpotifyExecutable? {
-        if let userSelectedURL, let executableURL = executableURL(for: userSelectedURL) {
+        if let userSelectedURL {
+            guard let executableURL = executableURL(for: userSelectedURL) else {
+                return nil
+            }
             return FastpotifyExecutable(url: executableURL, source: .userSelected)
         }
 
+        return locateAutomatically()
+    }
+
+    public func locateAutomatically() -> FastpotifyExecutable? {
         for candidate in knownCandidates {
             if let executableURL = executableURL(for: candidate) {
                 return FastpotifyExecutable(url: executableURL, source: .knownLocation)
