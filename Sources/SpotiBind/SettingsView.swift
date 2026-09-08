@@ -129,7 +129,6 @@ private struct PlayerPathRowView: View {
         HStack(spacing: 12) {
             PlayerMarkView(
                 player: player,
-                applicationURL: state.applicationURL(for: player)
             )
             .frame(width: 30, height: 30)
 

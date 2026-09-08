@@ -16,6 +16,9 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate {
         }
         state.start()
         mediaKeyTapController.start(state: state)
+        UISnapshot.scheduleIfRequested(state: state) { [weak self] in
+            self?.showSettingsWindow()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

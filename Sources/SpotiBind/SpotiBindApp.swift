@@ -175,7 +175,6 @@ struct RoutingSelectorView: View {
                 ZStack(alignment: .topTrailing) {
                     PlayerMarkView(
                         player: mode.supportedPlayer,
-                        applicationURL: mode.supportedPlayer.flatMap { state.applicationURL(for: $0) },
                         fallbackSymbol: mode.symbolName
                     )
                     .frame(width: style == .menu ? 28 : 24, height: style == .menu ? 28 : 24)
@@ -270,30 +269,20 @@ private struct RoutingCellButtonStyle: ButtonStyle {
 
 struct PlayerMarkView: View {
     let player: SupportedPlayer?
-    let applicationURL: URL?
     let fallbackSymbol: String?
 
     init(
         player: SupportedPlayer?,
-        applicationURL: URL?,
         fallbackSymbol: String? = nil
     ) {
         self.player = player
-        self.applicationURL = applicationURL
         self.fallbackSymbol = fallbackSymbol
     }
 
     var body: some View {
-        if let applicationURL {
-            let icon = NSWorkspace.shared.icon(forFile: applicationURL.path)
-            Image(nsImage: icon)
-                .renderingMode(.template)
-                .foregroundStyle(.primary)
-        } else {
-            Image(systemName: fallbackSymbol ?? defaultSymbol)
-                .symbolRenderingMode(.monochrome)
-                .foregroundStyle(.primary)
-        }
+        Image(systemName: fallbackSymbol ?? defaultSymbol)
+            .symbolRenderingMode(.monochrome)
+            .foregroundStyle(.primary)
     }
 
     private var defaultSymbol: String {

@@ -9,6 +9,11 @@ SpotiBind validates its behavior at four layers.
 - The app UI smoke pass covers the window-style menu, the retained settings
   window, 3+2 routing selection, visible problem actions, path chooser/reset,
   and deferred Accessibility prompting in both system appearances.
+- Deterministic UI evidence can be captured without Screen Recording through
+  `scripts/macos/capture-ui.sh menu <out.png>` and
+  `scripts/macos/capture-ui.sh settings <out.png>`. The app renders the real
+  menu/settings SwiftUI views in a scoped snapshot window and exits after the
+  PNG is written.
 - Real-Mac routing must include a Sonora tray-only case: the next media key
   must reopen and activate Sonora's main window, then reach its PID shortcut
   exactly once without replaying the captured gesture.
