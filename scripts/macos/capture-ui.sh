@@ -36,7 +36,7 @@ cleanup() {
 trap cleanup EXIT
 
 delay_ms="${SPOTIBIND_UI_SNAPSHOT_DELAY_MS:-900}"
-env "SPOTIBIND_UI_SNAPSHOT_DIR=$out_dir" "SPOTIBIND_UI_SNAPSHOT_SURFACE=$surface" "SPOTIBIND_UI_SNAPSHOT_PREFIX=$prefix" "SPOTIBIND_UI_SNAPSHOT_DELAY_MS=$delay_ms" "$app_bin" >"$log" 2>&1 &
+env "SPOTIBIND_UI_DEMO=1" "SPOTIBIND_UI_SNAPSHOT_DIR=$out_dir" "SPOTIBIND_UI_SNAPSHOT_SURFACE=$surface" "SPOTIBIND_UI_SNAPSHOT_PREFIX=$prefix" "SPOTIBIND_UI_SNAPSHOT_DELAY_MS=$delay_ms" "$app_bin" >"$log" 2>&1 &
 app_pid=$!
 
 for _ in {1..30}; do

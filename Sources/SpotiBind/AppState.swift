@@ -214,6 +214,44 @@ final class AppState: ObservableObject {
         updateAvailability()
     }
 
+    func configureForUISnapshot() {
+        guard ProcessInfo.processInfo.environment["SPOTIBIND_UI_DEMO"] == "1" else {
+            return
+        }
+
+        playerMode = .sonora
+        accessibilityTrusted = true
+        probeHealthy = true
+        tapStatus = "Ready"
+        dispatchFailure = nil
+        pathSettings = PlayerPathSettings()
+        pathProblems = [:]
+        applicationOverrides = [:]
+        invalidPathPlayers = []
+        targetExecutable = nil
+        availability = PlayerAvailabilitySnapshot([
+            PlayerAvailability(
+                player: .fastpotify,
+                isInstalled: true,
+                isRunning: false,
+                canLaunch: true
+            ),
+            PlayerAvailability(
+                player: .sonora,
+                isInstalled: true,
+                isRunning: true,
+                canLaunch: true
+            ),
+            PlayerAvailability(
+                player: .spotifly,
+                isInstalled: true,
+                isRunning: false,
+                canLaunch: true
+            )
+        ])
+        onReadinessChanged?()
+    }
+
     func dispatchFromMenu(_ key: MediaKey) {
         guard accessibilityTrusted else {
             requestAccessibilityPermission()

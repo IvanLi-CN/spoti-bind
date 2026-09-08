@@ -26,6 +26,7 @@ enum UISnapshot {
         let output = directory.appendingPathComponent("\(prefix).png")
 
         DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(delayMilliseconds)) {
+            state.configureForUISnapshot()
             let window: NSWindow?
             switch surface {
             case .menu:
