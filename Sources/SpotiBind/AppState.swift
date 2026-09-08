@@ -198,8 +198,16 @@ final class AppState: ObservableObject {
     }
 
     func openAccessibilitySettings() {
-        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
-        NSWorkspace.shared.open(url)
+        let currentSettingsURL = URL(
+            string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility"
+        )!
+        let legacySettingsURL = URL(
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        )!
+
+        if !NSWorkspace.shared.open(currentSettingsURL) {
+            NSWorkspace.shared.open(legacySettingsURL)
+        }
     }
 
     func openAdvancedSettings() {
