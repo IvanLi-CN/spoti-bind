@@ -443,7 +443,10 @@ final class AppState: ObservableObject {
     }
 
     func applicationURL(for player: SupportedPlayer) -> URL? {
-        catalog.applicationURL(
+        if demoRequested {
+            return URL(fileURLWithPath: "/Demo/Applications/\(player.displayName).app")
+        }
+        return catalog.applicationURL(
             for: player,
             fastpotifyExecutable: targetExecutable,
             customApplicationURLs: applicationOverrides
