@@ -7,11 +7,11 @@ settings_script="$script_dir/capture-settings-window.sh"
 
 bash -n "$theme_script" "$settings_script"
 [[ ! -e "$script_dir/capture-ui.sh" ]]
-rg -q 'screencapture -x -l "\$window_id"' "$settings_script"
-! rg -q 'NSPanel' "$script_dir/../../Sources/SpotiBind/UISnapshot.swift"
-rg -q 'NSStatusBarWindow' "$script_dir/../../Sources/SpotiBind/UISnapshot.swift"
-rg -q 'performClick\(nil\)' "$script_dir/../../Sources/SpotiBind/UISnapshot.swift"
-rg -q 'menuBarExtraStyle\(\.window\)' "$script_dir/../../Sources/SpotiBind/SpotiBindApp.swift"
+grep -Fq 'screencapture -x -l "$window_id"' "$settings_script"
+! grep -Fq 'NSPanel' "$script_dir/../../Sources/SpotiBind/UISnapshot.swift"
+grep -Fq 'NSStatusBarWindow' "$script_dir/../../Sources/SpotiBind/UISnapshot.swift"
+grep -Fq 'performClick(nil)' "$script_dir/../../Sources/SpotiBind/UISnapshot.swift"
+grep -Fq 'menuBarExtraStyle(.window)' "$script_dir/../../Sources/SpotiBind/SpotiBindApp.swift"
 
 if "$theme_script" system /tmp/spotibind-contract-test >/dev/null 2>&1; then
     printf 'capture-theme-ui.sh accepted an invalid appearance.\n' >&2
