@@ -94,24 +94,19 @@ private struct SettingsSection<Content: View>: View {
 private struct SettingsRoutingSelectorView: View {
     @ObservedObject var state: AppState
 
-    private let firstRow: [PlayerMode] = [.fastpotify, .sonora, .spotifly]
-    private let secondRow: [PlayerMode] = [.automatic, .off]
+    private let modes: [PlayerMode] = [.fastpotify, .sonora, .spotifly, .automatic, .off]
+    private let columns = Array(
+        repeating: GridItem(.flexible(minimum: 0), spacing: 20, alignment: .leading),
+        count: 3
+    )
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            optionRow(firstRow)
-            optionRow(secondRow)
-        }
-        .padding(.vertical, 6)
-    }
-
-    private func optionRow(_ modes: [PlayerMode]) -> some View {
-        HStack(spacing: 20) {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
             ForEach(modes, id: \.self) { mode in
                 routingOption(for: mode)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .padding(.vertical, 6)
     }
 
     private func routingOption(for mode: PlayerMode) -> some View {
@@ -125,17 +120,20 @@ private struct SettingsRoutingSelectorView: View {
                 Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
                     .font(.system(size: 21, weight: .medium))
                     .foregroundStyle(isSelected ? .primary : .secondary)
+                    .frame(width: 22, height: 22)
 
                 PlayerMarkView(
                     player: mode.supportedPlayer,
                     fallbackSymbol: mode.symbolName,
                     size: isPlayer ? 34 : 28
                 )
+                .frame(width: 36, height: 36)
 
                 Text(mode.displayName)
                     .font(.body.weight(.medium))
                     .lineLimit(1)
             }
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(SettingsRoutingOptionButtonStyle())
