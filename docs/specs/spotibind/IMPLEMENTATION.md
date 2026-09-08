@@ -37,14 +37,18 @@
   until an explicit active-mode selection or a menu media-control click.
 - Demo mode uses an ephemeral defaults object, neutral display paths, and no
   player/runtime side effects. Its healthy baseline represents Sonora running,
-  all three supported players discoverable, and Accessibility authorized.
+  all three supported players discoverable, and Accessibility authorized. The
+  Demo process uses a regular activation policy so an owner can identify it
+  while the capture helper waits; the shipped app remains an accessory app.
 
 ## Remaining Gaps
 
 - Real macOS 13 Fastpotify/Sonora and macOS 26.2+ Spotifly physical-key validation requires access to matching hardware and installed applications.
 - Real MenuBarExtra popover capture still requires the owner to open the
   menu-bar item because Apple's public `MenuBarExtra` API exposes insertion and
-  scene/style construction but no public programmatic-open API.
+  scene/style construction but no public programmatic-open API. The public
+  theme helper gives that owner a bounded 60-second capture window and fails
+  closed if the host is not opened.
 
 ## Related Changes
 
