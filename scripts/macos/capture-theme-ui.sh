@@ -53,7 +53,7 @@ SPOTIBIND_UI_SNAPSHOT_OUTPUT="$popover_output" \
     "$app_bundle/Contents/MacOS/SpotiBind" >"$log" 2>&1 &
 app_pid=$!
 
-for _ in {1..60}; do
+for _ in {1..300}; do
     if [[ -s "$popover_output" ]] && file "$popover_output" | grep -qi 'PNG image'; then
         break
     fi

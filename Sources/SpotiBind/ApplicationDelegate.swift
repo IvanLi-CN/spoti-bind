@@ -7,7 +7,7 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: SettingsWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApplication.shared.setActivationPolicy(.accessory)
+        NSApplication.shared.setActivationPolicy(state.isUIDemo ? .regular : .accessory)
         state.onReadinessChanged = { [weak self] in
             self?.mediaKeyTapController.reconcile()
         }
