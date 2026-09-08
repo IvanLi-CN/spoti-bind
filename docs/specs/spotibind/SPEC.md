@@ -101,12 +101,21 @@
 
 ## Visual Evidence
 
-- Surface: the SpotiBind menu-bar popover only (`target_app_window`).
+- Surfaces: the SpotiBind menu-bar `popover` and retained `settings-window`
+  only (`target_app_window`). No `main-window` surface exists.
 - Scope: status, the five-mode target picker, Accessibility settings, Launch at
-  Login, and Quit controls; no desktop or unrelated menu-bar content.
-- Evidence: [menu-popover.png](./assets/menu-popover.png).
-- Capture: verified from a live macOS session with owner confirmation; the
-  screenshot contains only the target app's popover.
+  Login, Quit, and Advanced Settings controls; no desktop or unrelated windows.
+- Healthy evidence: light and dark appearances produce exactly four assets:
+  `theme-light-popover.png`, `theme-light-settings.png`,
+  `theme-dark-popover.png`, and `theme-dark-settings.png`.
+- Capture: `capture-theme-ui.sh` starts an isolated Demo process. Popover
+  capture reads only the visible real `MenuBarExtra(.window)` host from that
+  process. Settings capture uses the unique window ID from the same PID and
+  `screencapture -x -l`; missing, ambiguous, non-imageable, empty, or failed
+  outputs are errors with no fullscreen or other-surface fallback.
+- Error scenes are smoke-only: `accessibility-required`,
+  `no-supported-player`, `path-unavailable`, and `dispatch-failure` are not
+  committed as a complete visual matrix.
 
 ## References
 

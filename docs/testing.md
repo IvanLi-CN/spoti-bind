@@ -9,14 +9,22 @@ SpotiBind validates its behavior at four layers.
 - The app UI smoke pass covers the window-style menu, the retained settings
   window, 3+2 routing selection, visible problem actions, path chooser/reset,
   and deferred Accessibility prompting in both system appearances.
-- Deterministic UI evidence can be captured without Screen Recording through
-  `scripts/macos/capture-ui.sh menu <out.png>` and
-  `scripts/macos/capture-ui.sh settings <out.png>`. The app renders the real
-  menu/settings SwiftUI views in a scoped snapshot window and exits after the
-  PNG is written. Set `SPOTIBIND_UI_SNAPSHOT_APPEARANCE=light` or `dark` to
-  make the system appearance explicit. Set
-  `SPOTIBIND_UI_SNAPSHOT_PROBLEM=accessibility` to render the actionable
-  Accessibility-permission state.
+- UI demo state is selected before `AppState.start()` with
+  `SPOTIBIND_UI_DEMO=1`, `SPOTIBIND_UI_DEMO_SCENE`, and
+  `SPOTIBIND_UI_APPEARANCE=light|dark`. Supported scenes are `healthy`,
+  `accessibility-required`, `no-supported-player`, `path-unavailable`, and
+  `dispatch-failure`. Demo mode uses neutral paths and never reads or writes
+  the user's defaults, prompts for Accessibility, discovers players, or posts
+  media keys.
+- Theme evidence uses `scripts/macos/capture-theme-ui.sh <light|dark> <out-dir>`.
+  It writes `theme-<appearance>-popover.png` and
+  `theme-<appearance>-settings.png`. The popover image is captured only from
+  the visible real `MenuBarExtra(.window)` host in the app process. The
+  settings image is captured by
+  `scripts/macos/capture-settings-window.sh <scene> <out.png>` with a strict
+  PID, bundle identity, title, AX role, normal layer, visibility, unique
+  WindowServer ID, and `screencapture -x -l`; all failures are bounded and
+  fail closed.
 - Real-Mac routing must include a Sonora tray-only case: the next media key
   must reopen and activate Sonora's main window, then reach its PID shortcut
   exactly once without replaying the captured gesture.
@@ -33,6 +41,7 @@ Run the local commands from the repository root:
 
 ```sh
 scripts/macos/test.sh
+bash scripts/macos/test-ui-capture-contract.sh
 scripts/macos/build.sh --configuration release
 scripts/macos/package.sh
 scripts/macos/verify-release.sh
@@ -57,3 +66,9 @@ The automated contract names are `PlayerSelectionTests`, `PlayerDispatchTests`,
 `MediaKeyEventRouterTests` is the input-safety regression suite: it asserts
 that mouse and ordinary keyboard event types cannot enter media-key routing or
 be consumed by the event tap.
+
+`UIDemoScenarioTests` and `UIAppearanceTests` cover the pre-start demo
+projection and the light/dark appearance contract. Full healthy visual
+evidence is limited to the two supported surfaces, `popover` and
+`settings-window`; error scenes are smoke-only and do not produce committed
+PNG matrices.

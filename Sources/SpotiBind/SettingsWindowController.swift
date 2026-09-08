@@ -8,6 +8,7 @@ final class SettingsWindowController: NSWindowController {
         let hostingController = NSHostingController(rootView: contentView)
         let window = NSWindow(contentViewController: hostingController)
         window.title = "SpotiBind"
+        window.identifier = NSUserInterfaceItemIdentifier("cc.ivanli.spotibind.settings-window")
         window.titleVisibility = .visible
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.setContentSize(NSSize(width: 720, height: 640))

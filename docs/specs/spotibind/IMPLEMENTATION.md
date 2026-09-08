@@ -12,6 +12,10 @@
 - Product identity: SpotiBind is used for the executable, bundle, release
   artifacts, and public documentation; the Fastpotify CLI integration remains
   unchanged.
+- Visual evidence: the app exposes pre-start `UIDemoScenario` state for five
+  smoke scenes and two explicit appearances. Popover evidence waits for the
+  actual `MenuBarExtra(.window)` host and captures it in-process; settings
+  evidence is delegated to the strict PID/window-ID helper scripts.
 
 ## Implementation Coverage
 
@@ -31,10 +35,16 @@
   remain unavailable and expose a settings action rather than falling back.
 - Accessibility checks are silent at startup. The system prompt is deferred
   until an explicit active-mode selection or a menu media-control click.
+- Demo mode uses an ephemeral defaults object, neutral display paths, and no
+  player/runtime side effects. Its healthy baseline represents Sonora running,
+  all three supported players discoverable, and Accessibility authorized.
 
 ## Remaining Gaps
 
 - Real macOS 13 Fastpotify/Sonora and macOS 26.2+ Spotifly physical-key validation requires access to matching hardware and installed applications.
+- Real MenuBarExtra popover capture still requires the owner to open the
+  menu-bar item because Apple's public `MenuBarExtra` API exposes insertion and
+  scene/style construction but no public programmatic-open API.
 
 ## Related Changes
 

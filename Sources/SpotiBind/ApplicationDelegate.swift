@@ -15,7 +15,9 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate {
             self?.showSettingsWindow()
         }
         state.start()
-        mediaKeyTapController.start(state: state)
+        if !state.isUIDemo {
+            mediaKeyTapController.start(state: state)
+        }
         UISnapshot.scheduleIfRequested(state: state) { [weak self] in
             self?.showSettingsWindow()
         }

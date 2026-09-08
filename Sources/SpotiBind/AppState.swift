@@ -53,6 +53,8 @@ final class AppState: ObservableObject {
     private let dispatcher: FastpotifyCommandDispatcher
     private let runtime: SystemPlayerRuntime
     private let coordinator: PlayerLaunchCoordinator
+    private let demoRequested: Bool
+    private let demoConfiguration: UIDemoConfiguration?
     private var availability = PlayerAvailabilitySnapshot()
     private var applicationOverrides: [SupportedPlayer: URL] = [:]
     private var invalidPathPlayers: Set<SupportedPlayer> = []
@@ -62,20 +64,47 @@ final class AppState: ObservableObject {
     private var pendingDispatches = 0
 
     init(
-        defaults: UserDefaults = .standard,
+        defaults: UserDefaults? = nil,
         dispatcher: FastpotifyCommandDispatcher? = nil
     ) {
-        let actualDispatcher = dispatcher ?? FastpotifyCommandDispatcher(runner: SystemProcessRunner())
-        self.defaults = defaults
-        self.playerMode = PlayerModeMigration.mode(
-            storedMode: defaults.string(forKey: Keys.playerMode),
-            legacyForwardingEnabled: defaults.object(forKey: Keys.forwardingEnabled) as? Bool
+        let demoConfiguration = UIDemoConfiguration.parse(
+            environment: ProcessInfo.processInfo.environment
         )
-        self.launchAtLogin = defaults.object(forKey: Keys.launchAtLogin) as? Bool ?? false
-        self.pathSettings = Self.loadPathSettings(from: defaults)
+        self.demoRequested = ProcessInfo.processInfo.environment["SPOTIBIND_UI_DEMO"] == "1"
+        self.demoConfiguration = demoConfiguration
+        let configuredDefaults = defaults ?? (demoRequested ? UserDefaults() : .standard)
+        let actualDispatcher = dispatcher ?? FastpotifyCommandDispatcher(runner: SystemProcessRunner())
+        self.defaults = configuredDefaults
+        self.playerMode = PlayerModeMigration.mode(
+            storedMode: demoConfiguration?.playerMode.rawValue
+                ?? configuredDefaults.string(forKey: Keys.playerMode),
+            legacyForwardingEnabled: !demoRequested
+                ? configuredDefaults.object(forKey: Keys.forwardingEnabled) as? Bool
+                : nil
+        )
+        self.launchAtLogin = !demoRequested
+            ? configuredDefaults.object(forKey: Keys.launchAtLogin) as? Bool ?? false
+            : false
+        self.pathSettings = demoConfiguration?.pathSettings
+            ?? Self.loadPathSettings(from: configuredDefaults)
         self.dispatcher = actualDispatcher
         self.runtime = SystemPlayerRuntime(dispatcher: actualDispatcher)
         self.coordinator = PlayerLaunchCoordinator(runtime: runtime)
+        self.accessibilityTrusted = demoConfiguration?.accessibilityTrusted ?? false
+        self.probeHealthy = demoConfiguration?.probeHealthy ?? false
+        self.tapStatus = demoConfiguration?.tapStatus ?? "Starting"
+        self.dispatchFailure = demoConfiguration?.dispatchFailure
+        self.pathStates = demoConfiguration?.pathStates ?? [:]
+        self.pathProblems = demoConfiguration?.pathProblems ?? [:]
+        self.availability = demoConfiguration?.availability ?? PlayerAvailabilitySnapshot()
+    }
+
+    var isUIDemo: Bool {
+        demoRequested
+    }
+
+    var uiDemoConfiguration: UIDemoConfiguration? {
+        demoConfiguration
     }
 
     var readiness: ForwardingReadiness {
@@ -125,6 +154,10 @@ final class AppState: ObservableObject {
     }
 
     func start() {
+        guard !demoRequested else {
+            onReadinessChanged?()
+            return
+        }
         refreshStatus(promptForAccessibility: false)
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
@@ -154,6 +187,7 @@ final class AppState: ObservableObject {
     }
 
     func refreshStatus(promptForAccessibility: Bool) {
+        guard !demoRequested else { return }
         let options: CFDictionary? = promptForAccessibility
             ? ["AXTrustedCheckOptionPrompt": true] as CFDictionary
             : nil
@@ -165,10 +199,16 @@ final class AppState: ObservableObject {
     }
 
     func requestAccessibilityPermission() {
+        guard !demoRequested else { return }
         refreshStatus(promptForAccessibility: true)
     }
 
     func setPlayerMode(_ mode: PlayerMode) {
+        if demoRequested {
+            playerMode = mode
+            dispatchFailure = nil
+            return
+        }
         let changed = playerMode != mode
         playerMode = mode
         defaults.set(mode.rawValue, forKey: Keys.playerMode)
@@ -183,6 +223,7 @@ final class AppState: ObservableObject {
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
+        guard !demoRequested else { return }
         do {
             if enabled {
                 try SMAppService.mainApp.register()
@@ -198,6 +239,7 @@ final class AppState: ObservableObject {
     }
 
     func openAccessibilitySettings() {
+        guard !demoRequested else { return }
         let currentSettingsURL = URL(
             string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility"
         )!
@@ -222,48 +264,8 @@ final class AppState: ObservableObject {
         updateAvailability()
     }
 
-    func configureForUISnapshot() {
-        guard ProcessInfo.processInfo.environment["SPOTIBIND_UI_DEMO"] == "1" else {
-            return
-        }
-
-        let showsAccessibilityProblem = ProcessInfo.processInfo.environment[
-            "SPOTIBIND_UI_SNAPSHOT_PROBLEM"
-        ] == "accessibility"
-        playerMode = .sonora
-        accessibilityTrusted = !showsAccessibilityProblem
-        probeHealthy = true
-        tapStatus = "Ready"
-        dispatchFailure = nil
-        pathSettings = PlayerPathSettings()
-        pathProblems = [:]
-        applicationOverrides = [:]
-        invalidPathPlayers = []
-        targetExecutable = nil
-        availability = PlayerAvailabilitySnapshot([
-            PlayerAvailability(
-                player: .fastpotify,
-                isInstalled: true,
-                isRunning: false,
-                canLaunch: true
-            ),
-            PlayerAvailability(
-                player: .sonora,
-                isInstalled: true,
-                isRunning: true,
-                canLaunch: true
-            ),
-            PlayerAvailability(
-                player: .spotifly,
-                isInstalled: true,
-                isRunning: false,
-                canLaunch: true
-            )
-        ])
-        onReadinessChanged?()
-    }
-
     func dispatchFromMenu(_ key: MediaKey) {
+        guard !demoRequested else { return }
         guard accessibilityTrusted else {
             requestAccessibilityPermission()
             return
@@ -272,6 +274,7 @@ final class AppState: ObservableObject {
     }
 
     func dispatch(_ key: MediaKey) {
+        guard !demoRequested else { return }
         updateAvailability()
         let selection = resolvedSelection
         guard readiness.isReady, let player = selection.player else {
@@ -314,6 +317,7 @@ final class AppState: ObservableObject {
     }
 
     func choosePath(for player: SupportedPlayer) {
+        guard !demoRequested else { return }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = true
@@ -339,6 +343,7 @@ final class AppState: ObservableObject {
     }
 
     func resetPath(for player: SupportedPlayer) {
+        guard !demoRequested else { return }
         var updated = pathSettings
         updated.set(.automatic, for: player)
         pathSettings = updated
