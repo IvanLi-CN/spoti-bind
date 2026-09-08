@@ -108,6 +108,9 @@
 - Healthy evidence: light and dark appearances produce exactly four assets:
   `theme-light-popover.png`, `theme-light-settings.png`,
   `theme-dark-popover.png`, and `theme-dark-settings.png`.
+- Asset gate: those four files are committed only after a real Popover host has
+  been opened and captured. The legacy `menu-popover.png` is not part of this
+  evidence set and must not be counted as a substitute.
 - Capture: `capture-theme-ui.sh` starts an isolated Demo process. Popover
   capture reads only the visible real `MenuBarExtra(.window)` host from that
   process. Settings capture uses the unique window ID from the same PID and

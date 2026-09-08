@@ -73,4 +73,6 @@ be consumed by the event tap.
 projection and the light/dark appearance contract. Full healthy visual
 evidence is limited to the two supported surfaces, `popover` and
 `settings-window`; error scenes are smoke-only and do not produce committed
-PNG matrices.
+PNG matrices. The legacy `docs/specs/spotibind/assets/menu-popover.png` is not
+counted as a current evidence asset; the four new PNGs are committed only
+after the real Popover host gate passes.

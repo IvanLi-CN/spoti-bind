@@ -49,6 +49,9 @@
   scene/style construction but no public programmatic-open API. The public
   theme helper gives that owner a bounded 60-second capture window and fails
   closed if the host is not opened.
+- The four new healthy evidence PNGs remain uncommitted until that Popover
+  gate passes. The pre-existing `menu-popover.png` is retained as a legacy
+  asset and is not evidence for this pipeline.
 
 ## Related Changes
 
