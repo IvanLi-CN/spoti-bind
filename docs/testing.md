@@ -19,9 +19,10 @@ SpotiBind validates its behavior at four layers.
 - Theme evidence uses `scripts/macos/capture-theme-ui.sh <light|dark> <out-dir>`.
   It writes `theme-<appearance>-popover.png` and
   `theme-<appearance>-settings.png`. The popover image is captured only from
-  the visible real `MenuBarExtra(.window)` host in the app process. The
-  Demo process remains discoverable while the helper waits up to 60 seconds
-  for the owner to open that menu-bar item. The
+  the visible real `MenuBarExtra(.window)` host in the app process. Demo mode
+  opens that host through the app-owned status-bar window and public AppKit
+  `performClick`, then waits up to 60 seconds for the host to become imageable.
+  The
   settings image is captured by
   `scripts/macos/capture-settings-window.sh <scene> <out.png>` with a strict
   PID, bundle identity, title, AX role, normal layer, visibility, unique

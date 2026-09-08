@@ -8,8 +8,10 @@ enum UISnapshot {
         case settingsWindow = "settings-window"
     }
 
-    private static let maxAttempts = 50
+    private static let popoverMaxAttempts = 300
+    private static let settingsMaxAttempts = 50
     private static let retryInterval: DispatchTimeInterval = .milliseconds(200)
+    private static var hasTriggeredPopover = false
 
     static var isDemoRequested: Bool {
         UIDemoConfiguration.parse(environment: ProcessInfo.processInfo.environment) != nil
@@ -38,6 +40,7 @@ enum UISnapshot {
                 reportFailure("popover capture requires SPOTIBIND_UI_SNAPSHOT_OUTPUT")
                 return
             }
+            triggerPopoverIfPossible()
             waitForPopover(output: URL(fileURLWithPath: outputPath), attempt: 0)
         case .settingsWindow:
             openSettings()
@@ -50,7 +53,8 @@ enum UISnapshot {
 
     private static func waitForPopover(output: URL, attempt: Int) {
         guard let window = menuBarExtraHost() else {
-            guard attempt < maxAttempts else {
+            triggerPopoverIfPossible()
+            guard attempt < popoverMaxAttempts else {
                 reportFailure(
                     "the real MenuBarExtra(.window) host was not visible; "
                         + "no synthetic window fallback is permitted"
@@ -72,9 +76,32 @@ enum UISnapshot {
         Darwin.exit(0)
     }
 
+    private static func triggerPopoverIfPossible() {
+        guard !hasTriggeredPopover else { return }
+        // SwiftUI exposes no presentation action for MenuBarExtra. Its real
+        // status-bar window remains in this process, so trigger its button
+        // through public AppKit view APIs without creating another surface.
+        let buttons = NSApp.windows
+            .filter { $0.className.contains("NSStatusBarWindow") }
+            .flatMap { window in
+                window.contentView.map(statusBarButtons(in:)) ?? []
+            }
+        guard buttons.count == 1 else { return }
+        hasTriggeredPopover = true
+        buttons[0].performClick(nil)
+    }
+
+    private static func statusBarButtons(in view: NSView) -> [NSStatusBarButton] {
+        var buttons = (view as? NSStatusBarButton).map { [$0] } ?? []
+        for subview in view.subviews {
+            buttons += statusBarButtons(in: subview)
+        }
+        return buttons
+    }
+
     private static func waitForSettings(readyFile: URL?, attempt: Int) {
         guard let window = settingsWindow() else {
-            guard attempt < maxAttempts else {
+            guard attempt < settingsMaxAttempts else {
                 reportFailure("the unique SpotiBind settings window was not visible")
                 return
             }

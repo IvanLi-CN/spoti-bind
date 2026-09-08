@@ -14,7 +14,8 @@
   unchanged.
 - Visual evidence: the app exposes pre-start `UIDemoScenario` state for five
   smoke scenes and two explicit appearances. Popover evidence waits for the
-  actual `MenuBarExtra(.window)` host and captures it in-process; settings
+  actual `MenuBarExtra(.window)` host, opens its real status button through
+  the app-owned status-bar window, and captures it in-process; settings
   evidence is delegated to the strict PID/window-ID helper scripts.
 
 ## Implementation Coverage
@@ -39,19 +40,16 @@
   player/runtime side effects. Its healthy baseline represents Sonora running,
   all three supported players discoverable, and Accessibility authorized. The
   Demo process uses a regular activation policy so an owner can identify it
-  while the capture helper waits; the shipped app remains an accessory app.
+  during capture; the shipped app remains an accessory app.
 
 ## Remaining Gaps
 
 - Real macOS 13 Fastpotify/Sonora and macOS 26.2+ Spotifly physical-key validation requires access to matching hardware and installed applications.
-- Real MenuBarExtra popover capture still requires the owner to open the
-  menu-bar item because Apple's public `MenuBarExtra` API exposes insertion and
-  scene/style construction but no public programmatic-open API. The public
-  theme helper gives that owner a bounded 60-second capture window and fails
-  closed if the host is not opened.
-- The four new healthy evidence PNGs remain uncommitted until that Popover
-  gate passes. The pre-existing `menu-popover.png` is retained as a legacy
-  asset and is not evidence for this pipeline.
+- Apple's public `MenuBarExtra` API still has no presentation action; the Demo
+  capture path uses the app-owned real status-bar window and public AppKit
+  `performClick` to open the host, then fails closed after a bounded wait.
+  The four healthy evidence PNGs are committed below; the pre-existing
+  `menu-popover.png` remains a legacy asset and is not counted.
 
 ## Related Changes
 
