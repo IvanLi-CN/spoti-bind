@@ -219,8 +219,11 @@ final class AppState: ObservableObject {
             return
         }
 
+        let showsAccessibilityProblem = ProcessInfo.processInfo.environment[
+            "SPOTIBIND_UI_SNAPSHOT_PROBLEM"
+        ] == "accessibility"
         playerMode = .sonora
-        accessibilityTrusted = true
+        accessibilityTrusted = !showsAccessibilityProblem
         probeHealthy = true
         tapStatus = "Ready"
         dispatchFailure = nil

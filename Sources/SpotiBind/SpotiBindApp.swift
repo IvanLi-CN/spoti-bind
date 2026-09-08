@@ -29,7 +29,7 @@ struct MenuPanelView: View {
 
             StatusSummaryView(state: state)
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Forward media keys to")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -37,7 +37,7 @@ struct MenuPanelView: View {
                 RoutingSelectorView(state: state)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 22)
+            .padding(.top, 16)
 
             Divider()
                 .padding(.vertical, 14)
@@ -103,6 +103,14 @@ private struct StatusSummaryView: View {
     @ObservedObject var state: AppState
 
     var body: some View {
+        if state.statusAction != nil {
+            actionableStatus
+        } else {
+            informationalStatus
+        }
+    }
+
+    private var informationalStatus: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 8) {
                 statusMark
@@ -110,23 +118,47 @@ private struct StatusSummaryView: View {
                     .font(.headline)
                     .lineLimit(1)
             }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
-            if state.statusAction != nil {
+    private var actionableStatus: some View {
+        HStack(alignment: .center, spacing: 10) {
+            statusMark
+                .frame(width: 20)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(displayTitle)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+
                 Text(state.statusDetail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .truncationMode(.middle)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-                if let actionTitle = state.statusActionTitle {
-                    Button(actionTitle, action: state.performStatusAction)
-                        .buttonStyle(.link)
-                        .font(.caption.weight(.semibold))
-                        .accessibilityHint("Opens the setting needed to resolve the current issue.")
-                }
+            if let actionTitle = state.statusActionTitle {
+                Button(compactActionTitle, action: state.performStatusAction)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .accessibilityLabel(actionTitle)
+                    .accessibilityHint("Opens the setting needed to resolve the current issue.")
+                    .help(actionTitle)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+    }
+
+    private var compactActionTitle: String {
+        switch state.statusAction {
+        case .accessibility: "Open"
+        case .settings: "Review"
+        case nil: ""
+        }
     }
 
     private var statusMark: some View {
