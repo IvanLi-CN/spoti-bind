@@ -8,7 +8,7 @@ struct SettingsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 26) {
                 if state.statusAction != nil, !isProblemBannerDismissed {
                     ProblemBanner(state: state) {
                         isProblemBannerDismissed = true
@@ -16,7 +16,7 @@ struct SettingsView: View {
                 }
 
                 SettingsSection(title: "Forward media keys to") {
-                    RoutingSelectorView(state: state, style: .settings)
+                    SettingsRoutingSelectorView(state: state)
                 }
 
                 SettingsSection(title: "Player locations") {
@@ -38,19 +38,26 @@ struct SettingsView: View {
                 SettingsSection(title: "System") {
                     VStack(spacing: 0) {
                         HStack {
-                            Label("Accessibility", systemImage: "accessibility")
+                            Text("Accessibility")
                             Spacer()
                             Button("Open Accessibility Settings", action: state.openAccessibilitySettings)
+                                .buttonStyle(SettingsSecondaryButtonStyle())
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
 
                         Divider()
 
-                        Toggle("Launch at login", isOn: Binding(
-                            get: { state.launchAtLogin },
-                            set: { state.setLaunchAtLogin($0) }
-                        ))
+                        HStack {
+                            Text("Launch at login")
+                            Spacer()
+                            Toggle("Launch at login", isOn: Binding(
+                                get: { state.launchAtLogin },
+                                set: { state.setLaunchAtLogin($0) }
+                            ))
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                        }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
                     }
@@ -61,7 +68,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            .padding(28)
+            .padding(32)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.regularMaterial)
@@ -81,6 +88,87 @@ private struct SettingsSection<Content: View>: View {
                 .font(.title3.weight(.semibold))
             content()
         }
+    }
+}
+
+private struct SettingsRoutingSelectorView: View {
+    @ObservedObject var state: AppState
+
+    private let firstRow: [PlayerMode] = [.fastpotify, .sonora, .spotifly]
+    private let secondRow: [PlayerMode] = [.automatic, .off]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            optionRow(firstRow)
+            optionRow(secondRow)
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func optionRow(_ modes: [PlayerMode]) -> some View {
+        HStack(spacing: 20) {
+            ForEach(modes, id: \.self) { mode in
+                routingOption(for: mode)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private func routingOption(for mode: PlayerMode) -> some View {
+        let isSelected = state.playerMode == mode
+        let isPlayer = mode.supportedPlayer != nil
+
+        return Button {
+            state.setPlayerMode(mode)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
+                    .font(.system(size: 21, weight: .medium))
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+
+                PlayerMarkView(
+                    player: mode.supportedPlayer,
+                    fallbackSymbol: mode.symbolName,
+                    size: isPlayer ? 34 : 28
+                )
+
+                Text(mode.displayName)
+                    .font(.body.weight(.medium))
+                    .lineLimit(1)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(SettingsRoutingOptionButtonStyle())
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityLabel(mode.displayName)
+        .help("Forward media keys to \(mode.displayName)")
+    }
+}
+
+private struct SettingsRoutingOptionButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.65 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+private struct SettingsSecondaryButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, 12)
+            .frame(minHeight: 28)
+            .background(Color.primary.opacity(configuration.isPressed ? 0.10 : 0.04), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .strokeBorder(.primary.opacity(configuration.isPressed ? 0.30 : 0.18), lineWidth: 1)
+            }
+            .opacity(configuration.isPressed ? 0.72 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -129,8 +217,8 @@ private struct PlayerPathRowView: View {
         HStack(spacing: 12) {
             PlayerMarkView(
                 player: player,
+                size: 28
             )
-            .frame(width: 30, height: 30)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(player.displayName)
@@ -150,17 +238,15 @@ private struct PlayerPathRowView: View {
 
             Spacer(minLength: 12)
 
-            Button {
+            Button("Choose…") {
                 state.choosePath(for: player)
-            } label: {
-                Label("Choose...", systemImage: "folder")
             }
+            .buttonStyle(SettingsSecondaryButtonStyle())
 
-            Button {
+            Button("Reset") {
                 state.resetPath(for: player)
-            } label: {
-                Label("Reset", systemImage: "arrow.counterclockwise")
             }
+            .buttonStyle(SettingsSecondaryButtonStyle())
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)

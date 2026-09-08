@@ -9,6 +9,18 @@ enum UISnapshot {
         case settings
     }
 
+    private enum Appearance: String {
+        case light
+        case dark
+
+        var systemName: NSAppearance.Name {
+            switch self {
+            case .light: .aqua
+            case .dark: .darkAqua
+            }
+        }
+    }
+
     static func scheduleIfRequested(
         state: AppState,
         openSettings: @escaping () -> Void
@@ -20,12 +32,16 @@ enum UISnapshot {
         }
 
         let surface = Surface(rawValue: environment["SPOTIBIND_UI_SNAPSHOT_SURFACE"] ?? "menu") ?? .menu
+        let appearance = environment["SPOTIBIND_UI_SNAPSHOT_APPEARANCE"].flatMap(Appearance.init(rawValue:))
         let prefix = environment["SPOTIBIND_UI_SNAPSHOT_PREFIX"] ?? surface.rawValue
         let delayMilliseconds = Int(environment["SPOTIBIND_UI_SNAPSHOT_DELAY_MS"] ?? "") ?? 900
         let directory = URL(fileURLWithPath: directoryPath, isDirectory: true)
         let output = directory.appendingPathComponent("\(prefix).png")
 
         DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(delayMilliseconds)) {
+            if let appearance {
+                NSApp.appearance = NSAppearance(named: appearance.systemName)
+            }
             state.configureForUISnapshot()
             let window: NSWindow?
             switch surface {

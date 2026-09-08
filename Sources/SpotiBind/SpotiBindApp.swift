@@ -26,16 +26,23 @@ struct MenuPanelView: View {
 
             StatusSummaryView(state: state)
 
-            RoutingSelectorView(state: state, style: .menu)
-                .padding(.top, 12)
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Forward media keys to")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                RoutingSelectorView(state: state)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 22)
 
             Divider()
                 .padding(.vertical, 14)
 
             MenuFooterView(state: state)
         }
-        .padding(16)
-        .frame(width: 390)
+        .padding(20)
+        .frame(width: 400)
         .background(.regularMaterial)
     }
 }
@@ -48,7 +55,7 @@ private struct TransportControlsView: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             mediaButton(
                 "backward.end.fill",
                 label: "Previous",
@@ -78,9 +85,9 @@ private struct TransportControlsView: View {
             state.dispatchFromMenu(key)
         } label: {
             Image(systemName: systemName)
-                .font(.system(size: isPrimary ? 24 : 20, weight: .semibold))
+                .font(.system(size: isPrimary ? 30 : 27, weight: .semibold))
                 .frame(maxWidth: .infinity)
-                .frame(height: 54)
+                .frame(height: 72)
         }
         .buttonStyle(PanelButtonStyle(isPrimary: isPrimary))
         .disabled(controlsUnavailable)
@@ -95,50 +102,60 @@ private struct StatusSummaryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 8) {
-                Image(systemName: statusSymbol)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(statusColor)
-                Text(state.statusTitle)
+                statusMark
+                Text(displayTitle)
                     .font(.headline)
                     .lineLimit(1)
             }
 
-            Text(state.statusDetail)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .truncationMode(.middle)
+            if state.statusAction != nil {
+                Text(state.statusDetail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
 
-            if let actionTitle = state.statusActionTitle {
-                Button(actionTitle, action: state.performStatusAction)
-                    .buttonStyle(.link)
-                    .font(.caption.weight(.semibold))
-                    .accessibilityHint("Opens the setting needed to resolve the current issue.")
+                if let actionTitle = state.statusActionTitle {
+                    Button(actionTitle, action: state.performStatusAction)
+                        .buttonStyle(.link)
+                        .font(.caption.weight(.semibold))
+                        .accessibilityHint("Opens the setting needed to resolve the current issue.")
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var statusSymbol: String {
-        if state.playerMode == .off { return "power" }
-        if state.statusAction != nil { return "exclamationmark.triangle" }
-        return "waveform.and.arrow.forward"
+    private var statusMark: some View {
+        Group {
+            if state.playerMode == .off {
+                Image(systemName: "power")
+                    .foregroundStyle(.primary)
+            } else if state.statusAction != nil {
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+            } else {
+                HStack(spacing: 2) {
+                    Image(systemName: "waveform")
+                    Image(systemName: "arrow.right")
+                }
+                .foregroundStyle(.primary)
+            }
+        }
+        .font(.system(size: 16, weight: .semibold))
     }
 
-    private var statusColor: Color {
-        if state.statusAction != nil { return .orange }
-        return .accentColor
+    private var displayTitle: String {
+        guard state.statusAction == nil,
+              state.statusTitle.hasPrefix("Forwarding to ") else {
+            return state.statusTitle
+        }
+        return "Media keys routed to \(state.statusTitle.dropFirst("Forwarding to ".count))"
     }
 }
 
 struct RoutingSelectorView: View {
-    enum Style {
-        case menu
-        case settings
-    }
-
     @ObservedObject var state: AppState
-    let style: Style
 
     private let firstRow: [PlayerMode] = [.fastpotify, .sonora, .spotifly]
     private let secondRow: [PlayerMode] = [.automatic, .off]
@@ -168,32 +185,33 @@ struct RoutingSelectorView: View {
     }
 
     private func routingButton(for mode: PlayerMode) -> some View {
-        Button {
+        let isPlayer = mode.supportedPlayer != nil
+        return Button {
             state.setPlayerMode(mode)
         } label: {
-            VStack(spacing: style == .menu ? 7 : 5) {
+            VStack(spacing: isPlayer ? 9 : 8) {
                 ZStack(alignment: .topTrailing) {
                     PlayerMarkView(
                         player: mode.supportedPlayer,
-                        fallbackSymbol: mode.symbolName
+                        fallbackSymbol: mode.symbolName,
+                        size: isPlayer ? 40 : 34
                     )
-                    .frame(width: style == .menu ? 28 : 24, height: style == .menu ? 28 : 24)
 
                     if state.playerMode == mode {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 18, weight: .bold))
                             .foregroundStyle(.primary)
                             .background(.regularMaterial, in: Circle())
-                            .offset(x: style == .menu ? 9 : 7, y: -6)
+                            .offset(x: 14, y: -9)
                     }
                 }
 
                 Text(mode.displayName)
-                    .font(style == .menu ? .caption : .subheadline.weight(.medium))
+                    .font(.subheadline.weight(.medium))
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: style == .menu ? 88 : 70)
+            .frame(height: isPlayer ? 104 : 88)
             .contentShape(Rectangle())
         }
         .buttonStyle(RoutingCellButtonStyle(isSelected: state.playerMode == mode))
@@ -211,7 +229,11 @@ private struct MenuFooterView: View {
             Button {
                 state.openAdvancedSettings()
             } label: {
-                Label("Advanced Settings", systemImage: "gearshape")
+                HStack(spacing: 8) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 18, weight: .medium))
+                    Text("Advanced Settings")
+                }
             }
             .buttonStyle(.plain)
 
@@ -231,12 +253,14 @@ private struct MenuFooterView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.red)
         }
-        .font(.caption.weight(.medium))
+        .font(.subheadline.weight(.medium))
+        .frame(minHeight: 28)
     }
 }
 
 private struct PanelButtonStyle: ButtonStyle {
     let isPrimary: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -249,12 +273,13 @@ private struct PanelButtonStyle: ButtonStyle {
                     .strokeBorder(.primary.opacity(configuration.isPressed ? 0.3 : 0.12), lineWidth: 1)
             }
             .opacity(configuration.isPressed ? 0.7 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
 private struct RoutingCellButtonStyle: ButtonStyle {
     let isSelected: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -263,26 +288,31 @@ private struct RoutingCellButtonStyle: ButtonStyle {
                 in: Rectangle()
             )
             .opacity(configuration.isPressed ? 0.65 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
 struct PlayerMarkView: View {
     let player: SupportedPlayer?
     let fallbackSymbol: String?
+    let size: CGFloat
 
     init(
         player: SupportedPlayer?,
-        fallbackSymbol: String? = nil
+        fallbackSymbol: String? = nil,
+        size: CGFloat = 28
     ) {
         self.player = player
         self.fallbackSymbol = fallbackSymbol
+        self.size = size
     }
 
     var body: some View {
         Image(systemName: fallbackSymbol ?? defaultSymbol)
+            .font(.system(size: size, weight: .medium))
             .symbolRenderingMode(.monochrome)
             .foregroundStyle(.primary)
+            .frame(width: size, height: size)
     }
 
     private var defaultSymbol: String {
@@ -295,7 +325,7 @@ struct PlayerMarkView: View {
     }
 }
 
-private extension PlayerMode {
+extension PlayerMode {
     var supportedPlayer: SupportedPlayer? {
         switch self {
         case .fastpotify: .fastpotify

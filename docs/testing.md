@@ -13,7 +13,8 @@ SpotiBind validates its behavior at four layers.
   `scripts/macos/capture-ui.sh menu <out.png>` and
   `scripts/macos/capture-ui.sh settings <out.png>`. The app renders the real
   menu/settings SwiftUI views in a scoped snapshot window and exits after the
-  PNG is written.
+  PNG is written. Set `SPOTIBIND_UI_SNAPSHOT_APPEARANCE=light` or `dark` to
+  make the system appearance explicit.
 - Real-Mac routing must include a Sonora tray-only case: the next media key
   must reopen and activate Sonora's main window, then reach its PID shortcut
   exactly once without replaying the captured gesture.
