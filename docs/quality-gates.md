@@ -14,9 +14,8 @@ The GitHub repository's branch ruleset, labels, and notifier secret are remote s
 
 Because `pull_request_target` loads from the base branch, the first rollout must
 be applied in this order: merge this workflow change with the existing two PR
-checks, run `.github/scripts/align-github-release-policy.sh apply` from a
-reviewed trusted checkout, configure the organization notifier credential, and
-then enable the four required status contexts in the active ruleset. The
-alignment script is idempotent and its `check` mode fails until labels, rule
+checks, configure the organization notifier credential, then run
+`.github/scripts/align-github-release-policy.sh apply` from a reviewed trusted
+checkout. The alignment script is idempotent and its `check` mode fails until labels, rule
 types, and required contexts match this file. Subsequent PRs receive all four
 checks before they can merge.

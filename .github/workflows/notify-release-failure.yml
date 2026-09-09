@@ -65,7 +65,7 @@ jobs:
     name: Notify release failure
     needs: context
     if: needs.context.result == 'success'
-    uses: IvanLi-CN/github-workflows/.github/workflows/release-failure-telegram.yml@main
+    uses: IvanLi-CN/github-workflows/.github/workflows/release-failure-telegram.yml@8ad0fec573dee63877a03415b5430a9c0761fd91 # main
     with:
       repository: ${{ github.repository }}
       workflow_name: Release
