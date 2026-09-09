@@ -40,9 +40,10 @@ jobs:
             exit 0
           fi
           preparation="${{ github.event.pull_request.head.sha }}"
+          git fetch --no-tags origin "$preparation"
           source="$(git show -s --format=%P "$preparation")"
           [[ "$source" =~ ^[0-9a-f]{40}$ ]]
-          git fetch --no-tags origin "$source" "$preparation"
+          git fetch --no-tags origin "$source"
           identity="$(python3 .github/scripts/release_chain.py validate-preparation --repo . \
             --preparation "$preparation" --source "$source"
           )"

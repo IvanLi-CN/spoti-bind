@@ -33,6 +33,7 @@ jobs:
             echo 'fork pull requests are fail-closed for write workflows' >&2
             exit 1
           fi
+          # shellcheck disable=SC2016
           labels="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/labels" --jq '[.[].name]')"
           intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
           printf '%s\n' "$intent" > release-intent.json

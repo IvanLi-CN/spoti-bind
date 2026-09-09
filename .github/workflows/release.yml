@@ -46,10 +46,12 @@ jobs:
           git fetch origin main --no-tags
           identity="$(python3 .github/scripts/release_chain.py validate-main --repo . --merge "$TARGET_SHA" --main-ref origin/main)"
           printf '%s\n' "$identity" > release-identity.json
-          echo "version=$(jq -r '.version' release-identity.json)" >> "$GITHUB_OUTPUT"
-          echo "type=$(jq -r '.type' release-identity.json)" >> "$GITHUB_OUTPUT"
-          echo "channel=$(jq -r '.channel' release-identity.json)" >> "$GITHUB_OUTPUT"
-          echo "tag=v$(jq -r '.version' release-identity.json)" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$(jq -r '.version' release-identity.json)"
+            echo "type=$(jq -r '.type' release-identity.json)"
+            echo "channel=$(jq -r '.channel' release-identity.json)"
+            echo "tag=v$(jq -r '.version' release-identity.json)"
+          } >> "$GITHUB_OUTPUT"
       - name: Skip non-product merge
         if: steps.provenance.outputs.type == 'type:none'
         run: "echo 'type:none merge: no public release is created'"
