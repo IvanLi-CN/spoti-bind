@@ -16,14 +16,13 @@ SpotiBind validates its behavior at four layers.
   `path-unavailable`, and `dispatch-failure`. Demo mode uses neutral paths and
   never reads or writes the user's defaults, prompts for Accessibility,
   discovers players, or posts media keys.
-- Theme evidence uses `scripts/macos/capture-theme-ui.sh <light|dark> <out-dir>`.
+- Theme evidence uses `scripts/macos/capture-theme-ui.sh <light|dark> <out-dir> [scene]`.
   It writes `theme-<appearance>-popover.png` and
   `theme-<appearance>-settings.png`. The popover image is captured only from
   the visible real `MenuBarExtra(.window)` host in the app process. Demo mode
   opens that host through the app-owned status-bar window and public AppKit
-  `performClick`, then waits up to 60 seconds for the host to become imageable.
-  The
-  settings image is captured by
+  `performClick`, then captures its unique WindowServer window ID with
+  `screencapture -x -l`. The settings image is captured by
   `scripts/macos/capture-settings-window.sh <scene> <out.png>` with a strict
   PID, bundle identity, title, AX role, normal layer, visibility, unique
   WindowServer ID, and `screencapture -x -l`; all failures are bounded and

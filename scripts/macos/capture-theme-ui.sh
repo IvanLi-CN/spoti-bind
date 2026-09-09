@@ -1,17 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if (($# != 2)); then
-    printf 'Usage: scripts/macos/capture-theme-ui.sh <light|dark> <out-dir>\n' >&2
+if (($# < 2 || $# > 3)); then
+    printf 'Usage: scripts/macos/capture-theme-ui.sh <light|dark> <out-dir> [scene]\n' >&2
     exit 2
 fi
 
 appearance="$1"
 out_dir="$2"
+scene="${3:-healthy}"
 case "$appearance" in
     light|dark) ;;
     *)
         printf 'Appearance must be light or dark.\n' >&2
+        exit 2
+        ;;
+esac
+case "$scene" in
+    healthy|automatic-selection|accessibility-required|no-supported-player|path-unavailable|dispatch-failure) ;;
+    *)
+        printf 'Unknown UI demo scene: %s\n' "$scene" >&2
         exit 2
         ;;
 esac
@@ -25,7 +33,9 @@ out_dir="$(cd "$out_dir" && pwd)"
 app_bin="$($script_dir/build.sh --configuration debug)"
 run_root="$(mktemp -d "${TMPDIR:-/tmp}/spotibind-popover.XXXXXX")"
 app_bundle="$run_root/SpotiBind.app"
+probe_bin="$run_root/popover-window-probe"
 log="$run_root/capture.log"
+ready_file="$run_root/ready"
 popover_output="$out_dir/theme-$appearance-popover.png"
 settings_output="$out_dir/theme-$appearance-settings.png"
 rm -f "$popover_output" "$settings_output"
@@ -43,18 +53,27 @@ mkdir -p "$app_bundle/Contents/MacOS"
 cp "$app_bin" "$app_bundle/Contents/MacOS/SpotiBind"
 cp "$repo_root/packaging/macos/Info.plist" "$app_bundle/Contents/Info.plist"
 chmod +x "$app_bundle/Contents/MacOS/SpotiBind"
+swiftc "$script_dir/popover-window-probe.swift" -o "$probe_bin"
 
-printf 'Waiting for the owner to open the real SpotiBind menu-bar popover...\n' >&2
 SPOTIBIND_UI_DEMO=1 \
-SPOTIBIND_UI_DEMO_SCENE=healthy \
+SPOTIBIND_UI_DEMO_SCENE="$scene" \
 SPOTIBIND_UI_APPEARANCE="$appearance" \
 SPOTIBIND_UI_SNAPSHOT_SURFACE=popover \
-SPOTIBIND_UI_SNAPSHOT_OUTPUT="$popover_output" \
+SPOTIBIND_UI_SNAPSHOT_READY_FILE="$ready_file" \
     "$app_bundle/Contents/MacOS/SpotiBind" >"$log" 2>&1 &
 app_pid=$!
 
+window_id=""
 for _ in {1..300}; do
-    if [[ -s "$popover_output" ]] && file "$popover_output" | grep -qi 'PNG image'; then
+    ready_pid="$(awk -F= '/^pid=/{print $2}' "$ready_file" 2>/dev/null || true)"
+    ready_window="$(awk -F= '/^window=/{print $2}' "$ready_file" 2>/dev/null || true)"
+    if [[ "$ready_pid" == "$app_pid" ]] \
+        && [[ "$ready_window" =~ ^[0-9]+$ ]] \
+        && window_id="$($probe_bin "$app_pid" "$ready_window" 2>>"$log")" \
+        && [[ "$window_id" =~ ^[0-9]+$ ]] \
+        && screencapture -x -l "$window_id" "$popover_output" >>"$log" 2>&1 \
+        && [[ -s "$popover_output" ]] \
+        && file "$popover_output" | grep -qi 'PNG image'; then
         break
     fi
     if ! kill -0 "$app_pid" 2>/dev/null; then
@@ -71,6 +90,6 @@ if [[ ! -s "$popover_output" ]] || ! file "$popover_output" | grep -qi 'PNG imag
 fi
 
 SPOTIBIND_UI_APPEARANCE="$appearance" \
-    "$script_dir/capture-settings-window.sh" healthy "$settings_output"
+    "$script_dir/capture-settings-window.sh" "$scene" "$settings_output"
 
 printf '%s\n%s\n' "$popover_output" "$settings_output"

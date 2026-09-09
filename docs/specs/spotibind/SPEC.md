@@ -114,12 +114,12 @@
   been opened and captured. The legacy `menu-popover.png` is not part of this
   evidence set and must not be counted as a substitute.
 - Capture: `capture-theme-ui.sh` starts an isolated Demo process. Popover
-  capture reads only the visible real `MenuBarExtra(.window)` host from that
-  process and opens it through the app-owned status-item button's public
-  `performClick` action. Settings capture uses the unique window ID from the
-  same PID and `screencapture -x -l`; missing, ambiguous, non-imageable,
-  empty, or failed outputs are errors with no fullscreen or other-surface
-  fallback.
+  capture opens the real `MenuBarExtra(.window)` host through the app-owned
+  status-item button's public `performClick` action, then uses the unique
+  WindowServer popover ID from that same PID with `screencapture -x -l`.
+  Settings capture uses its unique WindowServer ID from the same PID in the
+  same way; missing, ambiguous, non-imageable, empty, or failed outputs are
+  errors with no fullscreen or other-surface fallback.
 - Error scenes are smoke-only: `accessibility-required`,
   `no-supported-player`, `path-unavailable`, and `dispatch-failure` are not
   committed as a complete visual matrix.

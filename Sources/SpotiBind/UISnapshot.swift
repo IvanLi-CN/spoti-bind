@@ -35,13 +35,13 @@ enum UISnapshot {
         NSApp.appearance = NSAppearance(named: configuration.appearance.nsAppearance)
         switch surface {
         case .popover:
-            guard let outputPath = environment["SPOTIBIND_UI_SNAPSHOT_OUTPUT"],
-                  !outputPath.isEmpty else {
-                reportFailure("popover capture requires SPOTIBIND_UI_SNAPSHOT_OUTPUT")
+            guard let readyFile = environment["SPOTIBIND_UI_SNAPSHOT_READY_FILE"],
+                  !readyFile.isEmpty else {
+                reportFailure("popover capture requires SPOTIBIND_UI_SNAPSHOT_READY_FILE")
                 return
             }
             triggerPopoverIfPossible()
-            waitForPopover(output: URL(fileURLWithPath: outputPath), attempt: 0)
+            waitForPopover(readyFile: URL(fileURLWithPath: readyFile), attempt: 0)
         case .settingsWindow:
             openSettings()
             waitForSettings(
@@ -51,7 +51,7 @@ enum UISnapshot {
         }
     }
 
-    private static func waitForPopover(output: URL, attempt: Int) {
+    private static func waitForPopover(readyFile: URL, attempt: Int) {
         guard let window = menuBarExtraHost() else {
             triggerPopoverIfPossible()
             guard attempt < popoverMaxAttempts else {
@@ -62,22 +62,15 @@ enum UISnapshot {
                 return
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + retryInterval) {
-                waitForPopover(output: output, attempt: attempt + 1)
+                waitForPopover(readyFile: readyFile, attempt: attempt + 1)
             }
             return
         }
 
         window.displayIfNeeded()
         window.contentView?.layoutSubtreeIfNeeded()
-        guard capture(contentView: window.contentView, to: output) else {
-            reportFailure("failed to write the real MenuBarExtra host PNG")
-            return
-        }
-        if ProcessInfo.processInfo.environment["SPOTIBIND_UI_SNAPSHOT_KEEP_OPEN"] == "1" {
-            positionForScreenCapture(window)
-            return
-        }
-        Darwin.exit(0)
+        positionForScreenCapture(window)
+        writeReadiness(readyFile, window: window)
     }
 
     private static func triggerPopoverIfPossible() {
@@ -128,12 +121,7 @@ enum UISnapshot {
         window.displayIfNeeded()
         window.contentView?.layoutSubtreeIfNeeded()
         if let readyFile {
-            let contents = "pid=\(ProcessInfo.processInfo.processIdentifier)\nwindow=\(window.windowNumber)\n"
-            do {
-                try contents.write(to: readyFile, atomically: true, encoding: .utf8)
-            } catch {
-                reportFailure("failed to write settings readiness marker: \(error.localizedDescription)")
-            }
+            writeReadiness(readyFile, window: window)
         }
     }
 
@@ -168,35 +156,12 @@ enum UISnapshot {
         return candidates[0]
     }
 
-    private static func capture(contentView: NSView?, to url: URL) -> Bool {
-        guard let contentView else { return false }
-        let bounds = contentView.bounds.integral
-        guard bounds.width > 4,
-              bounds.height > 4,
-              let representation = contentView.bitmapImageRepForCachingDisplay(in: bounds) else {
-            return false
-        }
-
-        representation.size = bounds.size
-        contentView.cacheDisplay(in: bounds, to: representation)
-        guard let png = representation.representation(using: .png, properties: [:]),
-              !png.isEmpty else {
-            return false
-        }
-
+    private static func writeReadiness(_ file: URL, window: NSWindow) {
+        let contents = "pid=\(ProcessInfo.processInfo.processIdentifier)\nwindow=\(window.windowNumber)\n"
         do {
-            try FileManager.default.createDirectory(
-                at: url.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            try png.write(to: url, options: [.atomic])
-            guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
-                  let size = attributes[.size] as? NSNumber else {
-                return false
-            }
-            return size.intValue > 0
+            try contents.write(to: file, atomically: true, encoding: .utf8)
         } catch {
-            return false
+            reportFailure("failed to write snapshot readiness marker: \(error.localizedDescription)")
         }
     }
 
