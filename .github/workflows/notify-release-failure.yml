@@ -20,25 +20,36 @@ jobs:
       - name: Publish recovery notice
         env:
           GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
           TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
           work="$(mktemp -d)"
           trap 'rm -rf "$work"' EXIT
-          gh run download "$RUN_ID" --name release-identity --dir "$work" 2>/dev/null || true
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name release-identity --dir "$work" 2>/dev/null || true
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name release-provenance --dir "$work" 2>/dev/null || true
           if [[ -s "$work/release-target-sha.txt" ]]; then
             TARGET_SHA="$(tr -d '\r\n' < "$work/release-target-sha.txt")"
+          elif [[ "$RUN_EVENT" == 'workflow_dispatch' ]]; then
+            echo 'dispatch recovery identity artifact is missing; refusing ambiguous notification' >&2
+            exit 1
           fi
-          prs="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/pulls" --jq '[.[] | {number,labels:[.labels[].name]}]')"
+          source_sha="unknown"
+          if [[ -s "$work/release-identity.json" ]]; then
+            source_sha="$(jq -r '.source_sha // "unknown"' "$work/release-identity.json")"
+          fi
+          prs="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/pulls" --jq '[.[] | {number,source_sha:.head.sha,labels:[.labels[].name]}]')"
           version="$(gh api "repos/${GITHUB_REPOSITORY}/contents/VERSION?ref=${TARGET_SHA}" --jq '.content' | tr -d '\n' | base64 -d | tr -d '\r\n' || echo unknown)"
           tag="v${version}"
-          assets="$(gh release view "$tag" --json assets --jq '[.assets[].name]' 2>/dev/null || printf '["SpotiBind-%s-universal.dmg","SHA256SUMS"]' "$version")"
+          assets="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name]' 2>/dev/null || printf '["SpotiBind-%s-universal.dmg","SHA256SUMS"]' "$version")"
           title="Release failure: ${TARGET_SHA}"
           body=$(cat <<EOF
           Automated public release failed.
 
           - PR and labels: ${prs}
+          - Source SHA: ${source_sha}
           - Merge SHA: ${TARGET_SHA}
           - Version: ${version}
           - Tag: ${tag}
@@ -47,9 +58,9 @@ jobs:
           - Recovery: rerun Release with workflow_dispatch input commit_sha=${TARGET_SHA}; it must resolve to the same merge SHA and tag identity.
           EOF
           )
-          existing="$(gh issue list --state open --search "${title} in:title" --json number --jq '.[0].number // empty')"
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "${title} in:title" --json number --jq '.[0].number // empty')"
           if [[ -n "$existing" ]]; then
-            gh issue comment "$existing" --body "$body"
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
           else
-            gh issue create --title "$title" --body "$body"
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
           fi

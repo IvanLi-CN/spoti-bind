@@ -35,12 +35,23 @@ for label in "${required_labels[@]}"; do
     [[ "$mode" == check ]] && exit 1
   }
 done
-rules="$(gh api "repos/${GH_REPO}/rulesets" --jq '[.[] | {name, enforcement}]' 2>/dev/null || echo '[]')"
+rules="$(gh api "repos/${GH_REPO}/rulesets" --jq '[.[] | {id, name, enforcement}]' 2>/dev/null || echo '[]')"
 printf '%s\n' "remote labels: $labels" "remote rulesets: $rules"
-if ! jq -e 'any(.[]; .name == "main release policy" and .enforcement == "active")' <<<"$rules" >/dev/null; then
+ruleset_id="$(jq -r '.[] | select(.name == "main release policy") | .id' <<<"$rules" | head -n1)"
+if [[ -z "$ruleset_id" ]] || [[ "$(jq -r --argjson id "$ruleset_id" '.[] | select(.id == $id) | .enforcement' <<<"$rules")" != 'active' ]]; then
   echo 'missing active main release policy ruleset' >&2
   exit 1
 fi
+details="$(gh api "repos/${GH_REPO}/rulesets/${ruleset_id}" 2>/dev/null || echo '{}')"
+jq -e '[.rules[]?.type] | index("pull_request") != null and index("required_status_checks") != null and index("commit_signature_requirement") != null' <<<"$details" >/dev/null || {
+  echo 'main release policy ruleset is missing required rule types' >&2
+  exit 1
+}
+contexts="$(jq -r '[.rules[]? | select(.type == "required_status_checks") | .parameters.required_status_checks[]?.context] | sort | join(",")' <<<"$details")"
+[[ "$contexts" == 'Label Gate,PR / Build app,PR / Swift tests,Release completion' ]] || {
+  echo "required status checks do not match declaration: $contexts" >&2
+  exit 1
+}
 if [[ "$mode" == check ]]; then
   echo 'Ruleset contents must be reviewed against .github/quality-gates.json; no remote mutation was performed.'
 fi

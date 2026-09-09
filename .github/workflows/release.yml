@@ -68,6 +68,7 @@ jobs:
         if: steps.provenance.outputs.type != 'type:none'
         run: |
           set -euo pipefail
+          scripts/ci/select-swift6.sh
           scripts/macos/test.sh
           scripts/macos/package.sh
           scripts/macos/verify-release.sh
@@ -90,6 +91,13 @@ jobs:
             gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
               -f "ref=refs/tags/${TAG}" -f "sha=${TARGET_SHA}"
           fi
+      - name: Upload release provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-provenance
+          path: release-identity.json
+          if-no-files-found: ignore
       - name: Publish public GitHub Release
         if: steps.provenance.outputs.type != 'type:none'
         env:
