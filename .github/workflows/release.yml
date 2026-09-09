@@ -82,7 +82,11 @@ jobs:
           TARGET_SHA: ${{ steps.identity.outputs.sha }}
         run: |
           set -euo pipefail
+          ref_type="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.type' 2>/dev/null || true)"
           ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha' 2>/dev/null || true)"
+          if [[ "$ref_type" == 'tag' && -n "$ref" ]]; then
+            ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${ref}" --jq '.object.sha')"
+          fi
           if [[ -n "$ref" && "$ref" != "$TARGET_SHA" ]]; then
             echo "tag ${TAG} already points to ${ref}, expected ${TARGET_SHA}" >&2
             exit 1
@@ -110,10 +114,18 @@ jobs:
           shopt -s nullglob
           assets=("$RUNNER_TEMP/spotibind-dist"/*)
           if gh release view "$TAG" >/dev/null 2>&1; then
+            current_type="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.type')"
+            current="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha')"
+            if [[ "$current_type" == 'tag' ]]; then
+              current="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${current}" --jq '.object.sha')"
+            fi
+            [[ "$current" == "$TARGET_SHA" ]] || { echo 'tag target changed during publication' >&2; exit 1; }
             gh release upload "$TAG" "${assets[@]}" --clobber
             gh release edit "$TAG" --draft=false --title "SpotiBind ${VERSION}" \
               --notes "Automated public release for verified main merge ${TARGET_SHA}."
+            release_id="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.id')"
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" -f draft=false -f prerelease=false >/dev/null
           else
-            gh release create "$TAG" "${assets[@]}" --title "SpotiBind ${VERSION}" \
+            gh release create "$TAG" "${assets[@]}" --verify-tag --title "SpotiBind ${VERSION}" \
               --notes "Automated public release for verified main merge ${TARGET_SHA}."
           fi
