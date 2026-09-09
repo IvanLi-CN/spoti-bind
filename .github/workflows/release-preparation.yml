@@ -2,6 +2,7 @@ name: Prepare release version
 
 on:
   pull_request_target:
+    branches: [main]
     types: [opened, reopened, synchronize, ready_for_review, labeled, unlabeled]
 
 permissions:
@@ -27,12 +28,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
+          # shellcheck disable=SC2016
           set -euo pipefail
-          if [[ "${{ github.event.pull_request.head.repo.full_name }}" != "$GITHUB_REPOSITORY" ]]; then
+          if [[ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]]; then
             echo 'fork pull requests are fail-closed for write workflows' >&2
             exit 1
           fi
+          [[ "$BASE_REPO" == "$GITHUB_REPOSITORY" && "$BASE_REF" == 'main' ]] || { echo 'release preparation requires the trusted main base' >&2; exit 1; }
           # shellcheck disable=SC2016
           labels="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/labels" --jq '[.[].name]')"
           intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
@@ -71,7 +77,7 @@ jobs:
           message="$(printf 'Prepare release %s\n\nRelease-Source-SHA: %s\nRelease-Version: %s\nRelease-Type: %s\nRelease-Channel: %s\nSigned-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>\n' "$version" "$source" "$version" "$type" "$channel")"
           input="$(jq -n --arg repo "$repo_name" --arg branch "$branch" --arg expected "$source" --arg headline "Prepare release ${version}" --arg body "$message" --arg content "$content" \
             '{branch:{repositoryNameWithOwner:$repo,branchName:$branch},expectedHeadOid:$expected,message:{headline:$headline,body:$body},fileChanges:{additions:[{path:"VERSION",contents:$content}]}}')"
-          response="$(gh api graphql -f query='mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid}}}' -F input="$input")"
+          response="$(gh api graphql -f query="mutation(\$input:CreateCommitOnBranchInput!){createCommitOnBranch(input:\$input){commit{oid}}}" -F input="$input")"
           if jq -e '.errors' <<<"$response" >/dev/null; then
             echo "$response" >&2
             exit 1

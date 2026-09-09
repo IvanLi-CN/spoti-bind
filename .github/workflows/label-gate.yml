@@ -2,6 +2,7 @@ name: Label Gate
 
 on:
   pull_request_target:
+    branches: [main]
     types: [opened, reopened, synchronize, ready_for_review, labeled, unlabeled]
 
 permissions:
@@ -25,9 +26,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
         run: |
           set -euo pipefail
-          if [[ "${{ github.event.pull_request.head.repo.full_name }}" != "$GITHUB_REPOSITORY" ]]; then
+          if [[ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]]; then
             echo 'fork pull requests cannot receive release preparation' >&2
             exit 1
           fi

@@ -8,6 +8,7 @@ python3 check_quality_gates.py
 for workflow in label-gate release-preparation release-completion; do
   file=".github/workflows/${workflow}.yml"
   grep -q 'pull_request_target:' "$file"
+  grep -q 'branches: \[main\]' "$file"
   grep -q 'ref:.*default_branch' "$file"
   grep -q 'persist-credentials: false' "$file"
 done

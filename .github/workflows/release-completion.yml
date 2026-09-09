@@ -2,6 +2,7 @@ name: Release completion
 
 on:
   pull_request_target:
+    branches: [main]
     types: [opened, reopened, synchronize, ready_for_review, labeled, unlabeled]
 
 permissions:
@@ -26,12 +27,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           set -euo pipefail
-          if [[ "${{ github.event.pull_request.head.repo.full_name }}" != "$GITHUB_REPOSITORY" ]]; then
+          if [[ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]]; then
             echo 'fork pull requests are not eligible for release completion' >&2
             exit 1
           fi
+          [[ "$BASE_REPO" == "$GITHUB_REPOSITORY" && "$BASE_REF" == 'main' ]] || { echo 'release completion requires the trusted main base' >&2; exit 1; }
           labels="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/labels" --jq '[.[].name]')"
           intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
           type="$(jq -r '.type' <<<"$intent")"
@@ -58,7 +63,6 @@ jobs:
             --jq '.check_runs[] | {name, conclusion}' | jq -s . > checks.json
           python3 .github/scripts/release_chain.py check-checks --checks checks.json \
             --required 'PR / Swift tests' --required 'PR / Build app'
-          [[ "${{ github.event.pull_request.base.ref }}" == 'main' ]]
           {
             echo '### Release completion';
             echo "Preparation \`$preparation\` is verified and source CI is green.";
