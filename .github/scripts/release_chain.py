@@ -16,6 +16,7 @@ SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 TRAILER_RE = re.compile(r"^([A-Za-z][A-Za-z0-9-]*):[ \t]*(.+)$")
 RELEASE_LABEL_RE = re.compile(r"^(type|channel):")
 BOT_SIGNOFF = "Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+DCO_RE = re.compile(r"^Signed-off-by: [^<>\n]+ <[^<>\n@]+@[^<>\n]+>$")
 
 
 class ReleaseError(ValueError):
@@ -197,7 +198,7 @@ def validate_main_merge(repo: Path, merge_sha: str) -> dict[str, str]:
         raise ReleaseError("merge second parent must be a single-parent preparation commit")
     source = prep_parents[0]
     source_message = git("show", "-s", "--format=%B", source, cwd=repo)
-    if not any(line.startswith("Signed-off-by:") for line in source_message.splitlines()):
+    if not any(DCO_RE.fullmatch(line.strip()) for line in source_message.splitlines()):
         raise ReleaseError("source commit must include a DCO signoff")
     identity = validate_preparation(repo, preparation, source)
     merge_version = git("show", f"{merge_sha}:VERSION", cwd=repo).strip()

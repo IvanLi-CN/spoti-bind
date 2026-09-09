@@ -23,5 +23,5 @@ grep -q 'gh release upload' .github/workflows/release.yml
 grep -q 'select-swift6.sh' .github/workflows/release.yml
 grep -q 'TARGET_SHA' .github/workflows/release.yml
 grep -q 'release-target-sha.txt' .github/workflows/notify-release-failure.yml
-grep -q -- '--repo "\$GITHUB_REPOSITORY"' .github/workflows/notify-release-failure.yml
+grep -q -- "--repo \"\$GITHUB_REPOSITORY\"" .github/workflows/notify-release-failure.yml
 echo "release workflow contracts passed"

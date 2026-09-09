@@ -104,6 +104,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.provenance.outputs.tag }}
           VERSION: ${{ steps.provenance.outputs.version }}
+          TARGET_SHA: ${{ steps.identity.outputs.sha }}
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -111,8 +112,8 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${assets[@]}" --clobber
             gh release edit "$TAG" --draft=false --title "SpotiBind ${VERSION}" \
-              --notes "Automated public release for verified main merge ${GITHUB_SHA}."
+              --notes "Automated public release for verified main merge ${TARGET_SHA}."
           else
             gh release create "$TAG" "${assets[@]}" --title "SpotiBind ${VERSION}" \
-              --notes "Automated public release for verified main merge ${GITHUB_SHA}."
+              --notes "Automated public release for verified main merge ${TARGET_SHA}."
           fi

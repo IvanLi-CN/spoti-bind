@@ -47,6 +47,8 @@ jq -e '[.rules[]?.type] | index("pull_request") != null and index("required_stat
   echo 'main release policy ruleset is missing required rule types' >&2
   exit 1
 }
+target="$(jq -r '.conditions.ref_name.include[0] // empty' <<<"$details")"
+[[ "$target" == '~DEFAULT_BRANCH' ]] || { echo "ruleset does not target ~DEFAULT_BRANCH: $target" >&2; exit 1; }
 contexts="$(jq -r '[.rules[]? | select(.type == "required_status_checks") | .parameters.required_status_checks[]?.context] | sort | join(",")' <<<"$details")"
 [[ "$contexts" == 'Label Gate,PR / Build app,PR / Swift tests,Release completion' ]] || {
   echo "required status checks do not match declaration: $contexts" >&2

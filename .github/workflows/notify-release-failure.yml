@@ -12,12 +12,20 @@ permissions:
   pull-requests: read
 
 jobs:
-  notify:
-    name: Notify release failure
+  context:
+    name: Build release failure context
     if: github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
+    outputs:
+      target_sha: ${{ steps.context.outputs.target_sha }}
+      source_sha: ${{ steps.context.outputs.source_sha }}
+      version: ${{ steps.context.outputs.version }}
+      tag: ${{ steps.context.outputs.tag }}
+      assets: ${{ steps.context.outputs.assets }}
+      details: ${{ steps.context.outputs.details }}
     steps:
-      - name: Publish recovery notice
+      - name: Resolve immutable release context
+        id: context
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
@@ -44,23 +52,28 @@ jobs:
           version="$(gh api "repos/${GITHUB_REPOSITORY}/contents/VERSION?ref=${TARGET_SHA}" --jq '.content' | tr -d '\n' | base64 -d | tr -d '\r\n' || echo unknown)"
           tag="v${version}"
           assets="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name]' 2>/dev/null || printf '["SpotiBind-%s-universal.dmg","SHA256SUMS"]' "$version")"
-          title="Release failure: ${TARGET_SHA}"
-          body=$(cat <<EOF
-          Automated public release failed.
-
-          - PR and labels: ${prs}
-          - Source SHA: ${source_sha}
-          - Merge SHA: ${TARGET_SHA}
-          - Version: ${version}
-          - Tag: ${tag}
-          - Assets: ${assets}
-          - Run: ${RUN_URL}
-          - Recovery: rerun Release with workflow_dispatch input commit_sha=${TARGET_SHA}; it must resolve to the same merge SHA and tag identity.
-          EOF
-          )
-          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "${title} in:title" --json number --jq '.[0].number // empty')"
-          if [[ -n "$existing" ]]; then
-            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
-          else
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
-          fi
+          details="PR and labels: ${prs}; source SHA: ${source_sha}; merge SHA: ${TARGET_SHA}; version: ${version}; tag: ${tag}; assets: ${assets}; recovery: rerun Release with workflow_dispatch commit_sha=${TARGET_SHA}"
+          {
+            echo "target_sha=${TARGET_SHA}"
+            echo "source_sha=${source_sha}"
+            echo "version=${version}"
+            echo "tag=${tag}"
+            echo "assets=${assets}"
+            echo "details=${details}"
+          } >> "$GITHUB_OUTPUT"
+  notify:
+    name: Notify release failure
+    needs: context
+    if: needs.context.result == 'success'
+    uses: IvanLi-CN/github-workflows/.github/workflows/release-failure-telegram.yml@main
+    with:
+      repository: ${{ github.repository }}
+      workflow_name: Release
+      conclusion: failure
+      run_url: ${{ github.event.workflow_run.html_url }}
+      ref_label: main
+      head_sha: ${{ needs.context.outputs.target_sha }}
+      event_name: ${{ github.event.workflow_run.event }}
+      extra_details: ${{ needs.context.outputs.details }}
+    secrets:
+      SHOUTRRR_URL: ${{ secrets.SHOUTRRR_URL }}
