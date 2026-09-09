@@ -26,4 +26,12 @@ grep -q 'select-swift6.sh' .github/workflows/release.yml
 grep -q 'TARGET_SHA' .github/workflows/release.yml
 grep -q 'release-target-sha.txt' .github/workflows/notify-release-failure.yml
 grep -q -- "--repo \"\$GITHUB_REPOSITORY\"" .github/workflows/notify-release-failure.yml
+grep -q 'workflow_dispatch:' .github/workflows/notify-release-failure.yml
+grep -q 'id-token: write' .github/workflows/notify-release-failure.yml
+grep -q 'on_gateway_failure: warn' .github/workflows/notify-release-failure.yml
+grep -q 'IvanLi-CN/oidrune/.github/workflows/notify.yml@8667553506eef516af0499a77273f2938387dd37' .github/workflows/notify-release-failure.yml
+if grep -q -E 'SHOUTRRR_URL|github-workflows/.github/workflows/release-failure-telegram.yml' .github/workflows/notify-release-failure.yml; then
+  echo 'retired Telegram/Shoutrrr notifier contract is still present' >&2
+  exit 1
+fi
 echo "release workflow contracts passed"

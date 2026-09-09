@@ -29,5 +29,6 @@ toolchain; Command Line Tools can still build and type-check the app target.
 - Sign commits off with `git commit --signoff`.
 
 The repository policy is recorded in `.github/quality-gates.json`. Remote
-rulesets, labels, and notifier credentials are aligned separately with the
-idempotent `gh` procedure after review.
+rulesets and labels are aligned separately with the idempotent `gh` procedure
+after review. Release failure notifications use the pinned Oidrune OIDC
+workflow; no repository notification secret is required.
