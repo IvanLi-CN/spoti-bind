@@ -42,6 +42,7 @@ jobs:
           source="${{ github.event.pull_request.head.sha }}"
           base="${{ github.event.pull_request.base.sha }}"
           git fetch --no-tags origin "$source"
+          # shellcheck disable=SC2016
           source_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${source}" --jq '.commit.verification.verified')"
           [[ "$source_verified" == 'true' ]] || { echo 'source commit is not GitHub-verified' >&2; exit 1; }
           if git show -s --format=%B "$source" | grep -q '^Release-Source-SHA:'; then
@@ -69,8 +70,8 @@ jobs:
           repo_name="${GITHUB_REPOSITORY}"
           content="$(printf '%s\n' "$version" | base64 | tr -d '\n')"
           message="$(printf 'Prepare release %s\n\nRelease-Source-SHA: %s\nRelease-Version: %s\nRelease-Type: %s\nRelease-Channel: %s\nSigned-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>\n' "$version" "$source" "$version" "$type" "$channel")"
-          input="$(jq -n --arg repo "$repo_name" --arg branch "$branch" --arg expected "$source" --arg message "$message" --arg content "$content" \
-            '{branch:{repositoryName:$repo,branchName:$branch},expectedHeadOid:$expected,message:$message,fileChanges:{addFile:{path:"VERSION",contents:$content}}}')"
+          input="$(jq -n --arg repo "$repo_name" --arg branch "$branch" --arg expected "$source" --arg headline "Prepare release ${version}" --arg body "$message" --arg content "$content" \
+            '{branch:{repositoryNameWithOwner:$repo,branchName:$branch},expectedHeadOid:$expected,message:{headline:$headline,body:$body},fileChanges:{additions:[{path:"VERSION",contents:$content}]}}')"
           response="$(gh api graphql -f query='mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid}}}' -F input="$input")"
           if jq -e '.errors' <<<"$response" >/dev/null; then
             echo "$response" >&2

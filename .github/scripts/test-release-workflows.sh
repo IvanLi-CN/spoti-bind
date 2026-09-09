@@ -13,6 +13,8 @@ for workflow in label-gate release-preparation release-completion; do
 done
 grep -q 'expectedHeadOid' .github/workflows/release-preparation.yml
 grep -q 'createCommitOnBranch' .github/workflows/release-preparation.yml
+grep -q 'repositoryNameWithOwner' .github/workflows/release-preparation.yml
+grep -q 'additions' .github/workflows/release-preparation.yml
 grep -q 'workflow_dispatch:' .github/workflows/release.yml
 grep -q 'commit_sha:' .github/workflows/release.yml
 grep -q 'gh release create' .github/workflows/release.yml

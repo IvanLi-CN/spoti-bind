@@ -37,7 +37,7 @@ SpotiBind validates its behavior at four layers.
   recovery. Fastpotify and Sonora checks run on macOS 13+; Spotifly checks run
   only on a macOS 26.2+ environment that can install its current release.
 
-The real-Mac checklist is a release gate because CI cannot grant Accessibility authorization or reproduce physical media-key routing.
+The real-Mac checklist is post-release evidence because CI cannot grant Accessibility authorization or reproduce physical media-key routing; it does not block publication of the CI-verified artifact.
 
 Run the local commands from the repository root:
 
@@ -59,7 +59,7 @@ Swift 6 before running tests or packaging. A runner image without Swift 6 is a
 configuration failure rather than a reason to lower the package's language
 mode.
 
-Because V1 supports macOS 13 and later, a release must include a real macOS 13 validation run for every architecture it claims to support. A build-only deployment-target check is not evidence that Accessibility and physical media-key routing work on that system.
+Because V1 supports macOS 13 and later, release evidence should include a real macOS 13 validation run for every architecture it claims to support. A build-only deployment-target check is not evidence that Accessibility and physical media-key routing work on that system.
 
 The automated contract names are `PlayerSelectionTests`, `PlayerDispatchTests`,
 `PlayerLaunchCoordinatorTests`, `RoutingPolicyTests`,

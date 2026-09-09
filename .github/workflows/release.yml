@@ -32,6 +32,14 @@ jobs:
           set -euo pipefail
           [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'commit_sha must be a full SHA' >&2; exit 1; }
           echo "sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$TARGET_SHA" > release-target-sha.txt
+      - name: Upload immutable recovery identity
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-identity
+          path: release-target-sha.txt
+          if-no-files-found: error
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.identity.outputs.sha }}
