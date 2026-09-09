@@ -42,8 +42,7 @@ jobs:
           source="${{ github.event.pull_request.head.sha }}"
           base="${{ github.event.pull_request.base.sha }}"
           git fetch --no-tags origin "$source"
-          # shellcheck disable=SC2016
-          source_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${source}" --jq '.commit.verification.verified')"
+          source_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${source}" --jq ".commit.verification.verified")"
           [[ "$source_verified" == 'true' ]] || { echo 'source commit is not GitHub-verified' >&2; exit 1; }
           if git show -s --format=%B "$source" | grep -q '^Release-Source-SHA:'; then
             parent="$(git show -s --format=%P "$source")"
