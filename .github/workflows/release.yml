@@ -137,7 +137,7 @@ jobs:
             gh release edit "$TAG" --draft=false --title "SpotiBind ${VERSION}" \
               --notes "Automated public release for verified main merge ${TARGET_SHA}."
             release_id="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.id')"
-            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" -f draft=false -f prerelease=false >/dev/null
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" -F draft=false -F prerelease=false >/dev/null
           else
             gh release create "$TAG" "${assets[@]}" --verify-tag --title "SpotiBind ${VERSION}" \
               --notes "Automated public release for verified main merge ${TARGET_SHA}."
