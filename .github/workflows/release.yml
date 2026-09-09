@@ -113,6 +113,12 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           assets=("$RUNNER_TEMP/spotibind-dist"/*)
+          final_type="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.type')"
+          final_target="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha')"
+          if [[ "$final_type" == 'tag' ]]; then
+            final_target="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${final_target}" --jq '.object.sha')"
+          fi
+          [[ "$final_target" == "$TARGET_SHA" ]] || { echo 'tag target changed before release creation' >&2; exit 1; }
           if gh release view "$TAG" >/dev/null 2>&1; then
             current_type="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.type')"
             current="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha')"
