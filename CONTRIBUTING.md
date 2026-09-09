@@ -21,10 +21,13 @@ toolchain; Command Line Tools can still build and type-check the app target.
 - Add or update Core XCTest coverage for routing, decoding, and process
   boundaries.
 - Keep the PR checks named `PR / Swift tests` and `PR / Build app` passing.
+- Same-repository PRs receive `type:patch` and `channel:stable` by default;
+  choose one explicit `type:major`, `type:minor`, or `type:none` label when
+  appropriate. `Label Gate` and `Release completion` are required checks.
 - Do not add private macOS APIs, shell-based command execution, or privileged
   helpers without a new architecture decision.
 - Sign commits off with `git commit --signoff`.
 
-The initial repository policy is recorded in
-`.github/quality-gates.json`; branch rules are intentionally not changed by
-this repository.
+The repository policy is recorded in `.github/quality-gates.json`. Remote
+rulesets, labels, and notifier credentials are aligned separately with the
+idempotent `gh` procedure after review.

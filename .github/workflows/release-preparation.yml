@@ -1,0 +1,101 @@
+name: Prepare release version
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: write
+  checks: read
+  pull-requests: read
+
+concurrency:
+  group: release-preparation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    name: Prepare release version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Freeze release intent and prepare VERSION
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          # shellcheck disable=SC2016
+          set -euo pipefail
+          if [[ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]]; then
+            echo 'fork pull requests are fail-closed for write workflows' >&2
+            exit 1
+          fi
+          [[ "$BASE_REPO" == "$GITHUB_REPOSITORY" && "$BASE_REF" == 'main' ]] || { echo 'release preparation requires the trusted main base' >&2; exit 1; }
+          # shellcheck disable=SC2016
+          labels="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/labels" --jq '[.[].name]')"
+          intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
+          printf '%s\n' "$intent" > release-intent.json
+          type="$(jq -r '.type' <<<"$intent")"
+          channel="$(jq -r '.channel' <<<"$intent")"
+          source="${{ github.event.pull_request.head.sha }}"
+          base="${{ github.event.pull_request.base.sha }}"
+          git fetch --no-tags origin "$source"
+          source_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${source}" --jq ".commit.verification.verified")"
+          [[ "$source_verified" == 'true' ]] || { echo 'source commit is not GitHub-verified' >&2; exit 1; }
+          if git show -s --format=%B "$source" | grep -q '^Release-Source-SHA:'; then
+            parent="$(git show -s --format=%P "$source")"
+            python3 .github/scripts/release_chain.py validate-preparation --repo . \
+              --preparation "$source" --source "$parent"
+            existing_intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
+            [[ "$(git show -s --format=%B "$source")" == *"Release-Version: $(jq -r '.version' <<<"$existing_intent")"* ]] || { echo 'labels do not match existing preparation version' >&2; exit 1; }
+            [[ "$(git show -s --format=%B "$source")" == *"Release-Type: $(jq -r '.type' <<<"$existing_intent")"* ]] || { echo 'labels do not match existing preparation type' >&2; exit 1; }
+            [[ "$(git show -s --format=%B "$source")" == *"Release-Channel: $(jq -r '.channel' <<<"$existing_intent")"* ]] || { echo 'labels do not match existing preparation channel' >&2; exit 1; }
+            echo 'existing preparation commit is already the PR head' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [[ "$type" == 'type:none' ]]; then
+            echo 'type:none: no VERSION preparation required' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${source}/check-runs" \
+            --jq '.check_runs[] | {name, conclusion}' | jq -s . > checks.json
+          python3 .github/scripts/release_chain.py check-checks --checks checks.json \
+            --required 'PR / Swift tests' --required 'PR / Build app'
+          old_version="$(git show "${base}:VERSION" | tr -d '\r\n')"
+          version="$(python3 .github/scripts/release_chain.py bump-version --version "$old_version" --type "$type")"
+          branch="$PR_BRANCH"
+          repo_name="${GITHUB_REPOSITORY}"
+          content="$(printf '%s\n' "$version" | base64 | tr -d '\n')"
+          message="$(printf 'Prepare release %s\n\nRelease-Source-SHA: %s\nRelease-Version: %s\nRelease-Type: %s\nRelease-Channel: %s\nSigned-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>\n' "$version" "$source" "$version" "$type" "$channel")"
+          input="$(jq -n --arg repo "$repo_name" --arg branch "$branch" --arg expected "$source" --arg headline "Prepare release ${version}" --arg body "$message" --arg content "$content" \
+            '{branch:{repositoryNameWithOwner:$repo,branchName:$branch},expectedHeadOid:$expected,message:{headline:$headline,body:$body},fileChanges:{additions:[{path:"VERSION",contents:$content}]}}')"
+          request="$(jq -n --arg query 'mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid}}}' --argjson input "$input" '{query:$query,variables:{input:$input}}')"
+          response="$(gh api graphql --input - <<<"$request")"
+          if jq -e '.errors' <<<"$response" >/dev/null; then
+            echo "$response" >&2
+            exit 1
+          fi
+          preparation="$(jq -r '.data.createCommitOnBranch.commit.oid // empty' <<<"$response")"
+          [[ "$preparation" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin "$preparation"
+          for _ in {1..10}; do
+            verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${preparation}" --jq '.commit.verification.verified')"
+            [[ "$verified" == 'true' ]] && break
+            sleep 2
+          done
+          [[ "$verified" == 'true' ]] || { echo 'GitHub signature verification did not pass' >&2; exit 1; }
+          python3 .github/scripts/release_chain.py validate-preparation --repo . \
+            --preparation "$preparation" --source "$source"
+          {
+            echo '### Prepare release version';
+            echo "Preparation commit: \`$preparation\`";
+            echo "Source commit: \`$source\`";
+          } >> "$GITHUB_STEP_SUMMARY"

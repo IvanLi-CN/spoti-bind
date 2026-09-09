@@ -29,15 +29,15 @@ installed CLI need those boundaries.
 
 ## Install
 
-Download the universal DMG from the GitHub Draft Release, open it, and move
+Download the universal DMG from the public GitHub Release, open it, and move
 `SpotiBind.app` to `/Applications`. The first launch may require opening
 the app from Finder's context menu because an Ad Hoc build is not notarized.
 Then open the menu-bar item, choose an active forwarding mode, or use a media
 control to trigger the Accessibility prompt.
 
-The release remains a Draft until the macOS 13 arm64 and x86_64 physical-key
-checklist has passed. A Draft artifact is for testing, not a claim of complete
-release compatibility.
+The public artifact is built and verified by CI. Physical media-key checks are
+recorded as post-release evidence; the Ad Hoc build is not notarized and may
+require the Finder context-menu open action.
 
 ## Behavior
 

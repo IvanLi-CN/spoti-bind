@@ -1,0 +1,40 @@
+name: Release intent defaults
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  defaults:
+    name: Release intent defaults
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'main'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Ensure release labels and defaults
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          gh label create 'type:patch' --color 1D76DB --description 'Release patch bump (default)' --force
+          gh label create 'type:minor' --color 5319E7 --description 'Release minor bump' --force
+          gh label create 'type:major' --color B60205 --description 'Release major bump' --force
+          gh label create 'type:none' --color C5DEF5 --description 'No product release' --force
+          gh label create 'channel:stable' --color 0E8A16 --description 'Public stable release' --force
+          labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels" --jq '[.[].name]')"
+          if ! jq -e 'any(.[]; startswith("type:"))' <<<"$labels" >/dev/null; then
+            gh pr edit "$PR_NUMBER" --add-label 'type:patch'
+          fi
+          if ! jq -e 'any(.[]; startswith("channel:"))' <<<"$labels" >/dev/null; then
+            gh pr edit "$PR_NUMBER" --add-label 'channel:stable'
+          fi

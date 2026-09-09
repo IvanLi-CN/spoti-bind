@@ -1,15 +1,37 @@
 {
-  "pullRequestsRequired": true,
-  "requiredChecks": [
-    "PR / Swift tests",
-    "PR / Build app"
-  ],
-  "requiredReviewCount": 0,
-  "signedCommitsRequired": true,
-  "dcoRequired": true,
-  "tagRelease": {
-    "pattern": "vX.Y.Z",
-    "draft": true
+  "schema_version": 1,
+  "policy": {
+    "baseline_policy": "explicit-waiver-required",
+    "require_signed_commits": true,
+    "require_dco": true,
+    "branch_protection": {
+      "protected_branches": ["main"],
+      "require_pull_request": true,
+      "disallow_direct_pushes": true
+    }
   },
-  "remoteRules": "documented-only"
+  "required_checks": [
+    "PR / Swift tests",
+    "PR / Build app",
+    "Label Gate",
+    "Release completion"
+  ],
+  "informational_checks": [],
+  "waivers": [],
+  "expected_pr_workflows": [
+    {"workflow": "PR", "jobs": ["PR / Swift tests", "PR / Build app"]},
+    {"workflow": "Label Gate", "jobs": ["Label Gate"]},
+    {"workflow": "Release completion", "jobs": ["Release completion"]}
+  ],
+  "release": {
+    "tag_pattern": "vX.Y.Z",
+    "draft": false,
+    "public": true,
+    "version_source": "VERSION"
+  },
+  "remote_alignment": {
+    "mode": "declaration-and-idempotent-gh-check",
+    "required_labels": ["type:patch", "type:minor", "type:major", "type:none", "channel:stable"],
+    "required_rules": ["main-pr-only", "signed-commit", "dco"]
+  }
 }
