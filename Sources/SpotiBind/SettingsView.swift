@@ -4,19 +4,26 @@ import SpotiBindCore
 
 struct SettingsView: View {
     @ObservedObject var state: AppState
+    let onContentHeightChange: (CGFloat) -> Void
+    let onProblemBannerVisibilityChange: (Bool) -> Void
     @State private var isProblemBannerDismissed = false
+
+    private var isProblemBannerVisible: Bool {
+        state.statusAction != nil && !isProblemBannerDismissed
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
-                if state.statusAction != nil, !isProblemBannerDismissed {
+                if isProblemBannerVisible {
                     ProblemBanner(state: state) {
                         isProblemBannerDismissed = true
+                        onProblemBannerVisibilityChange(false)
                     }
                 }
 
                 SettingsSection(title: "Forward media keys to") {
-                    SettingsRoutingSelectorView(state: state)
+                    RoutingChoiceGrid(state: state, density: .settings)
                 }
 
                 SettingsSection(title: "Player locations") {
@@ -28,10 +35,9 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    .background(.quaternary.opacity(0.18), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(.primary.opacity(0.12), lineWidth: 1)
+                            .strokeBorder(.primary.opacity(0.16), lineWidth: 1)
                     }
                 }
 
@@ -41,7 +47,8 @@ struct SettingsView: View {
                             Text("Accessibility")
                             Spacer()
                             Button("Open Accessibility Settings", action: state.openAccessibilitySettings)
-                                .buttonStyle(SettingsSecondaryButtonStyle())
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
@@ -61,20 +68,42 @@ struct SettingsView: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
                     }
-                    .background(.quaternary.opacity(0.18), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(.primary.opacity(0.12), lineWidth: 1)
+                            .strokeBorder(.primary.opacity(0.16), lineWidth: 1)
                     }
                 }
             }
             .padding(32)
+            .background {
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: SettingsContentHeightPreferenceKey.self,
+                        value: proxy.size.height
+                    )
+                }
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.regularMaterial)
+        .frame(maxWidth: .infinity)
+        .onPreferenceChange(SettingsContentHeightPreferenceKey.self) {
+            onContentHeightChange($0)
+        }
         .onChange(of: state.statusTitle) { _ in
             isProblemBannerDismissed = false
+            onProblemBannerVisibilityChange(state.statusAction != nil)
         }
+        .onChange(of: state.statusAction) { _ in
+            isProblemBannerDismissed = false
+            onProblemBannerVisibilityChange(state.statusAction != nil)
+        }
+    }
+}
+
+private struct SettingsContentHeightPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
@@ -88,85 +117,6 @@ private struct SettingsSection<Content: View>: View {
                 .font(.title3.weight(.semibold))
             content()
         }
-    }
-}
-
-private struct SettingsRoutingSelectorView: View {
-    @ObservedObject var state: AppState
-
-    private let modes: [PlayerMode] = [.fastpotify, .sonora, .spotifly, .automatic, .off]
-    private let columns = Array(
-        repeating: GridItem(.flexible(minimum: 0), spacing: 20, alignment: .leading),
-        count: 3
-    )
-
-    var body: some View {
-        LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
-            ForEach(modes, id: \.self) { mode in
-                routingOption(for: mode)
-            }
-        }
-        .padding(.vertical, 6)
-    }
-
-    private func routingOption(for mode: PlayerMode) -> some View {
-        let isSelected = state.playerMode == mode
-        let isPlayer = mode.supportedPlayer != nil
-
-        return Button {
-            state.setPlayerMode(mode)
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
-                    .font(.system(size: 21, weight: .medium))
-                    .foregroundStyle(isSelected ? .primary : .secondary)
-                    .frame(width: 22, height: 22)
-
-                PlayerMarkView(
-                    player: mode.supportedPlayer,
-                    fallbackSymbol: mode.symbolName,
-                    size: isPlayer ? 34 : 28
-                )
-                .frame(width: 36, height: 36)
-
-                Text(mode.displayName)
-                    .font(.body.weight(.medium))
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(SettingsRoutingOptionButtonStyle())
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .accessibilityLabel(mode.displayName)
-        .help("Forward media keys to \(mode.displayName)")
-    }
-}
-
-private struct SettingsRoutingOptionButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.65 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
-    }
-}
-
-private struct SettingsSecondaryButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .padding(.horizontal, 12)
-            .frame(minHeight: 28)
-            .background(Color.primary.opacity(configuration.isPressed ? 0.10 : 0.04), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .strokeBorder(.primary.opacity(configuration.isPressed ? 0.30 : 0.18), lineWidth: 1)
-            }
-            .opacity(configuration.isPressed ? 0.72 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -199,10 +149,9 @@ private struct ProblemBanner: View {
             .accessibilityLabel("Dismiss warning")
         }
         .padding(14)
-        .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(.orange.opacity(0.24), lineWidth: 1)
+                .strokeBorder(.orange.opacity(0.55), lineWidth: 1)
         }
     }
 }
@@ -239,12 +188,14 @@ private struct PlayerPathRowView: View {
             Button("Choose…") {
                 state.choosePath(for: player)
             }
-            .buttonStyle(SettingsSecondaryButtonStyle())
+            .buttonStyle(.bordered)
+            .controlSize(.small)
 
             Button("Reset") {
                 state.resetPath(for: player)
             }
-            .buttonStyle(SettingsSecondaryButtonStyle())
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)

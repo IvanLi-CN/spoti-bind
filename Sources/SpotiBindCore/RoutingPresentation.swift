@@ -76,8 +76,7 @@ public struct RoutingPresentation: Equatable, Sendable {
             if tapStatus != "Ready" {
                 return RoutingPresentation(
                     title: tapStatus,
-                    detail: targetDetail,
-                    action: .settings
+                    detail: targetDetail
                 )
             }
             return RoutingPresentation(

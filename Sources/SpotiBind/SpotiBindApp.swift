@@ -21,56 +21,90 @@ struct MenuPanelView: View {
     @ObservedObject var state: AppState
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 18) {
             TransportControlsView(state: state)
-
-            Divider()
-                .padding(.vertical, 14)
 
             StatusSummaryView(state: state)
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Forward media keys to")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                RoutingSelectorView(state: state)
+                RoutingChoiceGrid(state: state, density: .menu)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 16)
 
             Divider()
-                .padding(.vertical, 14)
 
             MenuFooterView(state: state)
         }
-        .padding(20)
-        .frame(width: 400)
-        .background(.regularMaterial)
+        .padding(18)
+        .frame(width: 372)
     }
 }
 
 private struct TransportControlsView: View {
     @ObservedObject var state: AppState
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     private var controlsUnavailable: Bool {
         state.isDispatching || (state.accessibilityTrusted && !state.readiness.isReady)
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            mediaButton(
+        if #available(macOS 26.0, *), !reduceTransparency {
+            nativeTransportBar
+        } else {
+            fallbackTransportBar
+        }
+    }
+
+    @available(macOS 26.0, *)
+    private var nativeTransportBar: some View {
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+
+        return HStack(spacing: 0) {
+            nativeMediaButton(
                 "backward.end.fill",
                 label: "Previous",
                 key: .previous
             )
-            mediaButton(
+
+            transportDivider
+
+            nativeMediaButton(
                 "playpause.fill",
                 label: "Play or Pause",
-                key: .playPause,
-                isPrimary: true
+                key: .playPause
             )
-            mediaButton(
+
+            transportDivider
+
+            nativeMediaButton(
+                "forward.end.fill",
+                label: "Next",
+                key: .next
+            )
+        }
+        .frame(height: 54)
+        .clipShape(shape)
+        .glassEffect(.regular, in: shape)
+    }
+
+    private var fallbackTransportBar: some View {
+        HStack(alignment: .center, spacing: 10) {
+            fallbackMediaButton(
+                "backward.end.fill",
+                label: "Previous",
+                key: .previous
+            )
+            fallbackMediaButton(
+                "playpause.fill",
+                label: "Play or Pause",
+                key: .playPause
+            )
+            fallbackMediaButton(
                 "forward.end.fill",
                 label: "Next",
                 key: .next
@@ -78,24 +112,80 @@ private struct TransportControlsView: View {
         }
     }
 
-    private func mediaButton(
+    @available(macOS 26.0, *)
+    private func nativeMediaButton(
         _ systemName: String,
         label: String,
-        key: MediaKey,
-        isPrimary: Bool = false
+        key: MediaKey
+    ) -> some View {
+        NativeTransportSegment(
+            systemName: systemName,
+            label: label,
+            isDisabled: controlsUnavailable
+        ) {
+            state.dispatchFromMenu(key)
+        }
+    }
+
+    private var transportDivider: some View {
+        Rectangle()
+            .fill(.primary.opacity(0.14))
+            .frame(width: 1)
+            .padding(.vertical, 9)
+    }
+
+    private func fallbackMediaButton(
+        _ systemName: String,
+        label: String,
+        key: MediaKey
     ) -> some View {
         Button {
             state.dispatchFromMenu(key)
         } label: {
             Image(systemName: systemName)
-                .font(.system(size: isPrimary ? 30 : 27, weight: .semibold))
+                .font(.system(size: 23, weight: .semibold))
                 .frame(maxWidth: .infinity)
-                .frame(height: 72)
+                .frame(height: 54)
         }
-        .buttonStyle(PanelButtonStyle(isPrimary: isPrimary))
         .disabled(controlsUnavailable)
         .accessibilityLabel(label)
         .help(label)
+        .buttonStyle(FallbackTransportButtonStyle())
+    }
+}
+
+@available(macOS 26.0, *)
+private struct NativeTransportSegment: View {
+    let systemName: String
+    let label: String
+    let isDisabled: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 23, weight: .semibold))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .accessibilityLabel(label)
+        .help(label)
+        .background {
+            if isHovered && !isDisabled {
+                Color.primary.opacity(0.08)
+            }
+        }
+        .onHover { isHovered = $0 }
+        .animation(
+            reduceMotion ? nil : .easeOut(duration: 0.12),
+            value: isHovered
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -111,13 +201,11 @@ private struct StatusSummaryView: View {
     }
 
     private var informationalStatus: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 8) {
-                statusMark
-                Text(displayTitle)
-                    .font(.headline)
-                    .lineLimit(1)
-            }
+        HStack(spacing: 8) {
+            statusMark
+            Text(displayTitle)
+                .font(.subheadline.weight(.medium))
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -189,73 +277,6 @@ private struct StatusSummaryView: View {
     }
 }
 
-struct RoutingSelectorView: View {
-    @ObservedObject var state: AppState
-
-    private let firstRow: [PlayerMode] = [.fastpotify, .sonora, .spotifly]
-    private let secondRow: [PlayerMode] = [.automatic, .off]
-
-    var body: some View {
-        VStack(spacing: 0) {
-            row(firstRow)
-            Divider()
-            row(secondRow)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(.primary.opacity(0.15), lineWidth: 1)
-        }
-    }
-
-    private func row(_ modes: [PlayerMode]) -> some View {
-        HStack(spacing: 0) {
-            ForEach(modes, id: \.self) { mode in
-                routingButton(for: mode)
-                if mode != modes.last {
-                    Divider()
-                }
-            }
-        }
-    }
-
-    private func routingButton(for mode: PlayerMode) -> some View {
-        let isPlayer = mode.supportedPlayer != nil
-        return Button {
-            state.setPlayerMode(mode)
-        } label: {
-            VStack(spacing: isPlayer ? 9 : 8) {
-                ZStack(alignment: .topTrailing) {
-                    PlayerMarkView(
-                        player: mode.supportedPlayer,
-                        fallbackSymbol: mode.symbolName,
-                        size: isPlayer ? 40 : 34
-                    )
-
-                    if state.playerMode == mode {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(.primary)
-                            .background(.regularMaterial, in: Circle())
-                            .offset(x: 14, y: -9)
-                    }
-                }
-
-                Text(mode.displayName)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: isPlayer ? 104 : 88)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(RoutingCellButtonStyle(isSelected: state.playerMode == mode))
-        .accessibilityAddTraits(state.playerMode == mode ? .isSelected : [])
-        .accessibilityLabel(mode.displayName)
-        .help("Forward media keys to \(mode.displayName)")
-    }
-}
-
 private struct MenuFooterView: View {
     @ObservedObject var state: AppState
 
@@ -293,37 +314,25 @@ private struct MenuFooterView: View {
     }
 }
 
-private struct PanelButtonStyle: ButtonStyle {
-    let isPrimary: Bool
+private struct FallbackTransportButtonStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         configuration.label
             .background(
-                (isPrimary ? Color.primary.opacity(0.12) : Color.primary.opacity(0.06)),
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                Color.primary.opacity(0.06),
+                in: shape
             )
+            .foregroundStyle(.primary)
             .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(.primary.opacity(configuration.isPressed ? 0.3 : 0.12), lineWidth: 1)
+                shape.strokeBorder(.primary.opacity(0.12), lineWidth: 1)
             }
-            .opacity(configuration.isPressed ? 0.7 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
-    }
-}
-
-private struct RoutingCellButtonStyle: ButtonStyle {
-    let isSelected: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(
-                isSelected ? Color.primary.opacity(0.14) : Color.clear,
-                in: Rectangle()
+            .opacity(configuration.isPressed ? 0.72 : 1)
+            .animation(
+                reduceMotion ? nil : .easeOut(duration: 0.12),
+                value: configuration.isPressed
             )
-            .opacity(configuration.isPressed ? 0.65 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 

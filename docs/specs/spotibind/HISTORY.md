@@ -17,7 +17,10 @@
 
 ## Related Changes
 
-- None. Record PR, commit, review, and compatibility references here; do not add task history to `SPEC.md`.
+- [PR #4](https://github.com/IvanLi-CN/spoti-bind/pull/4) delivers the modern
+  menu-bar panel, retained Advanced Settings window, and target-scoped visual
+  evidence. The PR intentionally stops at merge-ready and is not merged by
+  this delivery flow.
 
 ## References
 

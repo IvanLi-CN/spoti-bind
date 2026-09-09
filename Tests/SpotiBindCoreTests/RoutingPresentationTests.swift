@@ -59,4 +59,18 @@ final class RoutingPresentationTests: XCTestCase {
         XCTAssertEqual(presentation.title, "Media key dispatch failed")
         XCTAssertEqual(presentation.action, .settings)
     }
+
+    func testRestartedCaptureIsInformational() {
+        let presentation = RoutingPresentation.make(
+            mode: .automatic,
+            accessibilityTrusted: true,
+            issue: nil,
+            selection: .running(.sonora),
+            tapStatus: "Media key capture restarted",
+            targetDetail: "/Applications/Sonora.app"
+        )
+
+        XCTAssertEqual(presentation.title, "Media key capture restarted")
+        XCTAssertNil(presentation.action)
+    }
 }

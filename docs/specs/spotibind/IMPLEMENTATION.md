@@ -41,6 +41,13 @@
   all three supported players discoverable, and Accessibility authorized. The
   Demo process uses a regular activation policy so an owner can identify it
   during capture; the shipped app remains an accessory app.
+- The menu panel keeps its three transport controls on one native Glass surface
+  where the system provides it. The Advanced Settings window uses the platform
+  window material and fits its content height on first presentation and on an
+  Accessibility-guidance visibility change, without overriding subsequent
+  user resizing.
+- Current visual evidence is scoped to live SpotiBind windows only and covers
+  the menu panel plus normal and Accessibility-guidance settings states.
 
 ## Remaining Gaps
 

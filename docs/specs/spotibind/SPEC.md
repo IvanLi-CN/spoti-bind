@@ -44,9 +44,10 @@
 
 ### REQ-FASTPOTIFY-004
 
-- The system MUST expose a single-choice target menu containing Automatic, Fastpotify, Sonora, Spotifly, and Off, plus Accessibility guidance and login-start preference from its menu-bar extra.
+- The system MUST expose a window-style menu-bar panel with previous, play-or-pause, and next transport controls; a single-choice target picker containing Automatic, Fastpotify, Sonora, Spotifly, and Off; Accessibility guidance; and Advanced Settings, About, and Quit actions.
+- Advanced Settings MUST reuse the five-mode selector and expose per-player location controls, Accessibility settings, and the login-start preference. Its window MUST fit its content height when first presented and when the Accessibility guidance appears or disappears, while remaining user-resizable at other times.
 - Inputs: current service state and user preferences stored in `UserDefaults`.
-- Outputs: a single menu-bar control surface with actionable status and settings links.
+- Outputs: a single menu-bar control surface and a retained settings window with actionable status and settings links.
 
 ### REQ-FASTPOTIFY-005
 
@@ -82,7 +83,7 @@
 
 - Method: menu interaction on a real app bundle and Accessibility permission cycle.
 - covers: `REQ-FASTPOTIFY-004`
-- Pass condition: the five single-choice modes, status, Accessibility link, login toggle, and Quit are visible from the menu-bar extra and update their state.
+- Pass condition: the three transport actions, five single-choice modes, status, Accessibility link, login toggle, Advanced Settings, and Quit are visible from the menu-bar panel and update their state. The retained settings window fits its content on first presentation and after an Accessibility-guidance visibility change.
 
 ### VER-FASTPOTIFY-004
 
@@ -103,8 +104,9 @@
 
 - Surfaces: the SpotiBind menu-bar `popover` and retained `settings-window`
   only (`target_app_window`). No `main-window` surface exists.
-- Scope: status, the five-mode target picker, Accessibility settings, Launch at
-  Login, Quit, and Advanced Settings controls; no desktop or unrelated windows.
+- Scope: transport controls, status, the five-mode target picker, Accessibility
+  settings, player locations, Launch at Login, Quit, and Advanced Settings
+  controls; no desktop or unrelated windows.
 - Healthy evidence: light and dark appearances produce exactly four assets:
   `theme-light-popover.png`, `theme-light-settings.png`,
   `theme-dark-popover.png`, and `theme-dark-settings.png`.
@@ -121,6 +123,11 @@
 - Error scenes are smoke-only: `accessibility-required`,
   `no-supported-player`, `path-unavailable`, and `dispatch-failure` are not
   committed as a complete visual matrix.
+- Current delivery evidence, verified with owner confirmation and scoped to
+  the target application only:
+  - [menu-panel-dark.png](./assets/menu-panel-dark.png)
+  - [settings-normal-dark.png](./assets/settings-normal-dark.png)
+  - [settings-accessibility-dark.png](./assets/settings-accessibility-dark.png)
 
 ## References
 
