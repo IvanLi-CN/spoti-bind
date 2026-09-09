@@ -43,7 +43,8 @@ jobs:
           TARGET_SHA: ${{ steps.identity.outputs.sha }}
         run: |
           set -euo pipefail
-          identity="$(python3 .github/scripts/release_chain.py validate-main --repo . --merge "$TARGET_SHA")"
+          git fetch origin main --no-tags
+          identity="$(python3 .github/scripts/release_chain.py validate-main --repo . --merge "$TARGET_SHA" --main-ref origin/main)"
           printf '%s\n' "$identity" > release-identity.json
           echo "version=$(jq -r '.version' release-identity.json)" >> "$GITHUB_OUTPUT"
           echo "type=$(jq -r '.type' release-identity.json)" >> "$GITHUB_OUTPUT"

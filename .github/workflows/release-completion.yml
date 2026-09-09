@@ -39,15 +39,20 @@ jobs:
             echo 'type:none: completion satisfied without a release identity' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          source="${{ github.event.pull_request.head.sha }}"
-          mapfile -t commits < <(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits" --jq '.[].sha')
-          [[ "${#commits[@]}" -gt 0 ]]
-          preparation="${commits[$((${#commits[@]} - 1))]}"
+          preparation="${{ github.event.pull_request.head.sha }}"
+          source="$(git show -s --format=%P "$preparation")"
+          [[ "$source" =~ ^[0-9a-f]{40}$ ]]
           git fetch --no-tags origin "$source" "$preparation"
-          python3 .github/scripts/release_chain.py validate-preparation --repo . \
+          identity="$(python3 .github/scripts/release_chain.py validate-preparation --repo . \
             --preparation "$preparation" --source "$source"
+          )"
+          [[ "$identity" == *"\"version\": \"$(jq -r '.version' <<<"$intent")\""* ]] || { echo 'labels do not match preparation version' >&2; exit 1; }
+          [[ "$identity" == *"\"type\": \"$(jq -r '.type' <<<"$intent")\""* ]] || { echo 'labels do not match preparation type' >&2; exit 1; }
+          [[ "$identity" == *"\"channel\": \"$(jq -r '.channel' <<<"$intent")\""* ]] || { echo 'labels do not match preparation channel' >&2; exit 1; }
           verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${preparation}" --jq '.commit.verification.verified')"
           [[ "$verified" == 'true' ]]
+          source_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${source}" --jq '.commit.verification.verified')"
+          [[ "$source_verified" == 'true' ]]
           gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${source}/check-runs" \
             --jq '.check_runs[] | {name, conclusion}' | jq -s . > checks.json
           python3 .github/scripts/release_chain.py check-checks --checks checks.json \

@@ -196,6 +196,9 @@ def validate_main_merge(repo: Path, merge_sha: str) -> dict[str, str]:
     if len(prep_parents) != 1:
         raise ReleaseError("merge second parent must be a single-parent preparation commit")
     source = prep_parents[0]
+    source_message = git("show", "-s", "--format=%B", source, cwd=repo)
+    if not any(line.startswith("Signed-off-by:") for line in source_message.splitlines()):
+        raise ReleaseError("source commit must include a DCO signoff")
     identity = validate_preparation(repo, preparation, source)
     merge_version = git("show", f"{merge_sha}:VERSION", cwd=repo).strip()
     if merge_version != identity["version"]:
@@ -227,6 +230,11 @@ def command_check_checks(args: argparse.Namespace) -> None:
 
 
 def command_validate_main(args: argparse.Namespace) -> None:
+    if args.main_ref:
+        try:
+            git("merge-base", "--is-ancestor", args.merge, args.main_ref, cwd=Path(args.repo))
+        except ReleaseError as error:
+            raise ReleaseError("target SHA is not an ancestor of the trusted main ref") from error
     print(json.dumps(validate_main_merge(Path(args.repo), args.merge), sort_keys=True))
 
 
@@ -253,6 +261,7 @@ def build_parser() -> argparse.ArgumentParser:
     main = sub.add_parser("validate-main")
     main.add_argument("--repo", required=True)
     main.add_argument("--merge", required=True)
+    main.add_argument("--main-ref")
     main.set_defaults(function=command_validate_main)
     return parser
 

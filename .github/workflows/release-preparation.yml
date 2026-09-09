@@ -41,10 +41,16 @@ jobs:
           source="${{ github.event.pull_request.head.sha }}"
           base="${{ github.event.pull_request.base.sha }}"
           git fetch --no-tags origin "$source"
+          source_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${source}" --jq '.commit.verification.verified')"
+          [[ "$source_verified" == 'true' ]] || { echo 'source commit is not GitHub-verified' >&2; exit 1; }
           if git show -s --format=%B "$source" | grep -q '^Release-Source-SHA:'; then
             parent="$(git show -s --format=%P "$source")"
             python3 .github/scripts/release_chain.py validate-preparation --repo . \
               --preparation "$source" --source "$parent"
+            existing_intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
+            [[ "$(git show -s --format=%B "$source")" == *"Release-Version: $(jq -r '.version' <<<"$existing_intent")"* ]] || { echo 'labels do not match existing preparation version' >&2; exit 1; }
+            [[ "$(git show -s --format=%B "$source")" == *"Release-Type: $(jq -r '.type' <<<"$existing_intent")"* ]] || { echo 'labels do not match existing preparation type' >&2; exit 1; }
+            [[ "$(git show -s --format=%B "$source")" == *"Release-Channel: $(jq -r '.channel' <<<"$existing_intent")"* ]] || { echo 'labels do not match existing preparation channel' >&2; exit 1; }
             echo 'existing preparation commit is already the PR head' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
