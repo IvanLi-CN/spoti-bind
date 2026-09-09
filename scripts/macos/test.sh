@@ -8,3 +8,4 @@ cd "$repo_root"
 bash scripts/macos/test-ui-capture-contract.sh
 swift test --disable-sandbox --disable-index-store -j 2
 scripts/macos/verify-ui-backdrop.sh
+PATH=/usr/bin:/bin scripts/macos/verify-ui-backdrop.sh
