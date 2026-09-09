@@ -73,10 +73,6 @@ final class SystemPlayerRuntime: PlayerLaunchRuntime, @unchecked Sendable {
         applicationURL: URL?
     ) -> NSRunningApplication? {
         let applications = NSWorkspace.shared.runningApplications
-        if let bundleIdentifier = player.bundleIdentifier {
-            return applications.first { $0.bundleIdentifier == bundleIdentifier }
-        }
-
         if let applicationURL {
             let expectedPath = applicationURL.standardizedFileURL.path
             if let matching = applications.first(where: {
@@ -84,6 +80,9 @@ final class SystemPlayerRuntime: PlayerLaunchRuntime, @unchecked Sendable {
             }) {
                 return matching
             }
+        }
+        if let bundleIdentifier = player.bundleIdentifier {
+            return applications.first { $0.bundleIdentifier == bundleIdentifier }
         }
 
         return applications.first {
@@ -134,7 +133,9 @@ final class SystemPlayerRuntime: PlayerLaunchRuntime, @unchecked Sendable {
 final class PlayerWorkspaceCatalog {
     func snapshot(
         fastpotifyExecutable: FastpotifyExecutable?,
-        fastpotifyProbeHealthy: Bool
+        fastpotifyProbeHealthy: Bool,
+        customApplicationURLs: [SupportedPlayer: URL] = [:],
+        invalidCustomPlayers: Set<SupportedPlayer> = []
     ) -> PlayerAvailabilitySnapshot {
         var values: [PlayerAvailability] = []
         let fastpotifyApplicationURL = fastpotifyExecutable?.applicationURL
@@ -149,8 +150,19 @@ final class PlayerWorkspaceCatalog {
         )
 
         for player in [SupportedPlayer.sonora, .spotifly] {
-            let applicationURL = applicationURL(for: player)
-            let application = runningApplication(for: player)
+            if invalidCustomPlayers.contains(player) {
+                values.append(
+                    PlayerAvailability(
+                        player: player,
+                        isInstalled: false,
+                        isRunning: false,
+                        canLaunch: false
+                    )
+                )
+                continue
+            }
+            let applicationURL = customApplicationURLs[player] ?? applicationURL(for: player)
+            let application = runningApplication(for: player, applicationURL: applicationURL)
             let requiresLaunch = player == .sonora && application?.activationPolicy != .regular
             // A tray-resident Sonora needs a workspace reopen to restore its
             // main-window shortcut context, so it remains launchable.
@@ -171,12 +183,13 @@ final class PlayerWorkspaceCatalog {
 
     func applicationURL(
         for player: SupportedPlayer,
-        fastpotifyExecutable: FastpotifyExecutable?
+        fastpotifyExecutable: FastpotifyExecutable?,
+        customApplicationURLs: [SupportedPlayer: URL] = [:]
     ) -> URL? {
         if player == .fastpotify {
             return fastpotifyExecutable?.applicationURL
         }
-        return applicationURL(for: player)
+        return customApplicationURLs[player] ?? applicationURL(for: player)
     }
 
     private func applicationURL(for player: SupportedPlayer) -> URL? {
@@ -195,7 +208,18 @@ final class PlayerWorkspaceCatalog {
         }
     }
 
-    private func runningApplication(for player: SupportedPlayer) -> NSRunningApplication? {
+    private func runningApplication(
+        for player: SupportedPlayer,
+        applicationURL: URL?
+    ) -> NSRunningApplication? {
+        if let applicationURL {
+            let expectedPath = applicationURL.standardizedFileURL.path
+            if let matching = NSWorkspace.shared.runningApplications.first(where: {
+                $0.bundleURL?.standardizedFileURL.path == expectedPath
+            }) {
+                return matching
+            }
+        }
         guard let bundleIdentifier = player.bundleIdentifier else { return nil }
         return NSWorkspace.shared.runningApplications.first { $0.bundleIdentifier == bundleIdentifier }
     }

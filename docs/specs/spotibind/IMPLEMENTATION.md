@@ -6,10 +6,17 @@
 
 - Implementation: multi-player routing implementation present; real-Mac release validation pending
 - Lifecycle: active
-- Catalog note: SwiftPM app/core/test targets, an explicit `MenuBarExtra(.menu)` surface, Ad Hoc packaging, CI, and user-facing docs are checked in.
+- Catalog note: SwiftPM app/core/test targets, a window-style `MenuBarExtra`
+  surface, a retained Advanced Settings window, Ad Hoc packaging, CI, and
+  user-facing docs are checked in.
 - Product identity: SpotiBind is used for the executable, bundle, release
   artifacts, and public documentation; the Fastpotify CLI integration remains
   unchanged.
+- Visual evidence: the app exposes pre-start `UIDemoScenario` state for five
+  smoke scenes and two explicit appearances. Popover evidence waits for the
+  actual `MenuBarExtra(.window)` host, opens its real status button through
+  the app-owned status-bar window, and captures it in-process; settings
+  evidence is delegated to the strict PID/window-ID helper scripts.
 
 ## Implementation Coverage
 
@@ -23,10 +30,33 @@
 - Sonora's tray-only activation policy is treated as a launchable input state.
   The next media key reopens and activates Sonora's main window, waits for its
   PID keyboard input surface, and dispatches the captured gesture once.
+- Advanced Settings persists Automatic or custom locations for Fastpotify,
+  Sonora, and Spotifly. Fastpotify accepts an app bundle or CLI; Sonora and
+  Spotifly validate the selected bundle identifier. Invalid saved locations
+  remain unavailable and expose a settings action rather than falling back.
+- Accessibility checks are silent at startup. The system prompt is deferred
+  until an explicit active-mode selection or a menu media-control click.
+- Demo mode uses an ephemeral defaults object, neutral display paths, and no
+  player/runtime side effects. Its healthy baseline represents Sonora running,
+  all three supported players discoverable, and Accessibility authorized. The
+  Demo process uses a regular activation policy so an owner can identify it
+  during capture; the shipped app remains an accessory app.
+- The menu panel keeps its three transport controls on one native Glass surface
+  where the system provides it. The Advanced Settings window uses the platform
+  window material and fits its content height on first presentation and on an
+  Accessibility-guidance visibility change, without overriding subsequent
+  user resizing.
+- Current visual evidence is scoped to live SpotiBind windows only and covers
+  the menu panel plus normal and Accessibility-guidance settings states.
 
 ## Remaining Gaps
 
 - Real macOS 13 Fastpotify/Sonora and macOS 26.2+ Spotifly physical-key validation requires access to matching hardware and installed applications.
+- Apple's public `MenuBarExtra` API still has no presentation action; the Demo
+  capture path uses the app-owned real status-bar window and public AppKit
+  `performClick` to open the host, then fails closed after a bounded wait.
+  The four healthy evidence PNGs are committed below; the pre-existing
+  `menu-popover.png` remains a legacy asset and is not counted.
 
 ## Related Changes
 

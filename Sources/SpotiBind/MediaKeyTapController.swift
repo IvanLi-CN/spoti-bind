@@ -132,7 +132,7 @@ final class MediaKeyTapController {
             state?.setTapStatus("Media key capture disabled after repeated failures")
         case .retryOnce:
             CGEvent.tapEnable(tap: eventTap, enable: true)
-            state?.setTapStatus("Media key capture restarted")
+            state?.setTapStatus("Ready")
         }
     }
 }

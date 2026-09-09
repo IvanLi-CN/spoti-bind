@@ -38,6 +38,12 @@ let package = Package(
             dependencies: ["SpotiBindCore"],
             path: "Tests/SpotiBindCoreTests",
             swiftSettings: strictSwift6
+        ),
+        .testTarget(
+            name: "SpotiBindAppTests",
+            dependencies: ["SpotiBind"],
+            path: "Tests/SpotiBindAppTests",
+            swiftSettings: strictSwift6
         )
     ]
 )

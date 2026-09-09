@@ -5,7 +5,9 @@ play/pause, next, and previous media keys to Fastpotify, Sonora, or Spotifly.
 The menu persists an Automatic, player-specific, or Off choice. Automatic uses
 running players in Fastpotify, Sonora, Spotifly order and otherwise starts the
 first installed launchable player. If permission or a usable target is
-missing, macOS keeps its normal media-key behavior.
+missing, macOS keeps its normal media-key behavior. The menu-bar panel also
+exposes previous, play/pause, and next controls, while Advanced Settings
+provides per-player location overrides and system controls.
 
 When selected Sonora is resident only in the menu bar, its next media key
 reopens and activates the Sonora main window, then performs that command once.
@@ -30,7 +32,8 @@ installed CLI need those boundaries.
 Download the universal DMG from the GitHub Draft Release, open it, and move
 `SpotiBind.app` to `/Applications`. The first launch may require opening
 the app from Finder's context menu because an Ad Hoc build is not notarized.
-Then open the menu-bar item and grant Accessibility access when prompted.
+Then open the menu-bar item, choose an active forwarding mode, or use a media
+control to trigger the Accessibility prompt.
 
 The release remains a Draft until the macOS 13 arm64 and x86_64 physical-key
 checklist has passed. A Draft artifact is for testing, not a claim of complete
@@ -49,10 +52,14 @@ release event are consumed without sending another command. A command failure
 is shown in the menu and is never replayed to another player.
 
 The menu provides the current readiness status, a single-choice target picker,
-an Accessibility settings link, and an opt-in Launch at Login toggle. A cold
-start waits asynchronously for up to ten seconds and sends the initiating key
-once; a timeout never replays it. The legacy `targetPath` preference remains a
-Fastpotify CLI override and is not used for the other players.
+media controls, a direct issue action, and links to Advanced Settings, About,
+and Quit. A cold start waits asynchronously for up to ten seconds and sends
+the initiating key once; a timeout never replays it. Accessibility prompting
+is deferred until the user enables an active forwarding mode or clicks a
+media control. Advanced Settings persists an automatic or custom location for
+each player. The legacy `targetPath` preference remains compatible for
+Fastpotify until the user explicitly resets its location; Sonora and Spotifly
+use their configured application bundles or their fixed bundle identifiers.
 
 ## Build and test
 

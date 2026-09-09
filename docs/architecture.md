@@ -43,12 +43,15 @@ documented CLI verbs.
 
 The executable target owns only platform lifecycle:
 
-- `MenuBarExtra(.menu)` renders the status and V1 controls.
+- `MenuBarExtra(.window)` renders the status, transport controls, routing
+  selector, issue action, and footer actions in a custom panel. A retained
+  `SettingsWindowController` hosts the single Advanced Settings window.
 - `AppState` polls Accessibility, installed/running player availability, and
-  Fastpotify health, persisting the Player Mode, login-item, and legacy
-  Fastpotify path override. Running availability includes the adapter's input
-  surface; a Sonora process with only a tray icon is launchable so its main
-  window can be reopened before PID keyboard delivery.
+  Fastpotify health, persisting the Player Mode, login-item, and per-player
+  path settings. Running availability includes the adapter's input surface; a
+  Sonora process with only a tray icon is launchable so its main window can be
+  reopened before PID keyboard delivery. A missing or invalid custom path
+  remains unavailable instead of silently falling back.
 - `ApplicationDelegate` sets the accessory activation policy and starts/stops
   the tap.
 - `MediaKeyTapController` installs the public session event tap only while
