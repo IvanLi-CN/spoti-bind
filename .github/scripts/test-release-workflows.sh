@@ -12,6 +12,10 @@ for workflow in label-gate release-preparation release-completion; do
   grep -q 'ref:.*default_branch' "$file"
   grep -q 'persist-credentials: false' "$file"
 done
+if grep -R -q 'pulls/.*\/labels' .github/workflows; then
+  echo 'GitHub label reads must use the issue labels endpoint' >&2
+  exit 1
+fi
 grep -q 'expectedHeadOid' .github/workflows/release-preparation.yml
 grep -q 'createCommitOnBranch' .github/workflows/release-preparation.yml
 grep -q 'repositoryNameWithOwner' .github/workflows/release-preparation.yml

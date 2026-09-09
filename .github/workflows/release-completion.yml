@@ -37,7 +37,7 @@ jobs:
             exit 1
           fi
           [[ "$BASE_REPO" == "$GITHUB_REPOSITORY" && "$BASE_REF" == 'main' ]] || { echo 'release completion requires the trusted main base' >&2; exit 1; }
-          labels="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/labels" --jq '[.[].name]')"
+          labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels" --jq '[.[].name]')"
           intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
           type="$(jq -r '.type' <<<"$intent")"
           mapfile -t pr_commits < <(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits" --jq '.[].sha')

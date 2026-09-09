@@ -33,7 +33,7 @@ jobs:
             echo 'fork pull requests cannot receive release preparation' >&2
             exit 1
           fi
-          labels="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/labels" --jq '[.[].name]')"
+          labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels" --jq '[.[].name]')"
           python3 .github/scripts/release_chain.py validate-labels \
             --labels "$labels" --policy .github/pr-label-release.json | tee release-intent.json
           {
