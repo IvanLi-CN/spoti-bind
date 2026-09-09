@@ -1,51 +1,98 @@
-name: Draft release
+name: Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Exact merged main SHA to recover
+        required: true
+        type: string
 
 permissions:
   contents: write
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: release-${{ github.event.inputs.commit_sha || github.sha }}
+  cancel-in-progress: false
 
 jobs:
-  draft-release:
+  release:
+    name: Release
     runs-on: macos-15
     steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-      - name: Select Swift 6 toolchain
-        run: scripts/ci/select-swift6.sh
-      - name: Ensure tag matches VERSION
+      - name: Resolve immutable merge identity
+        id: identity
         env:
-          TAG_NAME: ${{ github.ref_name }}
+          TARGET_SHA: ${{ github.event.inputs.commit_sha || github.sha }}
         run: |
-          expected="v$(tr -d '[:space:]' < VERSION)"
-          test "$TAG_NAME" = "$expected"
-      - name: Run Swift tests
-        run: scripts/macos/test.sh
-      - name: Build universal Ad Hoc app
-        run: scripts/macos/package.sh --output-dir "$RUNNER_TEMP/spotibind-dist"
-      - name: Verify release artifact
+          set -euo pipefail
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'commit_sha must be a full SHA' >&2; exit 1; }
+          echo "sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.identity.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate merge provenance
+        id: provenance
+        env:
+          TARGET_SHA: ${{ steps.identity.outputs.sha }}
         run: |
-          scripts/macos/verify-release.sh \
-            --app "$RUNNER_TEMP/spotibind-dist/SpotiBind.app" \
-            --dmg "$RUNNER_TEMP/spotibind-dist/SpotiBind-$(tr -d '[:space:]' < VERSION)-universal.dmg" \
-            --checksums "$RUNNER_TEMP/spotibind-dist/SHA256SUMS"
-      - name: Create Draft Release
+          set -euo pipefail
+          identity="$(python3 .github/scripts/release_chain.py validate-main --repo . --merge "$TARGET_SHA")"
+          printf '%s\n' "$identity" > release-identity.json
+          echo "version=$(jq -r '.version' release-identity.json)" >> "$GITHUB_OUTPUT"
+          echo "type=$(jq -r '.type' release-identity.json)" >> "$GITHUB_OUTPUT"
+          echo "channel=$(jq -r '.channel' release-identity.json)" >> "$GITHUB_OUTPUT"
+          echo "tag=v$(jq -r '.version' release-identity.json)" >> "$GITHUB_OUTPUT"
+      - name: Skip non-product merge
+        if: steps.provenance.outputs.type == 'type:none'
+        run: "echo 'type:none merge: no public release is created'"
+      - name: Build and verify universal Ad Hoc DMG
+        if: steps.provenance.outputs.type != 'type:none'
+        run: |
+          set -euo pipefail
+          scripts/macos/test.sh
+          scripts/macos/package.sh
+          scripts/macos/verify-release.sh
+          mkdir -p "$RUNNER_TEMP/spotibind-dist"
+          cp dist/*.dmg dist/SHA256SUMS "$RUNNER_TEMP/spotibind-dist/"
+      - name: Reserve tag for exact merge SHA
+        if: steps.provenance.outputs.type != 'type:none'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.ref_name }}
+          TAG: ${{ steps.provenance.outputs.tag }}
+          TARGET_SHA: ${{ steps.identity.outputs.sha }}
         run: |
-          notes="$RUNNER_TEMP/spotibind-release-notes.md"
-          printf '%s\n' \
-            'SpotiBind is distributed as an unsigned-by-Developer-ID Ad Hoc macOS app.' \
-            '' \
-            'Keep this release in Draft until the macOS 13 arm64 and x86_64 physical-key checklist is complete.' \
-            > "$notes"
-          gh release create "$TAG_NAME" \
-            --draft \
-            --title "SpotiBind $TAG_NAME" \
-            --notes-file "$notes" \
-            "$RUNNER_TEMP/spotibind-dist/SpotiBind-$(tr -d '[:space:]' < VERSION)-universal.dmg" \
-            "$RUNNER_TEMP/spotibind-dist/SHA256SUMS"
+          set -euo pipefail
+          ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha' 2>/dev/null || true)"
+          if [[ -n "$ref" && "$ref" != "$TARGET_SHA" ]]; then
+            echo "tag ${TAG} already points to ${ref}, expected ${TARGET_SHA}" >&2
+            exit 1
+          fi
+          if [[ -z "$ref" ]]; then
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f "ref=refs/tags/${TAG}" -f "sha=${TARGET_SHA}"
+          fi
+      - name: Publish public GitHub Release
+        if: steps.provenance.outputs.type != 'type:none'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.provenance.outputs.tag }}
+          VERSION: ${{ steps.provenance.outputs.version }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          assets=("$RUNNER_TEMP/spotibind-dist"/*)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${assets[@]}" --clobber
+            gh release edit "$TAG" --draft=false --title "SpotiBind ${VERSION}" \
+              --notes "Automated public release for verified main merge ${GITHUB_SHA}."
+          else
+            gh release create "$TAG" "${assets[@]}" --title "SpotiBind ${VERSION}" \
+              --notes "Automated public release for verified main merge ${GITHUB_SHA}."
+          fi

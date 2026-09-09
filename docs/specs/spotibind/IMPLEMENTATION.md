@@ -22,7 +22,7 @@
 
 - Requirement coverage: `REQ-FASTPOTIFY-001` through `REQ-FASTPOTIFY-006` are implemented by the Core, App, scripts, workflows, and documentation paths in this repository.
 - Verification commands: `swift test`, `scripts/macos/build.sh`, `scripts/macos/package.sh`, and `scripts/macos/verify-release.sh`.
-- Rollout facts: releases remain Draft until real macOS 13 Accessibility and physical-key checks pass for each advertised architecture.
+- Rollout facts: verified main merges publish a public Ad Hoc Release automatically; real macOS 13 Accessibility and physical-key checks are retained as post-release evidence.
 
 ## Coverage / rollout summary
 

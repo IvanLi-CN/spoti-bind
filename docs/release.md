@@ -1,21 +1,29 @@
-# Release Checklist
+# Release
 
 ## Build
 
-1. Update `VERSION` to the numeric `X.Y.Z` value for the tag.
+1. Add exactly one `type:*` label and `channel:stable` to the same-repository PR. New PRs receive `type:patch` and `channel:stable` automatically.
 2. Run `scripts/macos/test.sh` with a full Xcode developer toolchain.
-3. Run `scripts/macos/package.sh` and `scripts/macos/verify-release.sh`.
-4. Confirm `lipo -archs` reports both `arm64` and `x86_64`, the bundle
+3. Confirm `lipo -archs` reports both `arm64` and `x86_64`, the bundle
    identifier is `cc.ivanli.spotibind`, and the signature is Ad Hoc.
 
-Pushing a matching `vX.Y.Z` tag runs the same package/verify commands and
-creates a GitHub Draft Release with the DMG and `SHA256SUMS`. The workflow does
-not publish the release automatically.
+After all required PR checks pass, `Prepare release version` creates a
+GitHub-verified `VERSION`-only commit on the PR branch. Merging that PR to
+`main` runs the `Release` workflow, verifies the merge -> preparation -> source
+identity, builds the universal Ad Hoc DMG, reserves `vX.Y.Z` for the merge SHA,
+and publishes a public GitHub Release with the DMG and `SHA256SUMS`.
+
+`type:none` is the explicit non-product exception and produces no release.
+Recovery uses `workflow_dispatch` with the exact merged `commit_sha`; a tag or
+asset belonging to another SHA fails closed. The failure sidecar records the
+PR, labels, source/merge SHA, version, tag, assets, run URL, and this recovery
+instruction.
 
 ## Required real-Mac evidence
 
-Before publishing a Draft, run the checklist on macOS 13 for each advertised
-architecture:
+Physical media-key checks remain release evidence, but do not block publication
+of the verified CI artifact. Run the checklist on macOS 13 for each advertised
+architecture after publication:
 
 - grant and revoke Accessibility permission and confirm the menu status;
 - confirm Automatic, each manual player mode, and Off persist after relaunch;
@@ -36,6 +44,6 @@ architecture:
 - confirm a command failure is visible and is not replayed;
 - select Off and confirm the system media-key route remains available.
 
-Record the machine architecture, macOS version, Fastpotify version, and date
-in the release checklist attached to the Draft. Do not advertise an
-architecture before its macOS 13 physical-key run passes.
+Record the machine architecture, macOS version, Fastpotify version, and date in
+the release evidence. Keep the Ad Hoc/Gatekeeper caveat in user-facing install
+guidance.

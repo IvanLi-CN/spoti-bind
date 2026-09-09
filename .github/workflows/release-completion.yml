@@ -1,0 +1,59 @@
+name: Release completion
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: read
+  checks: read
+  pull-requests: read
+
+concurrency:
+  group: release-completion-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  completion:
+    name: Release completion
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Verify release identity and source CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event.pull_request.head.repo.full_name }}" != "$GITHUB_REPOSITORY" ]]; then
+            echo 'fork pull requests are not eligible for release completion' >&2
+            exit 1
+          fi
+          labels="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/labels" --jq '[.[].name]')"
+          intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
+          type="$(jq -r '.type' <<<"$intent")"
+          if [[ "$type" == 'type:none' ]]; then
+            echo 'type:none: completion satisfied without a release identity' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          source="${{ github.event.pull_request.head.sha }}"
+          mapfile -t commits < <(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits" --jq '.[].sha')
+          [[ "${#commits[@]}" -gt 0 ]]
+          preparation="${commits[$((${#commits[@]} - 1))]}"
+          git fetch --no-tags origin "$source" "$preparation"
+          python3 .github/scripts/release_chain.py validate-preparation --repo . \
+            --preparation "$preparation" --source "$source"
+          verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${preparation}" --jq '.commit.verification.verified')"
+          [[ "$verified" == 'true' ]]
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${source}/check-runs" \
+            --jq '.check_runs[] | {name, conclusion}' | jq -s . > checks.json
+          python3 .github/scripts/release_chain.py check-checks --checks checks.json \
+            --required 'PR / Swift tests' --required 'PR / Build app'
+          [[ "${{ github.event.pull_request.base.ref }}" == 'main' ]]
+          {
+            echo '### Release completion';
+            echo "Preparation \`$preparation\` is verified and source CI is green.";
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,45 @@
+name: Notify release failure
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  notify:
+    name: Notify release failure
+    if: github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish recovery notice
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          prs="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/pulls" --jq '[.[] | {number,labels:[.labels[].name]}]')"
+          version="$(gh api "repos/${GITHUB_REPOSITORY}/contents/VERSION?ref=${TARGET_SHA}" --jq '.content' | tr -d '\n' | base64 -d | tr -d '\r\n' || echo unknown)"
+          title="Release failure: ${TARGET_SHA}"
+          body=$(cat <<EOF
+          Automated public release failed.
+
+          - PR and labels: ${prs}
+          - Merge SHA: ${TARGET_SHA}
+          - Version: ${version}
+          - Run: ${RUN_URL}
+          - Recovery: rerun Release with workflow_dispatch input commit_sha=${TARGET_SHA}; it must resolve to the same merge SHA and tag identity.
+          EOF
+          )
+          existing="$(gh issue list --state open --search "${title} in:title" --json number --jq '.[0].number // empty')"
+          if [[ -n "$existing" ]]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
