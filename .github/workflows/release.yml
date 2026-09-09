@@ -92,8 +92,15 @@ jobs:
             exit 1
           fi
           if [[ -z "$ref" ]]; then
-            gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
-              -f "ref=refs/tags/${TAG}" -f "sha=${TARGET_SHA}"
+            if ! gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f "ref=refs/tags/${TAG}" -f "sha=${TARGET_SHA}"; then
+              raced_type="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.type' 2>/dev/null || true)"
+              raced_target="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha' 2>/dev/null || true)"
+              if [[ "$raced_type" == 'tag' && -n "$raced_target" ]]; then
+                raced_target="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${raced_target}" --jq '.object.sha')"
+              fi
+              [[ "$raced_target" == "$TARGET_SHA" ]] || { echo 'tag reservation raced to a different target' >&2; exit 1; }
+            fi
           fi
       - name: Upload release provenance
         if: always()
