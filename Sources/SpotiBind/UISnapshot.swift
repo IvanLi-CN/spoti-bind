@@ -73,6 +73,10 @@ enum UISnapshot {
             reportFailure("failed to write the real MenuBarExtra host PNG")
             return
         }
+        if ProcessInfo.processInfo.environment["SPOTIBIND_UI_SNAPSHOT_KEEP_OPEN"] == "1" {
+            positionForScreenCapture(window)
+            return
+        }
         Darwin.exit(0)
     }
 
@@ -89,6 +93,16 @@ enum UISnapshot {
         guard buttons.count == 1 else { return }
         hasTriggeredPopover = true
         buttons[0].performClick(nil)
+    }
+
+    private static func positionForScreenCapture(_ window: NSWindow) {
+        guard let visibleFrame = NSScreen.main?.visibleFrame else { return }
+        let origin = CGPoint(
+            x: visibleFrame.minX + 24,
+            y: visibleFrame.minY + 24
+        )
+        window.setFrameOrigin(origin)
+        window.orderFrontRegardless()
     }
 
     private static func statusBarButtons(in view: NSView) -> [NSStatusBarButton] {

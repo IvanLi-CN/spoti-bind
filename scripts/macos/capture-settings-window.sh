@@ -9,7 +9,7 @@ fi
 scene="$1"
 out="$2"
 case "$scene" in
-    healthy|accessibility-required|no-supported-player|path-unavailable|dispatch-failure) ;;
+    healthy|automatic-selection|accessibility-required|no-supported-player|path-unavailable|dispatch-failure) ;;
     *)
         printf 'Unknown UI demo scene: %s\n' "$scene" >&2
         exit 2

@@ -125,9 +125,8 @@
   committed as a complete visual matrix.
 - Current delivery evidence, verified with owner confirmation and scoped to
   the target application only:
-  - [menu-panel-dark.png](./assets/menu-panel-dark.png)
-  - [settings-normal-dark.png](./assets/settings-normal-dark.png)
-  - [settings-accessibility-dark.png](./assets/settings-accessibility-dark.png)
+  - [menu-automatic-light.png](./assets/menu-automatic-light.png)
+  - [settings-automatic-light.png](./assets/settings-automatic-light.png)
 
 ## References
 

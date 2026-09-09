@@ -1,5 +1,8 @@
+import AppKit
 import SwiftUI
 import SpotiBindCore
+
+private let routingSeparatorColor = Color(nsColor: .separatorColor)
 
 enum RoutingChoiceGridDensity {
     case menu
@@ -74,12 +77,12 @@ struct RoutingChoiceGrid: View {
         .clipShape(RoundedRectangle(cornerRadius: density.cornerRadius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: density.cornerRadius, style: .continuous)
-                .strokeBorder(.primary.opacity(0.16), lineWidth: 1)
+                .strokeBorder(routingSeparatorColor, lineWidth: 1)
         }
     }
 
     private var settingsGrid: some View {
-        VStack(alignment: .leading, spacing: 26) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 22) {
                 ForEach(playerModes, id: \.self) { mode in
                     settingsOption(for: mode)
@@ -98,7 +101,7 @@ struct RoutingChoiceGrid: View {
 
     private var separator: some View {
         Rectangle()
-            .fill(.primary.opacity(0.16))
+            .fill(routingSeparatorColor)
             .frame(height: 1)
     }
 
@@ -109,7 +112,7 @@ struct RoutingChoiceGrid: View {
 
                 if index < modes.count - 1 {
                     Rectangle()
-                        .fill(.primary.opacity(0.16))
+                        .fill(routingSeparatorColor)
                         .frame(width: 1)
                 }
             }
@@ -142,10 +145,24 @@ struct RoutingChoiceGrid: View {
 
                 Text(mode.displayName)
                     .font(density.labelFont)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
             }
-            .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
             .contentShape(Rectangle())
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(.primary.opacity(0.055))
+                }
+            }
+            .overlay {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(.primary.opacity(0.12), lineWidth: 1)
+                }
+            }
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
@@ -157,11 +174,14 @@ struct RoutingChoiceGrid: View {
     private func selectionIndicator(isSelected: Bool) -> some View {
         ZStack {
             Circle()
-                .strokeBorder(.primary.opacity(0.42), lineWidth: 1.5)
+                .strokeBorder(
+                    Color.primary.opacity(isSelected ? 0.65 : 0.50),
+                    lineWidth: 1.5
+                )
 
             if isSelected {
                 Circle()
-                    .fill(.primary.opacity(0.30))
+                    .fill(.primary.opacity(0.10))
 
                 Circle()
                     .fill(.primary)
@@ -179,6 +199,7 @@ private struct MenuRoutingCell: View {
 
     @State private var isHovered = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
 
     private var isSelected: Bool {
         state.playerMode == mode
@@ -204,6 +225,7 @@ private struct MenuRoutingCell: View {
 
                     Text(mode.displayName)
                         .font(density.labelFont)
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -213,7 +235,8 @@ private struct MenuRoutingCell: View {
                 MenuRoutingCellButtonStyle(
                     isSelected: isSelected,
                     isHovered: isHovered,
-                    reduceMotion: reduceMotion
+                    reduceMotion: reduceMotion,
+                    colorScheme: colorScheme
                 )
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -223,10 +246,16 @@ private struct MenuRoutingCell: View {
             .help("Forward media keys to \(mode.displayName)")
 
             if isSelected {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .padding(12)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(colorScheme == .dark ? .black : .white)
+                    .frame(width: 20, height: 20)
+                    .background(.primary, in: Circle())
+                    .overlay {
+                        Circle()
+                            .strokeBorder(.background.opacity(0.45), lineWidth: 1)
+                    }
+                    .padding(10)
                     .accessibilityHidden(true)
                     .allowsHitTesting(false)
             }
@@ -240,26 +269,35 @@ private struct MenuRoutingCellButtonStyle: ButtonStyle {
     let isSelected: Bool
     let isHovered: Bool
     let reduceMotion: Bool
+    let colorScheme: ColorScheme
 
     func makeBody(configuration: Configuration) -> some View {
-        let backgroundOpacity: Double
-        if isSelected {
-            backgroundOpacity = configuration.isPressed ? 0.20 : 0.14
-        } else if isHovered {
-            backgroundOpacity = configuration.isPressed ? 0.12 : 0.08
-        } else {
-            backgroundOpacity = configuration.isPressed ? 0.06 : 0
-        }
-
         return configuration.label
-            .background(Color.primary.opacity(backgroundOpacity))
+            .background {
+                if isSelected {
+                    Rectangle()
+                        .fill(Color.white.opacity(
+                            colorScheme == .dark
+                                ? (configuration.isPressed ? 0.08 : 0.14)
+                                : (configuration.isPressed ? 0.28 : 0.36)
+                        ))
+                } else if isHovered {
+                    Rectangle()
+                        .fill(.primary.opacity(
+                            configuration.isPressed ? 0.07 : 0.035
+                        ))
+                } else if configuration.isPressed {
+                    Rectangle()
+                        .fill(.primary.opacity(0.045))
+                }
+            }
             .overlay {
                 if isSelected {
                     Rectangle()
-                        .strokeBorder(.primary.opacity(0.12), lineWidth: 1)
+                        .strokeBorder(routingSeparatorColor, lineWidth: 1)
                 }
             }
-            .opacity(configuration.isPressed ? 0.86 : 1)
+            .opacity(configuration.isPressed ? 0.94 : 1)
             .animation(
                 reduceMotion ? nil : .easeOut(duration: 0.14),
                 value: isSelected

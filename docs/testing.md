@@ -12,10 +12,10 @@ SpotiBind validates its behavior at four layers.
 - UI demo state is selected before `AppState.start()` with
   `SPOTIBIND_UI_DEMO=1`, `SPOTIBIND_UI_DEMO_SCENE`, and
   `SPOTIBIND_UI_APPEARANCE=light|dark`. Supported scenes are `healthy`,
-  `accessibility-required`, `no-supported-player`, `path-unavailable`, and
-  `dispatch-failure`. Demo mode uses neutral paths and never reads or writes
-  the user's defaults, prompts for Accessibility, discovers players, or posts
-  media keys.
+  `automatic-selection`, `accessibility-required`, `no-supported-player`,
+  `path-unavailable`, and `dispatch-failure`. Demo mode uses neutral paths and
+  never reads or writes the user's defaults, prompts for Accessibility,
+  discovers players, or posts media keys.
 - Theme evidence uses `scripts/macos/capture-theme-ui.sh <light|dark> <out-dir>`.
   It writes `theme-<appearance>-popover.png` and
   `theme-<appearance>-settings.png`. The popover image is captured only from

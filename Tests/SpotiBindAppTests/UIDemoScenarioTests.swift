@@ -27,6 +27,16 @@ final class UIDemoScenarioTests: XCTestCase {
         XCTAssertTrue(configuration.availability.all.allSatisfy(\.isInstalled))
     }
 
+    func testAutomaticSelectionScenarioKeepsTheHealthyBaseline() {
+        let configuration = UIDemoConfiguration(scenario: .automaticSelection)
+
+        XCTAssertEqual(configuration.playerMode, .automatic)
+        XCTAssertTrue(configuration.accessibilityTrusted)
+        XCTAssertTrue(configuration.probeHealthy)
+        XCTAssertNil(configuration.dispatchFailure)
+        XCTAssertTrue(configuration.availability.all.allSatisfy(\.isInstalled))
+    }
+
     func testErrorScenariosRemainDeterministicAndUseNeutralState() {
         let accessibility = UIDemoConfiguration(scenario: .accessibilityRequired)
         XCTAssertFalse(accessibility.accessibilityTrusted)

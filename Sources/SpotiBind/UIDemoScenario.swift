@@ -23,6 +23,7 @@ enum UIAppearance: String, CaseIterable, Sendable {
 
 enum UIDemoScenario: String, CaseIterable, Sendable {
     case healthy
+    case automaticSelection = "automatic-selection"
     case accessibilityRequired = "accessibility-required"
     case noSupportedPlayer = "no-supported-player"
     case pathUnavailable = "path-unavailable"
@@ -83,8 +84,8 @@ struct UIDemoConfiguration: Equatable, Sendable {
         ])
 
         switch scenario {
-        case .healthy:
-            playerMode = .sonora
+        case .healthy, .automaticSelection:
+            playerMode = scenario == .automaticSelection ? .automatic : .sonora
             accessibilityTrusted = true
             probeHealthy = true
             tapStatus = "Ready"
