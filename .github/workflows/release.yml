@@ -99,6 +99,7 @@ jobs:
       - name: Validate merge provenance
         id: provenance
         env:
+          GH_TOKEN: ${{ github.token }}
           TARGET_SHA: ${{ steps.identity.outputs.sha }}
         run: |
           set -euo pipefail
