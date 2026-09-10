@@ -30,6 +30,17 @@ if [[ "$output_dir" != /* ]]; then
     output_dir="$repo_root/$output_dir"
 fi
 
+case "$output_dir" in
+    /|"$repo_root"|"$repo_root/"|/tmp|/private/tmp|/var/tmp|"${TMPDIR:-/tmp}")
+        printf 'Refusing to remove a broad output directory: %s\n' "$output_dir" >&2
+        exit 2
+        ;;
+esac
+if [[ "$output_dir" == */.. || "$output_dir" == */../* || "$output_dir" == */. || "$output_dir" == */./* ]]; then
+    printf 'Output directory must be a dedicated child path: %s\n' "$output_dir" >&2
+    exit 2
+fi
+
 icon_doc="$repo_root/packaging/macos/IconResources/SpotiBind.icon"
 icon_project="$repo_root/packaging/macos/IconResources/IconResources.xcodeproj"
 if [[ ! -e "$icon_doc" ]]; then
@@ -86,7 +97,7 @@ for rendition in Default Dark Mono; do
     done
 done
 
-for size in 16 32 128 256 512 1024; do
+for size in 16 32 64 128 256 512 1024; do
     export_preview Default "$size"
     cp "$output_dir/previews/Default-${size}.png" "$output_dir/default.iconset/icon_${size}x${size}.png"
 done
@@ -98,12 +109,39 @@ for size in 16 32 128 256 512; do
     fi
 done
 
+for icon_file in \
+    icon_16x16.png icon_16x16@2x.png \
+    icon_32x32.png icon_32x32@2x.png \
+    icon_128x128.png icon_128x128@2x.png \
+    icon_256x256.png icon_256x256@2x.png \
+    icon_512x512.png icon_512x512@2x.png; do
+    if [[ ! -s "$output_dir/default.iconset/$icon_file" ]]; then
+        printf 'Incomplete fallback iconset; missing %s.\n' "$icon_file" >&2
+        exit 1
+    fi
+done
+
 if [[ -n "$iconutil_bin" ]]; then
     "$iconutil_bin" --convert icns --output "$output_dir/SpotiBind.icns" "$output_dir/default.iconset"
 else
     printf 'iconutil is required for the macOS 13 fallback icon.\n' >&2
     exit 1
 fi
+
+roundtrip_iconset="$output_dir/icns-roundtrip.iconset"
+"$iconutil_bin" --convert iconset --output "$roundtrip_iconset" "$output_dir/SpotiBind.icns"
+for icon_file in \
+    icon_16x16.png icon_16x16@2x.png \
+    icon_32x32.png icon_32x32@2x.png \
+    icon_128x128.png icon_128x128@2x.png \
+    icon_256x256.png icon_256x256@2x.png \
+    icon_512x512.png icon_512x512@2x.png; do
+    if [[ ! -s "$roundtrip_iconset/$icon_file" ]]; then
+        printf 'Generated ICNS is missing %s.\n' "$icon_file" >&2
+        exit 1
+    fi
+done
+rm -rf "$roundtrip_iconset"
 
 derived_dir="$(mktemp -d "${TMPDIR:-/tmp}/spotibind-icon-build.XXXXXX")"
 trap 'rm -rf "$derived_dir"' EXIT

@@ -46,4 +46,17 @@ final class ApplicationPresentationTests: XCTestCase {
         XCTAssertEqual(calls, 1)
         XCTAssertNil(controller.currentPolicy)
     }
+
+    func testStatusBarTemplateLoadsFromBundle() {
+        let image = StatusBarIcon.templateImage(bundle: .module)
+
+        XCTAssertNotNil(image)
+        XCTAssertTrue(image?.isTemplate == true)
+        XCTAssertEqual(image?.size, NSSize(width: 18, height: 18))
+    }
+
+    func testStatusBarTemplateMissingResourceFallsBack() {
+        XCTAssertNil(StatusBarIcon.templateImage(bundle: Bundle(for: ApplicationPresentationTests.self)))
+        XCTAssertEqual(StatusBarIcon.fallbackSystemImage, "waveform")
+    }
 }

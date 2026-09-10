@@ -61,6 +61,42 @@ for resource in "$assets_car" "$fallback_icon" "$status_template"; do
         exit 1
     fi
 done
+if ! grep -q '<svg' "$status_template"; then
+    printf 'Status bar template is not a readable SVG: %s\n' "$status_template" >&2
+    exit 1
+fi
+
+asset_info="$(assetutil --info "$assets_car" 2>/dev/null)" || {
+    printf 'Unable to inspect compiled icon Assets.car: %s\n' "$assets_car" >&2
+    exit 1
+}
+for appearance in NSAppearanceNameAqua NSAppearanceNameDarkAqua ISAppearanceTintable; do
+    if ! grep -q "$appearance" <<< "$asset_info"; then
+        printf 'Compiled Assets.car is missing expected icon specialization: %s\n' "$appearance" >&2
+        exit 1
+    fi
+done
+
+iconutil_bin="$(xcrun --find iconutil 2>/dev/null || true)"
+if [[ -z "$iconutil_bin" ]]; then
+    printf 'iconutil is required to validate the macOS 13 fallback icon.\n' >&2
+    exit 1
+fi
+iconset_parent="$(mktemp -d "${TMPDIR:-/tmp}/spotibind-release-iconset.XXXXXX")"
+iconset_check="$iconset_parent/fallback.iconset"
+trap 'rm -rf "$iconset_parent"' EXIT
+"$iconutil_bin" --convert iconset --output "$iconset_check" "$fallback_icon"
+for icon_file in \
+    icon_16x16.png icon_16x16@2x.png \
+    icon_32x32.png icon_32x32@2x.png \
+    icon_128x128.png icon_128x128@2x.png \
+    icon_256x256.png icon_256x256@2x.png \
+    icon_512x512.png icon_512x512@2x.png; do
+    if [[ ! -s "$iconset_check/$icon_file" ]]; then
+        printf 'Fallback ICNS is missing %s.\n' "$icon_file" >&2
+        exit 1
+    fi
+done
 
 archs="$(lipo -archs "$binary")"
 [[ " $archs " == *" arm64 "* ]] || { printf 'arm64 slice missing: %s\n' "$archs" >&2; exit 1; }

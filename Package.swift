@@ -43,6 +43,7 @@ let package = Package(
             name: "SpotiBindAppTests",
             dependencies: ["SpotiBind"],
             path: "Tests/SpotiBindAppTests",
+            resources: [.process("Fixtures")],
             swiftSettings: strictSwift6
         )
     ]
