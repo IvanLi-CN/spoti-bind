@@ -63,6 +63,11 @@ jobs:
             echo 'release target must already be merged into the trusted main ref' >&2
             exit 1
           }
+          merge_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}" --jq '.commit.verification.verified')"
+          [[ "$merge_verified" == 'true' ]] || {
+            echo 'release target merge commit must be GitHub-verified' >&2
+            exit 1
+          }
           branch_tip="${parents##* }"
           tip_message="$(git show -s --format=%B "$branch_tip")"
           pr_numbers="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/pulls" --jq '.[].number')"
