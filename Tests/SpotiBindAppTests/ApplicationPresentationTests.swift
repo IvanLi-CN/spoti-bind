@@ -55,6 +55,21 @@ final class ApplicationPresentationTests: XCTestCase {
         XCTAssertEqual(image?.size, NSSize(width: 18, height: 18))
     }
 
+    func testProductionStatusBarTemplateRendersThroughAppKit() throws {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("assets/spotibind-logo-monochrome.svg")
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: sourceURL.path))
+        let image = try XCTUnwrap(StatusBarIcon.templateImage(url: sourceURL))
+        let bitmap = try XCTUnwrap(image.tiffRepresentation.flatMap(NSBitmapImageRep.init(data:)))
+
+        XCTAssertGreaterThan(bitmap.pixelsWide, 0)
+        XCTAssertGreaterThan(bitmap.pixelsHigh, 0)
+    }
+
     func testStatusBarTemplateMissingResourceFallsBack() {
         XCTAssertNil(StatusBarIcon.templateImage(bundle: Bundle(for: ApplicationPresentationTests.self)))
         XCTAssertEqual(StatusBarIcon.fallbackSystemImage, "waveform")

@@ -7,7 +7,15 @@ enum StatusBarIcon {
 
     static func templateImage(bundle: Bundle = .main) -> NSImage? {
         guard let url = bundle.url(forResource: resourceName, withExtension: "svg"),
-              let image = NSImage(contentsOf: url) else {
+              let image = templateImage(url: url) else {
+            return nil
+        }
+
+        return image
+    }
+
+    static func templateImage(url: URL) -> NSImage? {
+        guard let image = NSImage(contentsOf: url) else {
             return nil
         }
 
