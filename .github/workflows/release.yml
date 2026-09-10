@@ -58,6 +58,11 @@ jobs:
             echo 'release target must be a normal two-parent merge commit' >&2
             exit 1
           }
+          git fetch origin main --no-tags
+          git merge-base --is-ancestor "$TARGET_SHA" origin/main || {
+            echo 'release target must already be merged into the trusted main ref' >&2
+            exit 1
+          }
           branch_tip="${parents##* }"
           tip_message="$(git show -s --format=%B "$branch_tip")"
           if grep -qx 'Release-Mode: bootstrap' <<<"$tip_message"; then
@@ -105,7 +110,6 @@ jobs:
             echo 'immutable bootstrap marker: no public release is created' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          git fetch origin main --no-tags
           identity="$(python3 .github/scripts/release_chain.py validate-main --repo . --merge "$TARGET_SHA" --main-ref origin/main)"
           printf '%s\n' "$identity" > release-identity.json
           {
