@@ -31,7 +31,11 @@ SpotiBind validates its behavior at four layers.
   must reopen and activate Sonora's main window, then reach its PID shortcut
   exactly once without replaying the captured gesture.
 - macOS CI runs the SwiftPM core tests and builds the app for both advertised target triples.
-- Release validation verifies both universal architectures, the Ad Hoc signature, DMG mountability, and published SHA-256 checksums.
+- The app build and release jobs use `macos-26` with Xcode 26.4+ for the
+  Icon Composer resource target; Swift test jobs remain on `macos-15`.
+- Release validation verifies both universal architectures, the Ad Hoc
+  signature, DMG mountability, the Icon Composer `Assets.car`, the macOS 13
+  fallback icon, and published SHA-256 checksums.
 - A real Mac release checklist covers Accessibility authorization changes,
   target liveness, another player in the foreground, sleep/wake, and event-tap
   recovery. Fastpotify and Sonora checks run on macOS 13+; Spotifly checks run
@@ -49,10 +53,10 @@ scripts/macos/package.sh
 scripts/macos/verify-release.sh
 ```
 
-The current Command Line Tools installation can build and sign the app but does
-not provide the XCTest module. Use a complete Xcode developer toolchain (or
-the macOS CI runner) for `scripts/macos/test.sh`; this does not add an Xcode
-project to the repository.
+The complete Xcode developer toolchain is required for XCTest and for the
+resource-only Icon Composer target. Run `scripts/macos/compile-icon-resources.sh`
+before packaging when checking the resource chain directly. The repository's
+Xcode project does not compile Swift source or tests.
 
 CI explicitly selects an installed Xcode toolchain whose compiler reports
 Swift 6 before running tests or packaging. A runner image without Swift 6 is a

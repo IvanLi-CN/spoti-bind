@@ -44,6 +44,9 @@ done
 
 binary="$app_path/Contents/MacOS/SpotiBind"
 plist="$app_path/Contents/Info.plist"
+assets_car="$app_path/Contents/Resources/Assets.car"
+fallback_icon="$app_path/Contents/Resources/SpotiBind.icns"
+status_template="$app_path/Contents/Resources/StatusBarMark.svg"
 if [[ ! -x "$binary" ]]; then
     printf 'App executable is missing or not executable: %s\n' "$binary" >&2
     exit 1
@@ -52,6 +55,12 @@ if [[ ! -f "$plist" ]]; then
     printf 'App Info.plist is missing: %s\n' "$plist" >&2
     exit 1
 fi
+for resource in "$assets_car" "$fallback_icon" "$status_template"; do
+    if [[ ! -s "$resource" ]]; then
+        printf 'App resource is missing or empty: %s\n' "$resource" >&2
+        exit 1
+    fi
+done
 
 archs="$(lipo -archs "$binary")"
 [[ " $archs " == *" arm64 "* ]] || { printf 'arm64 slice missing: %s\n' "$archs" >&2; exit 1; }
@@ -68,6 +77,8 @@ minimum="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$plist")"
 [[ "$minimum" == "13.0" ]] || { printf 'Unexpected minimum system version: %s\n' "$minimum" >&2; exit 1; }
 identifier="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")"
 [[ "$identifier" == "cc.ivanli.spotibind" ]] || { printf 'Unexpected bundle identifier: %s\n' "$identifier" >&2; exit 1; }
+icon_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$plist")"
+[[ "$icon_name" == "SpotiBind" ]] || { printf 'Unexpected bundle icon name: %s\n' "$icon_name" >&2; exit 1; }
 
 hdiutil imageinfo "$dmg_path" >/dev/null
 checksum_dir="$(cd "$(dirname "$checksums_path")" && pwd)"

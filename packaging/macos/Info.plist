@@ -8,6 +8,8 @@
 	<string>SpotiBind</string>
 	<key>CFBundleIdentifier</key>
 	<string>cc.ivanli.spotibind</string>
+	<key>CFBundleIconName</key>
+	<string>SpotiBind</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>

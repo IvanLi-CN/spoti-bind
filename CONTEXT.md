@@ -49,3 +49,19 @@ _Avoid_: Automatic publication, updater channel
 **Compatibility Baseline**:
 The lowest macOS version the V1 app and its core package promise to support: macOS 13.0.
 _Avoid_: Build-host version, latest-only target
+
+**Application Icon**:
+The layered Default, Dark, and Mono SpotiBind mark used as the macOS application identity, with system-provided presentation applied by the platform.
+_Avoid_: Status Bar Template Mark, baked screenshot
+
+**Status Bar Template Mark**:
+The transparent monochrome mark used by the menu-bar extra so macOS can tint it for the current menu-bar appearance.
+_Avoid_: Application Icon, colored app tile
+
+**Bundle Assembly**:
+The product boundary that combines executable, metadata, application resources, and runtime template assets into the signed `.app`.
+_Avoid_: SwiftPM build graph, source compilation
+
+**Settings Presentation Mode**:
+The visible application state represented by a regular app when retained Advanced Settings is open and an accessory app during normal menu-bar operation.
+_Avoid_: Window size, player mode

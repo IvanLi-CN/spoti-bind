@@ -1,0 +1,26 @@
+// !$*UTF8*$!
+{
+    archiveVersion = 1;
+    classes = {};
+    objectVersion = 77;
+    objects = {
+        A10000010000000000000001 /* SpotiBind.icon in Resources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000001 /* SpotiBind.icon */; };
+        A10000020000000000000001 /* SpotiBind.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.icon; path = SpotiBind.icon; sourceTree = "<group>"; };
+        A10000020000000000000002 /* ResourceTarget-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = ResourceTarget-Info.plist; sourceTree = "<group>"; };
+        A10000020000000000000003 /* IconResources.bundle */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IconResources.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
+        A10000030000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+        A10000040000000000000001 = {isa = PBXGroup; children = (A10000020000000000000001 /* SpotiBind.icon */, A10000020000000000000002 /* ResourceTarget-Info.plist */,); sourceTree = "<group>"; };
+        A10000040000000000000002 /* Products */ = {isa = PBXGroup; children = (A10000020000000000000003 /* IconResources.bundle */,); name = Products; sourceTree = "<group>"; };
+        A10000040000000000000003 = {isa = PBXGroup; children = (A10000040000000000000001, A10000040000000000000002 /* Products */,); sourceTree = "<group>"; };
+        A10000050000000000000001 /* IconResources */ = {isa = PBXNativeTarget; buildConfigurationList = A10000080000000000000001 /* Build configuration list for PBXNativeTarget "IconResources" */; buildPhases = (A10000060000000000000001 /* Resources */, A10000030000000000000001 /* Frameworks */,); buildRules = (); dependencies = (); name = IconResources; productName = IconResources; productReference = A10000020000000000000003 /* IconResources.bundle */; productType = "com.apple.product-type.bundle"; };
+        A10000060000000000000001 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A10000010000000000000001 /* SpotiBind.icon in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+        A10000070000000000000001 /* Project object */ = {isa = PBXProject; attributes = {LastUpgradeCheck = 2660; TargetAttributes = {A10000050000000000000001 = {CreatedOnToolsVersion = 26.4;};};}; buildConfigurationList = A10000080000000000000002 /* Build configuration list for PBXProject "IconResources" */; compatibilityVersion = "Xcode 16.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base,); mainGroup = A10000040000000000000003; productRefGroup = A10000040000000000000002 /* Products */; projectDirPath = ""; projectRoot = ""; targets = (A10000050000000000000001 /* IconResources */,); };
+        A10000090000000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; CODE_SIGNING_ALLOWED = NO; INFOPLIST_FILE = ResourceTarget-Info.plist; MACOSX_DEPLOYMENT_TARGET = 13.0; PRODUCT_BUNDLE_IDENTIFIER = cc.ivanli.spotibind.icon-resources; PRODUCT_NAME = IconResources; SDKROOT = macosx; SKIP_INSTALL = YES;}; name = Debug; };
+        A10000090000000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; CODE_SIGNING_ALLOWED = NO; INFOPLIST_FILE = ResourceTarget-Info.plist; MACOSX_DEPLOYMENT_TARGET = 13.0; PRODUCT_BUNDLE_IDENTIFIER = cc.ivanli.spotibind.icon-resources; PRODUCT_NAME = IconResources; SDKROOT = macosx; SKIP_INSTALL = YES;}; name = Release; };
+        A10000090000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 13.0; SDKROOT = macosx;}; name = Debug; };
+        A10000090000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 13.0; SDKROOT = macosx;}; name = Release; };
+        A10000080000000000000001 /* Build configuration list for PBXNativeTarget "IconResources" */ = {isa = XCConfigurationList; buildConfigurations = (A10000090000000000000001 /* Debug */, A10000090000000000000002 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+        A10000080000000000000002 /* Build configuration list for PBXProject "IconResources" */ = {isa = XCConfigurationList; buildConfigurations = (A10000090000000000000003 /* Debug */, A10000090000000000000004 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+    };
+    rootObject = A10000070000000000000001 /* Project object */;
+}

@@ -63,8 +63,9 @@ use their configured application bundles or their fixed bundle identifiers.
 
 ## Build and test
 
-The repository has one Swift Package Manager entry point and does not require
-an `.xcodeproj`:
+SwiftPM remains the only entry point for application code, Core, and XCTest.
+The checked-in Icon Composer resource target is the one Xcode exception and
+only compiles the native application icon:
 
 ```sh
 scripts/macos/build.sh
@@ -72,9 +73,11 @@ scripts/macos/test.sh
 scripts/macos/run.sh
 ```
 
-Command Line Tools are enough to compile the app and perform the Ad Hoc
-bundle/signing steps. XCTest requires a complete Xcode developer-toolchain (as
-provided by CI); the app target itself remains SwiftPM-only.
+Swift tests use a complete Xcode developer toolchain. App packaging additionally
+requires Xcode 26.4+ because `scripts/macos/compile-icon-resources.sh` invokes
+Icon Composer and the resource-only Xcode target. The SwiftPM app target still
+contains all application code, and `scripts/macos/assemble-app.sh` is the
+single bundle assembly path used by local runs, captures, and releases.
 
 To produce a local release artifact:
 

@@ -1,0 +1,41 @@
+{
+  "fill" : "none",
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : false,
+          "image-name-specializations" : [
+            {
+              "value" : "spotibind-icon-light.svg"
+            },
+            {
+              "appearance" : "dark",
+              "value" : "spotibind-icon-dark.svg"
+            },
+            {
+              "appearance" : "tinted",
+              "value" : "spotibind-logo-monochrome.svg"
+            }
+          ],
+          "name" : "spotibind-signal-mark"
+        }
+      ],
+      "shadow" : {
+        "kind" : "none",
+        "opacity" : 0.5
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

@@ -10,12 +10,12 @@ permissions:
 
 jobs:
   draft-release:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - name: Check out source
         uses: actions/checkout@v4
       - name: Select Swift 6 toolchain
-        run: scripts/ci/select-swift6.sh
+        run: scripts/ci/select-swift6.sh --minimum-xcode 26.4
       - name: Ensure tag matches VERSION
         env:
           TAG_NAME: ${{ github.ref_name }}

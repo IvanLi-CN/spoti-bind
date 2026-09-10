@@ -81,16 +81,16 @@ x86_64_binary="$(build_arch x86_64)"
 app_path="$output_dir/SpotiBind.app"
 dmg_path="$output_dir/SpotiBind-${version}-universal.dmg"
 checksums_path="$output_dir/SHA256SUMS"
-plist_path="$app_path/Contents/Info.plist"
-merged_binary="$app_path/Contents/MacOS/SpotiBind"
+merged_binary="$build_root/SpotiBind-universal"
 
 rm -rf "$app_path"
 rm -f "$dmg_path" "$checksums_path"
-mkdir -p "$app_path/Contents/MacOS"
+mkdir -p "$output_dir"
 lipo -create "$arm64_binary" "$x86_64_binary" -output "$merged_binary"
-cp "$repo_root/packaging/macos/Info.plist" "$plist_path"
-/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$plist_path"
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $version" "$plist_path"
+"$script_dir/assemble-app.sh" \
+    --binary "$merged_binary" \
+    --app-path "$app_path" \
+    --version "$version"
 
 codesign --force --sign - --timestamp=none "$app_path"
 codesign --verify --strict --verbose=2 "$app_path"

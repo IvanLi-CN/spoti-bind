@@ -7,8 +7,9 @@
 - Implementation: multi-player routing implementation present; real-Mac release validation pending
 - Lifecycle: active
 - Catalog note: SwiftPM app/core/test targets, a window-style `MenuBarExtra`
-  surface, a retained Advanced Settings window, Ad Hoc packaging, CI, and
-  user-facing docs are checked in.
+  surface, a retained Advanced Settings window, an Icon Composer resource-only
+  Xcode target, shared bundle assembly, Ad Hoc packaging, CI, and user-facing
+  docs are checked in.
 - Product identity: SpotiBind is used for the executable, bundle, release
   artifacts, and public documentation; the Fastpotify CLI integration remains
   unchanged.
@@ -21,7 +22,9 @@
 ## Implementation Coverage
 
 - Requirement coverage: `REQ-FASTPOTIFY-001` through `REQ-FASTPOTIFY-006` are implemented by the Core, App, scripts, workflows, and documentation paths in this repository.
-- Verification commands: `swift test`, `scripts/macos/build.sh`, `scripts/macos/package.sh`, and `scripts/macos/verify-release.sh`.
+- Verification commands: `swift test`, `scripts/macos/build.sh`,
+  `scripts/macos/compile-icon-resources.sh`, `scripts/macos/package.sh`, and
+  `scripts/macos/verify-release.sh`.
 - Rollout facts: releases remain Draft until real macOS 13 Accessibility and physical-key checks pass for each advertised architecture.
 
 ## Coverage / rollout summary
@@ -46,6 +49,10 @@
   window material and fits its content height on first presentation and on an
   Accessibility-guidance visibility change, without overriding subsequent
   user resizing.
+- The menu-bar label loads `StatusBarMark.svg` as a template image and falls
+  back to `waveform` when the resource is absent. Opening retained Advanced
+  Settings switches the shipped app to regular activation policy; closing the
+  window restores accessory, while UI Demo stays regular.
 - Current visual evidence is scoped to live SpotiBind windows only and covers
   the menu panel plus normal and Accessibility-guidance settings states.
 

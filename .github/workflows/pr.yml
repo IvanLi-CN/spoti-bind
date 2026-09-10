@@ -22,12 +22,12 @@ jobs:
 
   build-app:
     name: PR / Build app
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - name: Check out source
         uses: actions/checkout@v4
       - name: Select Swift 6 toolchain
-        run: scripts/ci/select-swift6.sh
+        run: scripts/ci/select-swift6.sh --minimum-xcode 26.4
       - name: Build universal Ad Hoc app
         run: scripts/macos/package.sh --output-dir "$RUNNER_TEMP/spotibind-dist"
       - name: Verify release artifact
