@@ -20,7 +20,7 @@ if [[ "$mode" == apply ]]; then
   gh label create 'channel:stable' --repo "$GH_REPO" --color 0E8A16 --description 'Public stable release' --force
   ruleset_body="$(mktemp)"
   trap 'rm -f "$ruleset_body"' EXIT
-  printf '%s\n' '{"name":"main release policy","target":"branch","enforcement":"active","conditions":{"ref_name":{"include":["~DEFAULT_BRANCH"],"exclude":[]}},"rules":[{"type":"pull_request","parameters":{"required_approving_review_count":0,"dismiss_stale_reviews_on_push":false,"require_code_owner_review":false,"require_last_push_approval":false,"required_review_thread_resolution":true}},{"type":"required_status_checks","parameters":{"strict_required_status_checks_policy":true,"do_not_enforce_on_create":false,"required_status_checks":[{"context":"PR / Swift tests"},{"context":"PR / Build app"},{"context":"Label Gate"},{"context":"Release completion"}]}},{"type":"commit_signature_requirement"}]}' > "$ruleset_body"
+  printf '%s\n' '{"name":"main release policy","target":"branch","enforcement":"active","conditions":{"ref_name":{"include":["~DEFAULT_BRANCH"],"exclude":[]}},"rules":[{"type":"pull_request","parameters":{"required_approving_review_count":0,"dismiss_stale_reviews_on_push":false,"require_code_owner_review":false,"require_last_push_approval":false,"required_review_thread_resolution":true,"allowed_merge_methods":["merge"]}},{"type":"required_status_checks","parameters":{"strict_required_status_checks_policy":true,"do_not_enforce_on_create":false,"required_status_checks":[{"context":"PR / Swift tests"},{"context":"PR / Build app"},{"context":"Label Gate"},{"context":"Release completion"}]}},{"type":"required_signatures"}]}' > "$ruleset_body"
   existing_ruleset="$(gh api "repos/${GH_REPO}/rulesets" --jq '.[] | select(.name == "main release policy") | .id' | head -n1)"
   if [[ -n "$existing_ruleset" ]]; then
     gh api --method PUT "repos/${GH_REPO}/rulesets/${existing_ruleset}" --input "$ruleset_body"
@@ -43,7 +43,7 @@ if [[ -z "$ruleset_id" ]] || [[ "$(jq -r --argjson id "$ruleset_id" '.[] | selec
   exit 1
 fi
 details="$(gh api "repos/${GH_REPO}/rulesets/${ruleset_id}" 2>/dev/null || echo '{}')"
-jq -e '[.rules[]?.type] | index("pull_request") != null and index("required_status_checks") != null and index("commit_signature_requirement") != null' <<<"$details" >/dev/null || {
+jq -e '[.rules[]?.type] | index("pull_request") != null and index("required_status_checks") != null and index("required_signatures") != null' <<<"$details" >/dev/null || {
   echo 'main release policy ruleset is missing required rule types' >&2
   exit 1
 }
