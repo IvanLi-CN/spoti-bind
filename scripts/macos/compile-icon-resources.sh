@@ -107,7 +107,23 @@ if [[ ! -s "$mono_source" ]]; then
     printf 'High-contrast Mono icon source is missing: %s\n' "$mono_source" >&2
     exit 1
 fi
-if ! rg -q -U '<path\s*\n\s*fill="#fff"\s*\n\s*mask=' "$mono_source"; then
+if ! awk '
+    /<path[[:space:]]*$/ {
+        in_path=1
+        has_fill=0
+        has_mask=0
+        next
+    }
+    in_path && /fill="#fff"/ { has_fill=1 }
+    in_path && /mask="url\(#s-cutout\)"/ { has_mask=1 }
+    in_path && /\/>/ {
+        if (has_fill && has_mask) {
+            found=1
+        }
+        in_path=0
+    }
+    END { exit(found ? 0 : 1) }
+' "$mono_source"; then
     printf 'Mono icon source must provide a white masked foreground: %s\n' "$mono_source" >&2
     exit 1
 fi
