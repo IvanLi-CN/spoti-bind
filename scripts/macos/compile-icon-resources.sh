@@ -46,21 +46,38 @@ case "$(basename "$output_dir")" in
         exit 2
         ;;
 esac
-mkdir -p "$(dirname "$output_dir")"
-output_parent="$(cd "$(dirname "$output_dir")" && pwd -P)"
+requested_parent="$(dirname "$output_dir")"
+tmp_dir="$(printenv TMPDIR || true)"
+[[ -n "$tmp_dir" ]] || tmp_dir="/tmp"
+case "$requested_parent" in
+    "$repo_root/.build"|/tmp|/private/tmp|/var/tmp|/private/var/tmp|"$tmp_dir") ;;
+    *)
+        printf 'Output directory must be a dedicated child of an approved disposable directory: %s\n' "$output_dir" >&2
+        exit 2
+        ;;
+esac
+mkdir -p "$requested_parent"
+output_parent="$(cd "$requested_parent" && pwd -P)"
 output_base="$(basename "$output_dir")"
 if [[ "$output_parent" == "/" ]]; then
     output_dir="/$output_base"
 else
     output_dir="$output_parent/$output_base"
 fi
-tmp_dir="$(printenv TMPDIR || true)"
-[[ -n "$tmp_dir" ]] || tmp_dir="/tmp"
 tmp_dir="$(cd "$tmp_dir" && pwd -P)"
 repo_root="$(cd "$repo_root" && pwd -P)"
+build_parent="$(cd "$repo_root/.build" && pwd -P)"
+var_tmp_parent="$(cd /var/tmp && pwd -P)"
 case "$output_dir" in
     /|"$repo_root"|/tmp|/private/tmp|/var/tmp|/private/var/tmp|"$tmp_dir")
         printf 'Refusing to remove a broad output directory: %s\n' "$output_dir" >&2
+        exit 2
+        ;;
+esac
+case "$output_parent" in
+    "$build_parent"|/tmp|/private/tmp|"$var_tmp_parent"|"$tmp_dir") ;;
+    *)
+        printf 'Output directory parent is not an approved disposable directory: %s\n' "$output_dir" >&2
         exit 2
         ;;
 esac
