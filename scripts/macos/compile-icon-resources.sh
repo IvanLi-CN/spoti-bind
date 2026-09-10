@@ -102,6 +102,16 @@ if [[ ! -d "$icon_project" ]]; then
     exit 1
 fi
 
+mono_source="$icon_doc/Assets/spotibind-icon-mono.svg"
+if [[ ! -s "$mono_source" ]]; then
+    printf 'High-contrast Mono icon source is missing: %s\n' "$mono_source" >&2
+    exit 1
+fi
+if ! rg -q -U '<path\s*\n\s*fill="#fff"\s*\n\s*mask=' "$mono_source"; then
+    printf 'Mono icon source must provide a white masked foreground: %s\n' "$mono_source" >&2
+    exit 1
+fi
+
 developer_dir="${DEVELOPER_DIR:-$(xcode-select -p)}"
 xcodebuild_bin="$developer_dir/usr/bin/xcodebuild"
 ictool_bin="$(dirname "$developer_dir")/Applications/Icon Composer.app/Contents/Executables/ictool"

@@ -113,7 +113,7 @@ for resource in Assets.car SpotiBind.icns; do
     fi
 done
 
-if [[ ! -s "$repo_root/assets/spotibind-logo-monochrome.svg" ]]; then
+if [[ ! -s "$repo_root/assets/spotibind-status-bar.svg" ]]; then
     printf 'Status bar template source is missing or empty.\n' >&2
     exit 1
 fi
@@ -124,7 +124,7 @@ cp "$binary" "$staging_path/Contents/MacOS/SpotiBind"
 cp "$repo_root/packaging/macos/Info.plist" "$staging_path/Contents/Info.plist"
 cp "$compiled_resources/Assets.car" "$staging_path/Contents/Resources/Assets.car"
 cp "$compiled_resources/SpotiBind.icns" "$staging_path/Contents/Resources/SpotiBind.icns"
-cp "$repo_root/assets/spotibind-logo-monochrome.svg" "$staging_path/Contents/Resources/StatusBarMark.svg"
+cp "$repo_root/assets/spotibind-status-bar.svg" "$staging_path/Contents/Resources/StatusBarMark.svg"
 
 if [[ -n "$version" ]]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$staging_path/Contents/Info.plist"

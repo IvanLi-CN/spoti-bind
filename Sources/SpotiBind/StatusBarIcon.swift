@@ -4,6 +4,7 @@ import SwiftUI
 enum StatusBarIcon {
     static let resourceName = "StatusBarMark"
     static let fallbackSystemImage = "waveform"
+    static let templateSize = NSSize(width: 20, height: 20)
 
     static func templateImage(bundle: Bundle = .main) -> NSImage? {
         guard let url = bundle.url(forResource: resourceName, withExtension: "svg"),
@@ -20,7 +21,7 @@ enum StatusBarIcon {
         }
 
         image.isTemplate = true
-        image.size = NSSize(width: 18, height: 18)
+        image.size = templateSize
         return image
     }
 }
@@ -45,7 +46,7 @@ struct StatusBarIconView: View {
                     .scaledToFit()
             }
         }
-        .frame(width: 18, height: 18)
+        .frame(width: StatusBarIcon.templateSize.width, height: StatusBarIcon.templateSize.height)
         .accessibilityLabel("SpotiBind")
         .help("SpotiBind")
     }

@@ -15,7 +15,7 @@
             },
             {
               "appearance" : "tinted",
-              "value" : "spotibind-logo-monochrome.svg"
+              "value" : "spotibind-icon-mono.svg"
             }
           ],
           "name" : "spotibind-signal-mark"

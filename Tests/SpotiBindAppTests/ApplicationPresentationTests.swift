@@ -52,7 +52,7 @@ final class ApplicationPresentationTests: XCTestCase {
 
         XCTAssertNotNil(image)
         XCTAssertTrue(image?.isTemplate == true)
-        XCTAssertEqual(image?.size, NSSize(width: 18, height: 18))
+        XCTAssertEqual(image?.size, StatusBarIcon.templateSize)
     }
 
     func testProductionStatusBarTemplateRendersThroughAppKit() throws {
@@ -60,7 +60,7 @@ final class ApplicationPresentationTests: XCTestCase {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("assets/spotibind-logo-monochrome.svg")
+            .appendingPathComponent("assets/spotibind-status-bar.svg")
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: sourceURL.path))
         let image = try XCTUnwrap(StatusBarIcon.templateImage(url: sourceURL))

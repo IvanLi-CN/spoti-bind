@@ -49,10 +49,15 @@
   window material and fits its content height on first presentation and on an
   Accessibility-guidance visibility change, without overriding subsequent
   user resizing.
-- The menu-bar label loads `StatusBarMark.svg` as a template image and falls
+- The menu-bar label loads the tightly cropped `spotibind-status-bar.svg` as
+  `StatusBarMark.svg`, preserving the full mark at menu-bar scale, and falls
   back to `waveform` when the resource is absent. Opening retained Advanced
   Settings switches the shipped app to regular activation policy; closing the
   window restores accessory, while UI Demo stays regular.
+- The Icon Composer `tinted` specialization uses the dedicated white
+  `spotibind-icon-mono.svg` foreground so Clear and Tinted dark styles retain
+  contrast; the original black `spotibind-logo-monochrome.svg` remains an
+  independent logo asset and is not used as an application-icon source.
 - Current visual evidence is scoped to live SpotiBind windows only and covers
   the menu panel plus normal and Accessibility-guidance settings states.
 
