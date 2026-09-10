@@ -35,7 +35,7 @@ grep -q 'Release-Mode: (bootstrap|no-release)' .github/workflows/release.yml
 grep -q 'skip=true' .github/workflows/release.yml
 grep -q 'immutable no-release marker' .github/workflows/release.yml
 grep -q 'merge-base --is-ancestor' .github/workflows/release.yml
-grep -q 'labels do not match immutable preparation type' .github/workflows/release.yml
+! grep -q 'labels do not match immutable preparation type' .github/workflows/release.yml
 ! grep -q 'preparation version' .github/workflows/release-completion.yml
 grep -q 'release-target-sha.txt' .github/workflows/notify-release-failure.yml
 grep -q -- "--repo \"\$GITHUB_REPOSITORY\"" .github/workflows/notify-release-failure.yml
