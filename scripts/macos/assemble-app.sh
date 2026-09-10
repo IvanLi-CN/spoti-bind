@@ -50,7 +50,11 @@ if [[ "$app_path" != /* ]]; then
     app_path="$repo_root/$app_path"
 fi
 case "$app_path" in
-    /|"$repo_root"|"$repo_root/"|*.app) ;;
+    /|"$repo_root"|"$repo_root/")
+        printf 'Refusing to remove a broad app path: %s\n' "$app_path" >&2
+        exit 2
+        ;;
+    *.app) ;;
     *)
         printf 'App path must be a dedicated .app bundle path: %s\n' "$app_path" >&2
         exit 2
