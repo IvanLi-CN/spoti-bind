@@ -65,18 +65,6 @@ jobs:
           }
           branch_tip="${parents##* }"
           tip_message="$(git show -s --format=%B "$branch_tip")"
-          if grep -qx 'Release-Mode: bootstrap' <<<"$tip_message"; then
-            bootstrap="$(python3 .github/scripts/release_chain.py validate-bootstrap --repo . --merge "$TARGET_SHA")"
-            printf '%s\n' "$bootstrap" > merged-release-intent.json
-            {
-              echo "version=$(jq -r '.version' merged-release-intent.json)"
-              echo 'type=type:none'
-              echo 'channel=channel:stable'
-              echo 'skip=true'
-            } >> "$GITHUB_OUTPUT"
-            echo 'immutable bootstrap marker: no public release is created' >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
           pr_numbers="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/pulls" --jq '.[].number')"
           [[ "$(wc -l <<<"$pr_numbers" | tr -d ' ')" == '1' ]] || {
             echo 'release target must resolve to exactly one merged pull request' >&2
@@ -86,6 +74,22 @@ jobs:
           labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${pr_number}/labels" --jq '[.[].name]')"
           intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
           printf '%s\n' "$intent" > merged-release-intent.json
+          if grep -Eq '^Release-Mode: (bootstrap|no-release)$' <<<"$tip_message"; then
+            [[ "$(jq -r '.type' merged-release-intent.json)" == 'type:none' ]] || {
+              echo 'no-release marker requires type:none intent' >&2
+              exit 1
+            }
+            bootstrap="$(python3 .github/scripts/release_chain.py validate-bootstrap --repo . --merge "$TARGET_SHA")"
+            printf '%s\n' "$bootstrap" > merged-release-intent.json
+            {
+              echo "version=$(jq -r '.version' merged-release-intent.json)"
+              echo 'type=type:none'
+              echo 'channel=channel:stable'
+              echo 'skip=true'
+            } >> "$GITHUB_OUTPUT"
+            echo 'immutable no-release marker: no public release is created' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           {
             echo "version=$(jq -r '.version' merged-release-intent.json)"
             echo "type=$(jq -r '.type' merged-release-intent.json)"
@@ -107,7 +111,7 @@ jobs:
               echo "channel=${{ steps.intent.outputs.channel }}"
               echo "tag=v${{ steps.intent.outputs.version }}"
             } >> "$GITHUB_OUTPUT"
-            echo 'immutable bootstrap marker: no public release is created' >> "$GITHUB_STEP_SUMMARY"
+            echo 'immutable no-release marker: no public release is created' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           identity="$(python3 .github/scripts/release_chain.py validate-main --repo . --merge "$TARGET_SHA" --main-ref origin/main)"

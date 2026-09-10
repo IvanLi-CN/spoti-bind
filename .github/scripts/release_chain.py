@@ -220,8 +220,9 @@ def validate_bootstrap_merge(repo: Path, merge_sha: str) -> dict[str, str]:
     if len(tip_parents) != 1:
         raise ReleaseError("bootstrap marker must be a single-parent commit")
     trailers = parse_trailers(git("show", "-s", "--format=%B", branch_tip, cwd=repo))
-    if trailers.get("Release-Mode") != "bootstrap":
-        raise ReleaseError("bootstrap release mode marker is missing")
+    release_mode = trailers.get("Release-Mode")
+    if release_mode not in {"bootstrap", "no-release"}:
+        raise ReleaseError("no-release mode marker is missing")
     if trailers.get("Release-Type") != "type:none":
         raise ReleaseError("bootstrap release type marker is invalid")
     if trailers.get("Release-Channel") != "channel:stable":
@@ -239,6 +240,7 @@ def validate_bootstrap_merge(repo: Path, merge_sha: str) -> dict[str, str]:
         "version": merge_version,
         "type": "type:none",
         "channel": "channel:stable",
+        "mode": release_mode,
     }
 
 
