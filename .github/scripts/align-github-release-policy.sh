@@ -59,6 +59,11 @@ contexts="$(jq -r '[.rules[]? | select(.type == "required_status_checks") | .par
   echo "required status checks do not match declaration: $contexts" >&2
   exit 1
 }
+merge_methods="$(jq -r '[.rules[]? | select(.type == "pull_request") | .parameters.allowed_merge_methods[]?] | sort | join(",")' <<<"$details")"
+[[ "$merge_methods" == 'merge' ]] || {
+  echo "pull request merge methods do not match declaration: $merge_methods" >&2
+  exit 1
+}
 if [[ "$mode" == check ]]; then
   echo 'Ruleset contents must be reviewed against .github/quality-gates.json; no remote mutation was performed.'
 fi
