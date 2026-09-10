@@ -46,12 +46,45 @@ jobs:
           ref: ${{ steps.identity.outputs.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Resolve merged PR release intent
+        id: intent
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.identity.outputs.sha }}
+        run: |
+          set -euo pipefail
+          pr_numbers="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/pulls" --jq '.[].number')"
+          [[ "$(wc -l <<<"$pr_numbers" | tr -d ' ')" == '1' ]] || {
+            echo 'release target must resolve to exactly one merged pull request' >&2
+            exit 1
+          }
+          pr_number="$(tr -d '\r\n' <<<"$pr_numbers")"
+          labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${pr_number}/labels" --jq '[.[].name]')"
+          intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
+          printf '%s\n' "$intent" > merged-release-intent.json
+          {
+            echo "version=$(jq -r '.version' merged-release-intent.json)"
+            echo "type=$(jq -r '.type' merged-release-intent.json)"
+            echo "channel=$(jq -r '.channel' merged-release-intent.json)"
+            echo "pr_number=$pr_number"
+          } >> "$GITHUB_OUTPUT"
       - name: Validate merge provenance
         id: provenance
         env:
           TARGET_SHA: ${{ steps.identity.outputs.sha }}
         run: |
           set -euo pipefail
+          if [[ "${{ steps.intent.outputs.type }}" == 'type:none' ]]; then
+            cp merged-release-intent.json release-identity.json
+            {
+              echo "version=${{ steps.intent.outputs.version }}"
+              echo 'type=type:none'
+              echo "channel=${{ steps.intent.outputs.channel }}"
+              echo "tag=v${{ steps.intent.outputs.version }}"
+            } >> "$GITHUB_OUTPUT"
+            echo 'type:none merge: no public release is created' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           git fetch origin main --no-tags
           identity="$(python3 .github/scripts/release_chain.py validate-main --repo . --merge "$TARGET_SHA" --main-ref origin/main)"
           printf '%s\n' "$identity" > release-identity.json
