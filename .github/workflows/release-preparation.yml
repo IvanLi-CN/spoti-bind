@@ -55,7 +55,6 @@ jobs:
             python3 .github/scripts/release_chain.py validate-preparation --repo . \
               --preparation "$source" --source "$parent"
             existing_intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
-            [[ "$(git show -s --format=%B "$source")" == *"Release-Version: $(jq -r '.version' <<<"$existing_intent")"* ]] || { echo 'labels do not match existing preparation version' >&2; exit 1; }
             [[ "$(git show -s --format=%B "$source")" == *"Release-Type: $(jq -r '.type' <<<"$existing_intent")"* ]] || { echo 'labels do not match existing preparation type' >&2; exit 1; }
             [[ "$(git show -s --format=%B "$source")" == *"Release-Channel: $(jq -r '.channel' <<<"$existing_intent")"* ]] || { echo 'labels do not match existing preparation channel' >&2; exit 1; }
             echo 'existing preparation commit is already the PR head' >> "$GITHUB_STEP_SUMMARY"

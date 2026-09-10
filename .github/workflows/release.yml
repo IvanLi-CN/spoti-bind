@@ -112,6 +112,14 @@ jobs:
           fi
           identity="$(python3 .github/scripts/release_chain.py validate-main --repo . --merge "$TARGET_SHA" --main-ref origin/main)"
           printf '%s\n' "$identity" > release-identity.json
+          [[ "$(jq -r '.type' release-identity.json)" == "${{ steps.intent.outputs.type }}" ]] || {
+            echo 'merged PR labels do not match immutable preparation type' >&2
+            exit 1
+          }
+          [[ "$(jq -r '.channel' release-identity.json)" == "${{ steps.intent.outputs.channel }}" ]] || {
+            echo 'merged PR labels do not match immutable preparation channel' >&2
+            exit 1
+          }
           {
             echo "version=$(jq -r '.version' release-identity.json)"
             echo "type=$(jq -r '.type' release-identity.json)"

@@ -61,7 +61,6 @@ jobs:
           identity="$(python3 .github/scripts/release_chain.py validate-preparation --repo . \
             --preparation "$preparation" --source "$source"
           )"
-          [[ "$identity" == *"\"version\": \"$(jq -r '.version' <<<"$intent")\""* ]] || { echo 'labels do not match preparation version' >&2; exit 1; }
           [[ "$identity" == *"\"type\": \"$(jq -r '.type' <<<"$intent")\""* ]] || { echo 'labels do not match preparation type' >&2; exit 1; }
           [[ "$identity" == *"\"channel\": \"$(jq -r '.channel' <<<"$intent")\""* ]] || { echo 'labels do not match preparation channel' >&2; exit 1; }
           verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${preparation}" --jq '.commit.verification.verified')"
