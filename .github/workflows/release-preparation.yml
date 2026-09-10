@@ -40,7 +40,7 @@ jobs:
           fi
           [[ "$BASE_REPO" == "$GITHUB_REPOSITORY" && "$BASE_REF" == 'main' ]] || { echo 'release preparation requires the trusted main base' >&2; exit 1; }
           # shellcheck disable=SC2016
-          labels="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/labels" --jq '[.[].name]')"
+          labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels" --jq '[.[].name]')"
           intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
           printf '%s\n' "$intent" > release-intent.json
           type="$(jq -r '.type' <<<"$intent")"

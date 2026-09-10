@@ -23,5 +23,7 @@ is an explicit no-release intent.
 The public release is deterministic and auditable without introducing a release
 queue or a new version source. Fork pull requests are fail-closed for all write
 workflows. Physical media-key validation remains real-environment evidence and
-does not block publication of the CI-verified artifact. Remote rulesets, labels,
-and notifier credentials remain separately aligned external state.
+does not block publication of the CI-verified artifact. Remote rulesets and
+labels remain separately aligned external state. Release failures are sent
+through the SHA-pinned Oidrune OIDC workflow; the caller has no legacy webhook
+secret dependency.

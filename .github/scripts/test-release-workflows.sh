@@ -12,6 +12,10 @@ for workflow in label-gate release-preparation release-completion; do
   grep -q 'ref:.*default_branch' "$file"
   grep -q 'persist-credentials: false' "$file"
 done
+if grep -R -q 'pulls/.*\/labels' .github/workflows; then
+  echo 'GitHub label reads must use the issue labels endpoint' >&2
+  exit 1
+fi
 grep -q 'expectedHeadOid' .github/workflows/release-preparation.yml
 grep -q 'createCommitOnBranch' .github/workflows/release-preparation.yml
 grep -q 'repositoryNameWithOwner' .github/workflows/release-preparation.yml
@@ -26,4 +30,12 @@ grep -q 'select-swift6.sh' .github/workflows/release.yml
 grep -q 'TARGET_SHA' .github/workflows/release.yml
 grep -q 'release-target-sha.txt' .github/workflows/notify-release-failure.yml
 grep -q -- "--repo \"\$GITHUB_REPOSITORY\"" .github/workflows/notify-release-failure.yml
+grep -q 'workflow_dispatch:' .github/workflows/notify-release-failure.yml
+grep -q 'id-token: write' .github/workflows/notify-release-failure.yml
+grep -q 'on_gateway_failure: warn' .github/workflows/notify-release-failure.yml
+grep -q 'IvanLi-CN/oidrune/.github/workflows/notify.yml@8667553506eef516af0499a77273f2938387dd37' .github/workflows/notify-release-failure.yml
+if grep -q -E 'SHOUTRRR_URL|github-workflows/.github/workflows/release-failure-telegram.yml' .github/workflows/notify-release-failure.yml; then
+  echo 'retired Telegram/Shoutrrr notifier contract is still present' >&2
+  exit 1
+fi
 echo "release workflow contracts passed"

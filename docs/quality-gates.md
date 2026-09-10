@@ -8,13 +8,14 @@ The repository's intended protection policy is deliberately small for a solo-mai
 - No review-count requirement is imposed initially, so the maintainer can merge their own pull requests.
 - A same-repository PR defaults to `type:patch` and `channel:stable`; merging a verified preparation commit to `main` automatically publishes the public `vX.Y.Z` Release.
 
-The GitHub repository's branch ruleset, labels, and notifier secret are remote state. They are aligned idempotently with `gh` after PR review and checked against this declaration; this repository change does not silently mutate remote policy.
+The GitHub repository's branch ruleset and labels are remote state. They are aligned idempotently with `gh` after PR review and checked against this declaration; this repository change does not silently mutate remote policy. Release failure delivery uses the SHA-pinned Oidrune OIDC workflow and does not require a repository notification secret.
 
 ## Bootstrap
 
 Because `pull_request_target` loads from the base branch, the first rollout must
 be applied in this order: merge this workflow change with the existing two PR
-checks, configure the organization notifier credential, then run
+checks, confirm the Oidrune gateway allowlist trusts this repository and the
+pinned notifier workflow release, then run
 `.github/scripts/align-github-release-policy.sh apply` from a reviewed trusted
 checkout. The alignment script is idempotent and its `check` mode fails until labels, rule
 types, and required contexts match this file. Subsequent PRs receive all four
