@@ -49,6 +49,12 @@ esac
 requested_parent="$(dirname "$output_dir")"
 tmp_dir="$(printenv TMPDIR || true)"
 [[ -n "$tmp_dir" ]] || tmp_dir="/tmp"
+while [[ "$requested_parent" == */ && "$requested_parent" != "/" ]]; do
+    requested_parent="${requested_parent%/}"
+done
+while [[ "$tmp_dir" == */ && "$tmp_dir" != "/" ]]; do
+    tmp_dir="${tmp_dir%/}"
+done
 case "$requested_parent" in
     "$repo_root/.build"|/tmp|/private/tmp|/var/tmp|/private/var/tmp|"$tmp_dir") ;;
     *)
