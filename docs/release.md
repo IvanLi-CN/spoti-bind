@@ -13,11 +13,14 @@ GitHub-verified `VERSION`-only commit on the PR branch. Merging that PR to
 identity, builds the universal Ad Hoc DMG, reserves `vX.Y.Z` for the merge SHA,
 and publishes a public GitHub Release with the DMG and `SHA256SUMS`.
 
-`type:none` is the explicit non-product exception and produces no release.
-Recovery uses `workflow_dispatch` with the exact merged `commit_sha`; a tag or
-asset belonging to another SHA fails closed. The failure sidecar records the
-PR, labels, source/merge SHA, version, tag, assets, run URL, and this recovery
-instruction.
+`type:none` is the explicit non-product exception and produces no release. Its
+final same-repository PR head must carry the immutable trailers
+`Release-Type: type:none`, `Release-Channel: channel:stable`, and
+`Release-Mode: no-release` (or `bootstrap`). Release recovery uses
+`workflow_dispatch` with the exact merged `commit_sha`; post-merge labels are
+not consulted, and a tag or asset belonging to another SHA fails closed. The
+failure sidecar records the PR, labels, source/merge SHA, version, tag, assets,
+run URL, and this recovery instruction.
 
 ## Required real-Mac evidence
 

@@ -55,14 +55,20 @@ jobs:
             python3 .github/scripts/release_chain.py validate-preparation --repo . \
               --preparation "$source" --source "$parent"
             existing_intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
-            [[ "$(git show -s --format=%B "$source")" == *"Release-Version: $(jq -r '.version' <<<"$existing_intent")"* ]] || { echo 'labels do not match existing preparation version' >&2; exit 1; }
             [[ "$(git show -s --format=%B "$source")" == *"Release-Type: $(jq -r '.type' <<<"$existing_intent")"* ]] || { echo 'labels do not match existing preparation type' >&2; exit 1; }
             [[ "$(git show -s --format=%B "$source")" == *"Release-Channel: $(jq -r '.channel' <<<"$existing_intent")"* ]] || { echo 'labels do not match existing preparation channel' >&2; exit 1; }
             echo 'existing preparation commit is already the PR head' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           if [[ "$type" == 'type:none' ]]; then
-            echo 'type:none: no VERSION preparation required' >> "$GITHUB_STEP_SUMMARY"
+            message="$(git show -s --format=%B "$source")"
+            grep -Eq '^Release-Mode: (bootstrap|no-release)$' <<<"$message" || {
+              echo 'type:none requires an immutable no-release mode marker on the PR head' >&2
+              exit 1
+            }
+            grep -qx 'Release-Type: type:none' <<<"$message" || { echo 'no-release marker type is invalid' >&2; exit 1; }
+            grep -qx 'Release-Channel: channel:stable' <<<"$message" || { echo 'no-release marker channel is invalid' >&2; exit 1; }
+            echo 'type:none: immutable no-release marker verified' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${source}/check-runs" \

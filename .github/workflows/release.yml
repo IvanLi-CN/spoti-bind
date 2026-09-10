@@ -46,15 +46,83 @@ jobs:
           ref: ${{ steps.identity.outputs.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Resolve merged PR identity
+        id: intent
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.identity.outputs.sha }}
+        run: |
+          set -euo pipefail
+          parents="$(git show -s --format=%P "$TARGET_SHA")"
+          [[ "$(wc -w <<<"$parents" | tr -d ' ')" == '2' ]] || {
+            echo 'release target must be a normal two-parent merge commit' >&2
+            exit 1
+          }
+          git fetch origin main --no-tags
+          git merge-base --is-ancestor "$TARGET_SHA" origin/main || {
+            echo 'release target must already be merged into the trusted main ref' >&2
+            exit 1
+          }
+          branch_tip="${parents##* }"
+          tip_message="$(git show -s --format=%B "$branch_tip")"
+          pr_numbers="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/pulls" --jq '.[].number')"
+          [[ "$(wc -l <<<"$pr_numbers" | tr -d ' ')" == '1' ]] || {
+            echo 'release target must resolve to exactly one merged pull request' >&2
+            exit 1
+          }
+          pr_number="$(tr -d '\r\n' <<<"$pr_numbers")"
+          pr_state="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" --jq '[.state, (.merged_at // ""), (.merge_commit_sha // ""), .base.ref, .base.repo.full_name, (.head.repo.full_name // "")] | @tsv')"
+          IFS=$'\t' read -r state merged_at merge_commit base_ref base_repo head_repo <<<"$pr_state"
+          [[ "$state" == 'closed' && -n "$merged_at" && "$merge_commit" == "$TARGET_SHA" ]] || {
+            echo 'release target must be the exact merge commit of a closed PR' >&2
+            exit 1
+          }
+          [[ "$base_ref" == 'main' && "$base_repo" == "$GITHUB_REPOSITORY" && "$head_repo" == "$GITHUB_REPOSITORY" ]] || {
+            echo 'release target PR must be an internal PR merged into main' >&2
+            exit 1
+          }
+          if grep -Eq '^Release-Mode: (bootstrap|no-release)$' <<<"$tip_message"; then
+            bootstrap="$(python3 .github/scripts/release_chain.py validate-bootstrap --repo . --merge "$TARGET_SHA")"
+            verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${branch_tip}" --jq '.commit.verification.verified')"
+            [[ "$verified" == 'true' ]] || { echo 'no-release marker commit is not GitHub-verified' >&2; exit 1; }
+            printf '%s\n' "$bootstrap" > merged-release-intent.json
+            {
+              echo "version=$(jq -r '.version' merged-release-intent.json)"
+              echo 'type=type:none'
+              echo 'channel=channel:stable'
+              echo 'skip=true'
+            } >> "$GITHUB_OUTPUT"
+            echo "immutable no-release marker on merged PR #${pr_number}: no public release is created" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo 'skip=false' >> "$GITHUB_OUTPUT"
       - name: Validate merge provenance
         id: provenance
         env:
           TARGET_SHA: ${{ steps.identity.outputs.sha }}
         run: |
           set -euo pipefail
-          git fetch origin main --no-tags
+          if [[ "${{ steps.intent.outputs.skip }}" == 'true' ]]; then
+            cp merged-release-intent.json release-identity.json
+            {
+              echo "version=${{ steps.intent.outputs.version }}"
+              echo 'type=type:none'
+              echo "channel=${{ steps.intent.outputs.channel }}"
+              echo "tag=v${{ steps.intent.outputs.version }}"
+            } >> "$GITHUB_OUTPUT"
+            echo 'immutable no-release marker: no public release is created' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           identity="$(python3 .github/scripts/release_chain.py validate-main --repo . --merge "$TARGET_SHA" --main-ref origin/main)"
           printf '%s\n' "$identity" > release-identity.json
+          preparation="$(jq -r '.preparation_sha' release-identity.json)"
+          source="$(jq -r '.source_sha' release-identity.json)"
+          preparation_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${preparation}" --jq '.commit.verification.verified')"
+          source_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${source}" --jq '.commit.verification.verified')"
+          [[ "$preparation_verified" == 'true' && "$source_verified" == 'true' ]] || {
+            echo 'release provenance commits must be GitHub-verified' >&2
+            exit 1
+          }
           {
             echo "version=$(jq -r '.version' release-identity.json)"
             echo "type=$(jq -r '.type' release-identity.json)"
