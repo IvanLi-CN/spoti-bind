@@ -72,7 +72,10 @@ else
 fi
 tmp_dir="$(cd "$tmp_dir" && pwd -P)"
 repo_root="$(cd "$repo_root" && pwd -P)"
-build_parent="$(cd "$repo_root/.build" && pwd -P)"
+build_parent="$repo_root/.build"
+if [[ -d "$build_parent" ]]; then
+    build_parent="$(cd "$build_parent" && pwd -P)"
+fi
 var_tmp_parent="$(cd /var/tmp && pwd -P)"
 case "$output_dir" in
     /|"$repo_root"|/tmp|/private/tmp|/var/tmp|/private/var/tmp|"$tmp_dir")
