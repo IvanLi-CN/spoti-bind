@@ -36,6 +36,40 @@ class ReleaseChainTests(unittest.TestCase):
         self.assertEqual(release_chain.bump_version("0.1.9", "type:major"), "1.0.0")
         self.assertEqual(release_chain.bump_version("0.1.9", "type:none"), "0.1.9")
 
+    def test_bootstrap_merge_requires_immutable_marker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            import subprocess
+
+            def git(*args):
+                return subprocess.check_output(["git", *args], cwd=repo, text=True).strip()
+
+            subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+            (repo / "VERSION").write_text("0.1.0\n")
+            subprocess.run(["git", "add", "VERSION"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-qm", "base"], cwd=repo, check=True)
+            base = git("rev-parse", "HEAD")
+            subprocess.run(["git", "checkout", "-qb", "bootstrap"], cwd=repo, check=True)
+            message = "mark bootstrap\n\nRelease-Mode: bootstrap\nRelease-Type: type:none\nRelease-Channel: channel:stable"
+            subprocess.run(["git", "commit", "--allow-empty", "-qm", message], cwd=repo, check=True)
+            tip = git("rev-parse", "HEAD")
+            subprocess.run(["git", "checkout", "-q", "main"], cwd=repo, check=True)
+            subprocess.run(["git", "merge", "--no-ff", "-m", "merge bootstrap", tip], cwd=repo, check=True)
+            identity = release_chain.validate_bootstrap_merge(repo, git("rev-parse", "HEAD"))
+            self.assertEqual(identity["type"], "type:none")
+            self.assertEqual(identity["version"], "0.1.0")
+
+            subprocess.run(["git", "checkout", "-q", "bootstrap"], cwd=repo, check=True)
+            bad_message = "bad marker\n\nRelease-Mode: bootstrap\nRelease-Type: type:patch\nRelease-Channel: channel:stable"
+            subprocess.run(["git", "commit", "--allow-empty", "-qm", bad_message], cwd=repo, check=True)
+            bad_tip = git("rev-parse", "HEAD")
+            subprocess.run(["git", "checkout", "-q", "main"], cwd=repo, check=True)
+            subprocess.run(["git", "merge", "--no-ff", "-m", "merge bad bootstrap", bad_tip], cwd=repo, check=True)
+            with self.assertRaises(release_chain.ReleaseError):
+                release_chain.validate_bootstrap_merge(repo, git("rev-parse", "HEAD"))
+
     def test_preparation_is_single_parent_and_version_only(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)

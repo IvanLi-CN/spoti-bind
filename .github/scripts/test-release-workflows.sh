@@ -30,7 +30,10 @@ grep -q 'select-swift6.sh' .github/workflows/release.yml
 grep -q 'TARGET_SHA' .github/workflows/release.yml
 grep -q 'Resolve merged PR release intent' .github/workflows/release.yml
 grep -q 'issues/\${pr_number}/labels' .github/workflows/release.yml
-grep -q "type:none.*no public release" .github/workflows/release.yml
+grep -q 'validate-bootstrap' .github/workflows/release.yml
+grep -q 'Release-Mode: bootstrap' .github/workflows/release.yml
+grep -q 'skip=true' .github/workflows/release.yml
+grep -q 'immutable bootstrap marker' .github/workflows/release.yml
 grep -q 'release-target-sha.txt' .github/workflows/notify-release-failure.yml
 grep -q -- "--repo \"\$GITHUB_REPOSITORY\"" .github/workflows/notify-release-failure.yml
 grep -q 'workflow_dispatch:' .github/workflows/notify-release-failure.yml

@@ -208,6 +208,40 @@ def validate_main_merge(repo: Path, merge_sha: str) -> dict[str, str]:
     return identity
 
 
+def validate_bootstrap_merge(repo: Path, merge_sha: str) -> dict[str, str]:
+    """Validate an immutable no-release marker on a bootstrap merge."""
+    if not SHA_RE.fullmatch(merge_sha):
+        raise ReleaseError("merge SHA must be a full lowercase git SHA")
+    parents = git("show", "-s", "--format=%P", merge_sha, cwd=repo).split()
+    if len(parents) != 2:
+        raise ReleaseError("bootstrap target must be a normal two-parent merge commit")
+    previous_main, branch_tip = parents
+    tip_parents = git("show", "-s", "--format=%P", branch_tip, cwd=repo).split()
+    if len(tip_parents) != 1:
+        raise ReleaseError("bootstrap marker must be a single-parent commit")
+    trailers = parse_trailers(git("show", "-s", "--format=%B", branch_tip, cwd=repo))
+    if trailers.get("Release-Mode") != "bootstrap":
+        raise ReleaseError("bootstrap release mode marker is missing")
+    if trailers.get("Release-Type") != "type:none":
+        raise ReleaseError("bootstrap release type marker is invalid")
+    if trailers.get("Release-Channel") != "channel:stable":
+        raise ReleaseError("bootstrap release channel marker is invalid")
+    if any(key in trailers for key in ("Release-Source-SHA", "Release-Version")):
+        raise ReleaseError("bootstrap marker must not carry product provenance")
+    previous_version = git("show", f"{previous_main}:VERSION", cwd=repo).strip()
+    merge_version = git("show", f"{merge_sha}:VERSION", cwd=repo).strip()
+    if merge_version != previous_version:
+        raise ReleaseError("bootstrap merge must not change VERSION")
+    parse_version(merge_version)
+    return {
+        "merge_sha": merge_sha,
+        "previous_main_sha": previous_main,
+        "version": merge_version,
+        "type": "type:none",
+        "channel": "channel:stable",
+    }
+
+
 def command_validate_labels(args: argparse.Namespace) -> None:
     labels = json.loads(args.labels)
     if not isinstance(labels, list) or not all(isinstance(label, str) for label in labels):
@@ -239,6 +273,10 @@ def command_validate_main(args: argparse.Namespace) -> None:
     print(json.dumps(validate_main_merge(Path(args.repo), args.merge), sort_keys=True))
 
 
+def command_validate_bootstrap(args: argparse.Namespace) -> None:
+    print(json.dumps(validate_bootstrap_merge(Path(args.repo), args.merge), sort_keys=True))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
@@ -264,6 +302,10 @@ def build_parser() -> argparse.ArgumentParser:
     main.add_argument("--merge", required=True)
     main.add_argument("--main-ref")
     main.set_defaults(function=command_validate_main)
+    bootstrap = sub.add_parser("validate-bootstrap")
+    bootstrap.add_argument("--repo", required=True)
+    bootstrap.add_argument("--merge", required=True)
+    bootstrap.set_defaults(function=command_validate_bootstrap)
     return parser
 
 
