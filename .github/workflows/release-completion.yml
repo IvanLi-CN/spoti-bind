@@ -1,0 +1,84 @@
+name: Release completion
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: read
+  checks: read
+  pull-requests: read
+
+concurrency:
+  group: release-completion-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  completion:
+    name: Release completion
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Verify release identity and source CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          if [[ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]]; then
+            echo 'fork pull requests are not eligible for release completion' >&2
+            exit 1
+          fi
+          [[ "$BASE_REPO" == "$GITHUB_REPOSITORY" && "$BASE_REF" == 'main' ]] || { echo 'release completion requires the trusted main base' >&2; exit 1; }
+          labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels" --jq '[.[].name]')"
+          intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
+          type="$(jq -r '.type' <<<"$intent")"
+          mapfile -t pr_commits < <(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits" --jq '.[].sha')
+          [[ "${#pr_commits[@]}" -gt 0 ]]
+          for commit in "${pr_commits[@]}"; do
+            git fetch --no-tags origin "$commit"
+            git show -s --format=%B "$commit" | grep -Eq '^Signed-off-by: [^<>]+ <[^<>@]+@[^<>]+>$' || {
+              echo "missing valid DCO trailer on ${commit}" >&2
+              exit 1
+            }
+          done
+          if [[ "$type" == 'type:none' ]]; then
+            message="$(git show -s --format=%B "${{ github.event.pull_request.head.sha }}")"
+            grep -Eq '^Release-Mode: (bootstrap|no-release)$' <<<"$message" || {
+              echo 'type:none requires an immutable no-release mode marker on the PR head' >&2
+              exit 1
+            }
+            grep -qx 'Release-Type: type:none' <<<"$message" || { echo 'no-release marker type is invalid' >&2; exit 1; }
+            grep -qx 'Release-Channel: channel:stable' <<<"$message" || { echo 'no-release marker channel is invalid' >&2; exit 1; }
+            echo 'type:none: immutable no-release marker verified' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          preparation="${{ github.event.pull_request.head.sha }}"
+          git fetch --no-tags origin "$preparation"
+          source="$(git show -s --format=%P "$preparation")"
+          [[ "$source" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin "$source"
+          identity="$(python3 .github/scripts/release_chain.py validate-preparation --repo . \
+            --preparation "$preparation" --source "$source"
+          )"
+          [[ "$identity" == *"\"type\": \"$(jq -r '.type' <<<"$intent")\""* ]] || { echo 'labels do not match preparation type' >&2; exit 1; }
+          [[ "$identity" == *"\"channel\": \"$(jq -r '.channel' <<<"$intent")\""* ]] || { echo 'labels do not match preparation channel' >&2; exit 1; }
+          verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${preparation}" --jq '.commit.verification.verified')"
+          [[ "$verified" == 'true' ]]
+          source_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${source}" --jq '.commit.verification.verified')"
+          [[ "$source_verified" == 'true' ]]
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${source}/check-runs" \
+            --jq '.check_runs[] | {name, conclusion}' | jq -s . > checks.json
+          python3 .github/scripts/release_chain.py check-checks --checks checks.json \
+            --required 'PR / Swift tests' --required 'PR / Build app'
+          {
+            echo '### Release completion';
+            echo "Preparation \`$preparation\` is verified and source CI is green.";
+          } >> "$GITHUB_STEP_SUMMARY"

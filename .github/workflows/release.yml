@@ -1,51 +1,215 @@
-name: Draft release
+name: Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Exact merged main SHA to recover
+        required: true
+        type: string
 
 permissions:
   contents: write
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: release-${{ github.event.inputs.commit_sha || github.sha }}
+  cancel-in-progress: false
 
 jobs:
-  draft-release:
+  release:
+    name: Release
+    if: github.ref == 'refs/heads/main'
     runs-on: macos-26
     steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-      - name: Select Swift 6 toolchain
-        run: scripts/ci/select-swift6.sh --minimum-xcode 26.4
-      - name: Ensure tag matches VERSION
+      - name: Resolve immutable merge identity
+        id: identity
         env:
-          TAG_NAME: ${{ github.ref_name }}
+          TARGET_SHA: ${{ github.event.inputs.commit_sha || github.sha }}
         run: |
-          expected="v$(tr -d '[:space:]' < VERSION)"
-          test "$TAG_NAME" = "$expected"
-      - name: Run Swift tests
-        run: scripts/macos/test.sh
-      - name: Build universal Ad Hoc app
-        run: scripts/macos/package.sh --output-dir "$RUNNER_TEMP/spotibind-dist"
-      - name: Verify release artifact
-        run: |
-          scripts/macos/verify-release.sh \
-            --app "$RUNNER_TEMP/spotibind-dist/SpotiBind.app" \
-            --dmg "$RUNNER_TEMP/spotibind-dist/SpotiBind-$(tr -d '[:space:]' < VERSION)-universal.dmg" \
-            --checksums "$RUNNER_TEMP/spotibind-dist/SHA256SUMS"
-      - name: Create Draft Release
+          set -euo pipefail
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'commit_sha must be a full SHA' >&2; exit 1; }
+          echo "sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$TARGET_SHA" > release-target-sha.txt
+      - name: Upload immutable recovery identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-identity
+          path: release-target-sha.txt
+          if-no-files-found: error
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ steps.identity.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve merged PR identity
+        id: intent
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.ref_name }}
+          TARGET_SHA: ${{ steps.identity.outputs.sha }}
         run: |
-          notes="$RUNNER_TEMP/spotibind-release-notes.md"
-          printf '%s\n' \
-            'SpotiBind is distributed as an unsigned-by-Developer-ID Ad Hoc macOS app.' \
-            '' \
-            'Keep this release in Draft until the macOS 13 arm64 and x86_64 physical-key checklist is complete.' \
-            > "$notes"
-          gh release create "$TAG_NAME" \
-            --draft \
-            --title "SpotiBind $TAG_NAME" \
-            --notes-file "$notes" \
-            "$RUNNER_TEMP/spotibind-dist/SpotiBind-$(tr -d '[:space:]' < VERSION)-universal.dmg" \
-            "$RUNNER_TEMP/spotibind-dist/SHA256SUMS"
+          set -euo pipefail
+          parents="$(git show -s --format=%P "$TARGET_SHA")"
+          [[ "$(wc -w <<<"$parents" | tr -d ' ')" == '2' ]] || {
+            echo 'release target must be a normal two-parent merge commit' >&2
+            exit 1
+          }
+          git fetch origin main --no-tags
+          git merge-base --is-ancestor "$TARGET_SHA" origin/main || {
+            echo 'release target must already be merged into the trusted main ref' >&2
+            exit 1
+          }
+          branch_tip="${parents##* }"
+          tip_message="$(git show -s --format=%B "$branch_tip")"
+          pr_numbers="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/pulls" --jq '.[].number')"
+          [[ "$(wc -l <<<"$pr_numbers" | tr -d ' ')" == '1' ]] || {
+            echo 'release target must resolve to exactly one merged pull request' >&2
+            exit 1
+          }
+          pr_number="$(tr -d '\r\n' <<<"$pr_numbers")"
+          pr_state="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" --jq '[.state, (.merged_at // ""), (.merge_commit_sha // ""), .base.ref, .base.repo.full_name, (.head.repo.full_name // "")] | @tsv')"
+          IFS=$'\t' read -r state merged_at merge_commit base_ref base_repo head_repo <<<"$pr_state"
+          [[ "$state" == 'closed' && -n "$merged_at" && "$merge_commit" == "$TARGET_SHA" ]] || {
+            echo 'release target must be the exact merge commit of a closed PR' >&2
+            exit 1
+          }
+          [[ "$base_ref" == 'main' && "$base_repo" == "$GITHUB_REPOSITORY" && "$head_repo" == "$GITHUB_REPOSITORY" ]] || {
+            echo 'release target PR must be an internal PR merged into main' >&2
+            exit 1
+          }
+          if grep -Eq '^Release-Mode: (bootstrap|no-release)$' <<<"$tip_message"; then
+            bootstrap="$(python3 .github/scripts/release_chain.py validate-bootstrap --repo . --merge "$TARGET_SHA")"
+            verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${branch_tip}" --jq '.commit.verification.verified')"
+            [[ "$verified" == 'true' ]] || { echo 'no-release marker commit is not GitHub-verified' >&2; exit 1; }
+            printf '%s\n' "$bootstrap" > merged-release-intent.json
+            {
+              echo "version=$(jq -r '.version' merged-release-intent.json)"
+              echo 'type=type:none'
+              echo 'channel=channel:stable'
+              echo 'skip=true'
+            } >> "$GITHUB_OUTPUT"
+            echo "immutable no-release marker on merged PR #${pr_number}: no public release is created" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo 'skip=false' >> "$GITHUB_OUTPUT"
+      - name: Validate merge provenance
+        id: provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.identity.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.intent.outputs.skip }}" == 'true' ]]; then
+            cp merged-release-intent.json release-identity.json
+            {
+              echo "version=${{ steps.intent.outputs.version }}"
+              echo 'type=type:none'
+              echo "channel=${{ steps.intent.outputs.channel }}"
+              echo "tag=v${{ steps.intent.outputs.version }}"
+            } >> "$GITHUB_OUTPUT"
+            echo 'immutable no-release marker: no public release is created' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          identity="$(python3 .github/scripts/release_chain.py validate-main --repo . --merge "$TARGET_SHA" --main-ref origin/main)"
+          printf '%s\n' "$identity" > release-identity.json
+          preparation="$(jq -r '.preparation_sha' release-identity.json)"
+          source="$(jq -r '.source_sha' release-identity.json)"
+          preparation_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${preparation}" --jq '.commit.verification.verified')"
+          source_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${source}" --jq '.commit.verification.verified')"
+          [[ "$preparation_verified" == 'true' && "$source_verified" == 'true' ]] || {
+            echo 'release provenance commits must be GitHub-verified' >&2
+            exit 1
+          }
+          {
+            echo "version=$(jq -r '.version' release-identity.json)"
+            echo "type=$(jq -r '.type' release-identity.json)"
+            echo "channel=$(jq -r '.channel' release-identity.json)"
+            echo "tag=v$(jq -r '.version' release-identity.json)"
+          } >> "$GITHUB_OUTPUT"
+      - name: Skip non-product merge
+        if: steps.provenance.outputs.type == 'type:none'
+        run: "echo 'type:none merge: no public release is created'"
+      - name: Build and verify universal Ad Hoc DMG
+        if: steps.provenance.outputs.type != 'type:none'
+        run: |
+          set -euo pipefail
+          scripts/ci/select-swift6.sh --minimum-xcode 26.4
+          scripts/macos/test.sh
+          scripts/macos/package.sh
+          scripts/macos/verify-release.sh
+          mkdir -p "$RUNNER_TEMP/spotibind-dist"
+          cp dist/*.dmg dist/SHA256SUMS "$RUNNER_TEMP/spotibind-dist/"
+      - name: Reserve tag for exact merge SHA
+        if: steps.provenance.outputs.type != 'type:none'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.provenance.outputs.tag }}
+          TARGET_SHA: ${{ steps.identity.outputs.sha }}
+        run: |
+          set -euo pipefail
+          tag_ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" 2>/dev/null || true)"
+          ref_type="$(jq -r '.object.type // empty' <<<"$tag_ref")"
+          ref="$(jq -r '.object.sha // empty' <<<"$tag_ref")"
+          if [[ "$ref_type" == 'tag' && -n "$ref" ]]; then
+            ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${ref}" --jq '.object.sha')"
+          fi
+          if [[ -n "$ref" && "$ref" != "$TARGET_SHA" ]]; then
+            echo "tag ${TAG} already points to ${ref}, expected ${TARGET_SHA}" >&2
+            exit 1
+          fi
+          if [[ -z "$ref" ]]; then
+            if ! gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f "ref=refs/tags/${TAG}" -f "sha=${TARGET_SHA}"; then
+              raced_tag_ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" 2>/dev/null || true)"
+              raced_type="$(jq -r '.object.type // empty' <<<"$raced_tag_ref")"
+              raced_target="$(jq -r '.object.sha // empty' <<<"$raced_tag_ref")"
+              if [[ "$raced_type" == 'tag' && -n "$raced_target" ]]; then
+                raced_target="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${raced_target}" --jq '.object.sha')"
+              fi
+              [[ "$raced_target" == "$TARGET_SHA" ]] || { echo 'tag reservation raced to a different target' >&2; exit 1; }
+            fi
+          fi
+      - name: Upload release provenance
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-provenance
+          path: release-identity.json
+          if-no-files-found: ignore
+      - name: Publish public GitHub Release
+        if: steps.provenance.outputs.type != 'type:none'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.provenance.outputs.tag }}
+          VERSION: ${{ steps.provenance.outputs.version }}
+          TARGET_SHA: ${{ steps.identity.outputs.sha }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          assets=("$RUNNER_TEMP/spotibind-dist"/*)
+          final_type="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.type')"
+          final_target="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha')"
+          if [[ "$final_type" == 'tag' ]]; then
+            final_target="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${final_target}" --jq '.object.sha')"
+          fi
+          [[ "$final_target" == "$TARGET_SHA" ]] || { echo 'tag target changed before release creation' >&2; exit 1; }
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            current_type="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.type')"
+            current="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha')"
+            if [[ "$current_type" == 'tag' ]]; then
+              current="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${current}" --jq '.object.sha')"
+            fi
+            [[ "$current" == "$TARGET_SHA" ]] || { echo 'tag target changed during publication' >&2; exit 1; }
+            gh release upload "$TAG" "${assets[@]}" --clobber
+            gh release edit "$TAG" --draft=false --title "SpotiBind ${VERSION}" \
+              --notes "Automated public release for verified main merge ${TARGET_SHA}."
+            release_id="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.id')"
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" -F draft=false -F prerelease=false >/dev/null
+          else
+            gh release create "$TAG" "${assets[@]}" --verify-tag --title "SpotiBind ${VERSION}" \
+              --notes "Automated public release for verified main merge ${TARGET_SHA}."
+          fi

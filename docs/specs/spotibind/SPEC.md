@@ -55,9 +55,9 @@
 
 ### REQ-FASTPOTIFY-005
 
-- The project MUST produce a macOS 13+ Ad Hoc universal artifact containing `arm64` and `x86_64` executable slices, a verifiable checksum, and a Draft Release on version tags.
-- Inputs: a semantic version tag and two SwiftPM target-triple builds.
-- Outputs: signed `.app`, DMG, `SHA256SUMS`, and a non-published GitHub Draft Release.
+- The project MUST produce a macOS 13+ Ad Hoc universal artifact containing `arm64` and `x86_64` executable slices, a verifiable checksum, and a public GitHub Release after a verified PR merge to `main`.
+- Inputs: PR `type:*` and `channel:stable` labels, the numeric `VERSION` source, and two SwiftPM target-triple builds.
+- Outputs: signed `.app`, DMG, `SHA256SUMS`, and a public `vX.Y.Z` Release; `type:none` explicitly emits no release.
 - Release and pull-request automation MUST select a toolchain whose compiler
   reports Swift 6 before invoking SwiftPM. Selection MUST resolve the compiler
   through the Xcode developer directory (`DEVELOPER_DIR`/`xcrun`), rather than
@@ -109,9 +109,9 @@
 
 ### VER-FASTPOTIFY-004
 
-- Method: SwiftPM target-triple build, `lipo`, Ad Hoc code-sign verification, DMG inspection, and tag workflow dry validation.
+- Method: SwiftPM target-triple build, `lipo`, Ad Hoc code-sign verification, DMG inspection, and merge provenance/tag workflow validation.
 - covers: `REQ-FASTPOTIFY-005`
-- Pass condition: both slices are present, the bundle verifies, the checksum matches, and the tag workflow creates a Draft Release.
+- Pass condition: both slices are present, the bundle verifies, the checksum matches, and the merge SHA owns the public version tag and Release assets.
 
 ### VER-FASTPOTIFY-005
 
@@ -129,9 +129,10 @@
 - [Ship V1 outside the App Sandbox with Ad Hoc universal distribution](../../adr/0003-ship-v1-outside-the-app-sandbox-with-ad-hoc-signing.md)
 - [Use macOS 13 as the V1 deployment target](../../adr/0005-use-macos-13-as-the-v1-deployment-target.md)
 - [Use SwiftPM as the single build entrypoint](../../adr/0006-use-swiftpm-as-the-single-build-entrypoint.md)
-- [Use Icon Composer only for native application icon resources](../../adr/0009-use-icon-composer-for-native-application-icon-resources.md)
+- [Use Icon Composer only for native application icon resources](../../adr/0010-use-icon-composer-for-native-application-icon-resources.md)
 - [Rename the pre-release application identity to SpotiBind](../../adr/0007-rename-the-pre-release-application-identity-to-spotibind.md)
 - [Use player adapters and public PID-directed key routing](../../adr/0008-use-player-adapters-and-public-pid-key-routing.md)
+- [Automate public release after a verified main merge](../../adr/0009-automate-public-release-after-verified-main-merge.md)
 
 ## Visual Evidence
 

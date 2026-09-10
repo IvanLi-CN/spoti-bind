@@ -3,12 +3,23 @@
 The repository's intended protection policy is deliberately small for a solo-maintained project.
 
 - Changes to `main` arrive through pull requests.
-- `PR / Swift tests` and `PR / Build app` are the only required checks. Swift
-  tests run on `macos-15`; the app build runs on `macos-26` so Xcode 26.4+ can
-  compile the Icon Composer resource target through the checked-in packaging
-  scripts.
+- `PR / Swift tests`, `PR / Build app`, `Label Gate`, and `Release completion`
+  are required checks. Swift tests run on `macos-15`; app packaging runs on
+  `macos-26` with Xcode 26.4+ so the Icon Composer resource target can compile
+  through the checked-in packaging scripts.
 - Commits must be verified cryptographically by GitHub and include a DCO signoff.
 - No review-count requirement is imposed initially, so the maintainer can merge their own pull requests.
-- Version tags matching `vX.Y.Z` create a Draft Release; no workflow publishes a release automatically.
+- A same-repository PR defaults to `type:patch` and `channel:stable`; merging a verified preparation commit to `main` automatically publishes the public `vX.Y.Z` Release.
 
-The GitHub repository currently has no branch rule or ruleset. Applying this policy to GitHub is an external change and remains a separate, explicitly authorized step after the workflows exist.
+The GitHub repository's branch ruleset and labels are remote state. They are aligned idempotently with `gh` after PR review and checked against this declaration; this repository change does not silently mutate remote policy. Release failure delivery uses the SHA-pinned Oidrune OIDC workflow and does not require a repository notification secret.
+
+## Bootstrap
+
+Because `pull_request_target` loads from the base branch, the first rollout must
+be applied in this order: merge this workflow change with the existing two PR
+checks, confirm the Oidrune gateway allowlist trusts this repository and the
+pinned notifier workflow release, then run
+`.github/scripts/align-github-release-policy.sh apply` from a reviewed trusted
+checkout. The alignment script is idempotent and its `check` mode fails until labels, rule
+types, and required contexts match this file. Subsequent PRs receive all four
+checks before they can merge.
