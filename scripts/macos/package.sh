@@ -84,6 +84,8 @@ checksums_path="$output_dir/SHA256SUMS"
 merged_binary="$build_root/SpotiBind-universal"
 
 mkdir -p "$output_dir"
+rm -rf "$app_path"
+rm -f "$dmg_path" "$checksums_path"
 lipo -create "$arm64_binary" "$x86_64_binary" -output "$merged_binary"
 "$script_dir/assemble-app.sh" \
     --binary "$merged_binary" \

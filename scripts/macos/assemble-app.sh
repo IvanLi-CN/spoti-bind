@@ -9,6 +9,18 @@ app_path=""
 version=""
 compiled_resources=""
 owns_compiled_resources=0
+staging_path=""
+published=0
+
+cleanup() {
+    if ((published == 0)) && [[ -n "$staging_path" ]]; then
+        rm -rf "$staging_path"
+    fi
+    if ((owns_compiled_resources == 1)) && [[ -n "$compiled_resources" ]]; then
+        rm -rf "$compiled_resources"
+    fi
+}
+trap cleanup EXIT
 
 while (($# > 0)); do
     case "$1" in
@@ -49,8 +61,26 @@ fi
 if [[ "$app_path" != /* ]]; then
     app_path="$repo_root/$app_path"
 fi
+while [[ "$app_path" == */ && "$app_path" != "/" ]]; do
+    app_path="${app_path%/}"
+done
+if [[ "$app_path" == */.. \
+    || "$app_path" == */../* \
+    || "$app_path" == */. \
+    || "$app_path" == */./* ]]; then
+    printf 'App path must not contain parent or current-directory components: %s\n' "$app_path" >&2
+    exit 2
+fi
+mkdir -p "$(dirname "$app_path")"
+app_parent="$(cd "$(dirname "$app_path")" && pwd -P)"
+app_base="$(basename "$app_path")"
+if [[ "$app_parent" == "/" ]]; then
+    app_path="/$app_base"
+else
+    app_path="$app_parent/$app_base"
+fi
 case "$app_path" in
-    /|"$repo_root"|"$repo_root/")
+    /|"$repo_root")
         printf 'Refusing to remove a broad app path: %s\n' "$app_path" >&2
         exit 2
         ;;
@@ -60,12 +90,6 @@ case "$app_path" in
         exit 2
         ;;
 esac
-if [[ "$app_path" == */.. || "$app_path" == */../* || "$app_path" == */. || "$app_path" == */./* ]]; then
-    printf 'App path must not contain parent or current-directory components: %s\n' "$app_path" >&2
-    exit 2
-fi
-app_parent="$(dirname "$app_path")"
-mkdir -p "$app_parent"
 if [[ ! -x "$binary" ]]; then
     printf 'Application binary is missing or not executable: %s\n' "$binary" >&2
     exit 1
@@ -95,16 +119,6 @@ if [[ ! -s "$repo_root/assets/spotibind-logo-monochrome.svg" ]]; then
 fi
 
 staging_path="$(mktemp -d "$app_parent/.spotibind-app.XXXXXX")"
-published=0
-cleanup() {
-    if ((published == 0)); then
-        rm -rf "$staging_path"
-    fi
-    if ((owns_compiled_resources == 1)); then
-        rm -rf "$compiled_resources"
-    fi
-}
-trap cleanup EXIT
 mkdir -p "$staging_path/Contents/MacOS" "$staging_path/Contents/Resources"
 cp "$binary" "$staging_path/Contents/MacOS/SpotiBind"
 cp "$repo_root/packaging/macos/Info.plist" "$staging_path/Contents/Info.plist"

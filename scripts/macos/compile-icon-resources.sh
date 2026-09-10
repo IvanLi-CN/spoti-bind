@@ -30,16 +30,40 @@ if [[ "$output_dir" != /* ]]; then
     output_dir="$repo_root/$output_dir"
 fi
 
+while [[ "$output_dir" == */ && "$output_dir" != "/" ]]; do
+    output_dir="${output_dir%/}"
+done
+if [[ "$output_dir" == */.. \
+    || "$output_dir" == */../* \
+    || "$output_dir" == */. \
+    || "$output_dir" == */./* ]]; then
+    printf 'Output directory must be a dedicated child path: %s\n' "$output_dir" >&2
+    exit 2
+fi
+case "$(basename "$output_dir")" in
+    .|..)
+        printf 'Output directory must be a dedicated child path: %s\n' "$output_dir" >&2
+        exit 2
+        ;;
+esac
+mkdir -p "$(dirname "$output_dir")"
+output_parent="$(cd "$(dirname "$output_dir")" && pwd -P)"
+output_base="$(basename "$output_dir")"
+if [[ "$output_parent" == "/" ]]; then
+    output_dir="/$output_base"
+else
+    output_dir="$output_parent/$output_base"
+fi
+tmp_dir="$(printenv TMPDIR || true)"
+[[ -n "$tmp_dir" ]] || tmp_dir="/tmp"
+tmp_dir="$(cd "$tmp_dir" && pwd -P)"
+repo_root="$(cd "$repo_root" && pwd -P)"
 case "$output_dir" in
-    /|"$repo_root"|"$repo_root/"|/tmp|/private/tmp|/var/tmp|"${TMPDIR:-/tmp}")
+    /|"$repo_root"|/tmp|/private/tmp|/var/tmp|/private/var/tmp|"$tmp_dir")
         printf 'Refusing to remove a broad output directory: %s\n' "$output_dir" >&2
         exit 2
         ;;
 esac
-if [[ "$output_dir" == */.. || "$output_dir" == */../* || "$output_dir" == */. || "$output_dir" == */./* ]]; then
-    printf 'Output directory must be a dedicated child path: %s\n' "$output_dir" >&2
-    exit 2
-fi
 
 icon_doc="$repo_root/packaging/macos/IconResources/SpotiBind.icon"
 icon_project="$repo_root/packaging/macos/IconResources/IconResources.xcodeproj"
