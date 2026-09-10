@@ -71,6 +71,16 @@ jobs:
             exit 1
           }
           pr_number="$(tr -d '\r\n' <<<"$pr_numbers")"
+          pr_state="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" --jq '[.state, (.merged_at // ""), (.merge_commit_sha // ""), .base.ref, .base.repo.full_name, (.head.repo.full_name // "")] | @tsv')"
+          IFS=$'\t' read -r state merged_at merge_commit base_ref base_repo head_repo <<<"$pr_state"
+          [[ "$state" == 'closed' && -n "$merged_at" && "$merge_commit" == "$TARGET_SHA" ]] || {
+            echo 'release target must be the exact merge commit of a closed PR' >&2
+            exit 1
+          }
+          [[ "$base_ref" == 'main' && "$base_repo" == "$GITHUB_REPOSITORY" && "$head_repo" == "$GITHUB_REPOSITORY" ]] || {
+            echo 'release target PR must be an internal PR merged into main' >&2
+            exit 1
+          }
           labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${pr_number}/labels" --jq '[.[].name]')"
           intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
           printf '%s\n' "$intent" > merged-release-intent.json
@@ -80,6 +90,8 @@ jobs:
               exit 1
             }
             bootstrap="$(python3 .github/scripts/release_chain.py validate-bootstrap --repo . --merge "$TARGET_SHA")"
+            verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${branch_tip}" --jq '.commit.verification.verified')"
+            [[ "$verified" == 'true' ]] || { echo 'no-release marker commit is not GitHub-verified' >&2; exit 1; }
             printf '%s\n' "$bootstrap" > merged-release-intent.json
             {
               echo "version=$(jq -r '.version' merged-release-intent.json)"
@@ -116,6 +128,14 @@ jobs:
           fi
           identity="$(python3 .github/scripts/release_chain.py validate-main --repo . --merge "$TARGET_SHA" --main-ref origin/main)"
           printf '%s\n' "$identity" > release-identity.json
+          preparation="$(jq -r '.preparation_sha' release-identity.json)"
+          source="$(jq -r '.source_sha' release-identity.json)"
+          preparation_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${preparation}" --jq '.commit.verification.verified')"
+          source_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${source}" --jq '.commit.verification.verified')"
+          [[ "$preparation_verified" == 'true' && "$source_verified" == 'true' ]] || {
+            echo 'release provenance commits must be GitHub-verified' >&2
+            exit 1
+          }
           [[ "$(jq -r '.type' release-identity.json)" == "${{ steps.intent.outputs.type }}" ]] || {
             echo 'merged PR labels do not match immutable preparation type' >&2
             exit 1

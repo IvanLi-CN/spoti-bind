@@ -5,7 +5,6 @@ on:
     workflows: [Release]
     types: [completed]
     branches: [main]
-  workflow_dispatch:
 
 permissions: {}
 
@@ -52,7 +51,7 @@ jobs:
           if [[ -s "$work/release-identity.json" ]]; then
             source_sha="$(jq -r '.source_sha // "unknown"' "$work/release-identity.json")"
           fi
-          prs="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/pulls" --jq '[.[] | {number,source_sha:.head.sha,labels:[.labels[].name]}]')"
+          prs="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/pulls" --jq '[.[] | {number,source_sha:.head.sha,labels:[.labels[].name]}]' 2>/dev/null || printf '[]')"
           version="$(gh api "repos/${GITHUB_REPOSITORY}/contents/VERSION?ref=${TARGET_SHA}" --jq '.content' | tr -d '\n' | base64 -d | tr -d '\r\n' || echo unknown)"
           tag="v${version}"
           assets="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name]' 2>/dev/null || printf '["SpotiBind-%s-universal.dmg","SHA256SUMS"]' "$version")"
@@ -76,14 +75,3 @@ jobs:
       outcome: failure
       on_gateway_failure: warn
       summary: ${{ needs.context.outputs.details }}
-
-  smoke_test:
-    name: Oidrune notifier smoke test
-    if: github.event_name == 'workflow_dispatch'
-    permissions:
-      id-token: write
-    uses: IvanLi-CN/oidrune/.github/workflows/notify.yml@8667553506eef516af0499a77273f2938387dd37 # v0.1.16
-    with:
-      outcome: failure
-      on_gateway_failure: warn
-      summary: "status=smoke-test; workflow=Notify release failure; repository=${{ github.repository }}; run URL=${{ format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}"

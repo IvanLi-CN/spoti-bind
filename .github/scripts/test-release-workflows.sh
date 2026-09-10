@@ -33,13 +33,14 @@ grep -q 'issues/\${pr_number}/labels' .github/workflows/release.yml
 grep -q 'validate-bootstrap' .github/workflows/release.yml
 grep -q 'Release-Mode: (bootstrap|no-release)' .github/workflows/release.yml
 grep -q 'skip=true' .github/workflows/release.yml
-grep -q 'immutable bootstrap marker' .github/workflows/release.yml
+grep -q 'immutable no-release marker' .github/workflows/release.yml
 grep -q 'merge-base --is-ancestor' .github/workflows/release.yml
 grep -q 'labels do not match immutable preparation type' .github/workflows/release.yml
 ! grep -q 'preparation version' .github/workflows/release-completion.yml
 grep -q 'release-target-sha.txt' .github/workflows/notify-release-failure.yml
 grep -q -- "--repo \"\$GITHUB_REPOSITORY\"" .github/workflows/notify-release-failure.yml
-grep -q 'workflow_dispatch:' .github/workflows/notify-release-failure.yml
+! grep -q 'workflow_dispatch:' .github/workflows/notify-release-failure.yml
+! grep -q 'smoke_test:' .github/workflows/notify-release-failure.yml
 grep -q 'id-token: write' .github/workflows/notify-release-failure.yml
 grep -q 'on_gateway_failure: warn' .github/workflows/notify-release-failure.yml
 grep -q 'IvanLi-CN/oidrune/.github/workflows/notify.yml@8667553506eef516af0499a77273f2938387dd37' .github/workflows/notify-release-failure.yml
