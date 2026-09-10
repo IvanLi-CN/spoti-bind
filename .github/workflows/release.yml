@@ -151,8 +151,9 @@ jobs:
           TARGET_SHA: ${{ steps.identity.outputs.sha }}
         run: |
           set -euo pipefail
-          ref_type="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.type' 2>/dev/null || true)"
-          ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha' 2>/dev/null || true)"
+          tag_ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" 2>/dev/null || true)"
+          ref_type="$(jq -r '.object.type // empty' <<<"$tag_ref")"
+          ref="$(jq -r '.object.sha // empty' <<<"$tag_ref")"
           if [[ "$ref_type" == 'tag' && -n "$ref" ]]; then
             ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${ref}" --jq '.object.sha')"
           fi
@@ -163,8 +164,9 @@ jobs:
           if [[ -z "$ref" ]]; then
             if ! gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
               -f "ref=refs/tags/${TAG}" -f "sha=${TARGET_SHA}"; then
-              raced_type="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.type' 2>/dev/null || true)"
-              raced_target="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha' 2>/dev/null || true)"
+              raced_tag_ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" 2>/dev/null || true)"
+              raced_type="$(jq -r '.object.type // empty' <<<"$raced_tag_ref")"
+              raced_target="$(jq -r '.object.sha // empty' <<<"$raced_tag_ref")"
               if [[ "$raced_type" == 'tag' && -n "$raced_target" ]]; then
                 raced_target="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${raced_target}" --jq '.object.sha')"
               fi
