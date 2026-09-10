@@ -36,6 +36,7 @@ grep -q 'skip=true' .github/workflows/release.yml
 grep -q 'immutable no-release marker' .github/workflows/release.yml
 grep -q 'merge-base --is-ancestor' .github/workflows/release.yml
 ! grep -q 'labels do not match immutable preparation type' .github/workflows/release.yml
+grep -A3 'id: provenance' .github/workflows/release.yml | grep -q 'GH_TOKEN: \${{ github.token }}'
 grep -q 'allowed_merge_methods' .github/scripts/align-github-release-policy.sh
 grep -q 'merge methods do not match declaration' .github/scripts/align-github-release-policy.sh
 ! grep -q 'preparation version' .github/workflows/release-completion.yml
