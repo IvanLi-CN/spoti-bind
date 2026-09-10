@@ -28,8 +28,8 @@ grep -q 'prerelease=false' .github/workflows/release.yml
 grep -q 'gh release upload' .github/workflows/release.yml
 grep -q 'select-swift6.sh' .github/workflows/release.yml
 grep -q 'TARGET_SHA' .github/workflows/release.yml
-grep -q 'Resolve merged PR release intent' .github/workflows/release.yml
-grep -q 'issues/\${pr_number}/labels' .github/workflows/release.yml
+grep -q 'Resolve merged PR identity' .github/workflows/release.yml
+! grep -q 'issues/\${pr_number}/labels' .github/workflows/release.yml
 grep -q 'validate-bootstrap' .github/workflows/release.yml
 grep -q 'Release-Mode: (bootstrap|no-release)' .github/workflows/release.yml
 grep -q 'skip=true' .github/workflows/release.yml

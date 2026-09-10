@@ -46,7 +46,7 @@ jobs:
           ref: ${{ steps.identity.outputs.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Resolve merged PR release intent
+      - name: Resolve merged PR identity
         id: intent
         env:
           GH_TOKEN: ${{ github.token }}
@@ -81,14 +81,7 @@ jobs:
             echo 'release target PR must be an internal PR merged into main' >&2
             exit 1
           }
-          labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${pr_number}/labels" --jq '[.[].name]')"
-          intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
-          printf '%s\n' "$intent" > merged-release-intent.json
           if grep -Eq '^Release-Mode: (bootstrap|no-release)$' <<<"$tip_message"; then
-            [[ "$(jq -r '.type' merged-release-intent.json)" == 'type:none' ]] || {
-              echo 'no-release marker requires type:none intent' >&2
-              exit 1
-            }
             bootstrap="$(python3 .github/scripts/release_chain.py validate-bootstrap --repo . --merge "$TARGET_SHA")"
             verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${branch_tip}" --jq '.commit.verification.verified')"
             [[ "$verified" == 'true' ]] || { echo 'no-release marker commit is not GitHub-verified' >&2; exit 1; }
@@ -99,7 +92,7 @@ jobs:
               echo 'channel=channel:stable'
               echo 'skip=true'
             } >> "$GITHUB_OUTPUT"
-            echo 'immutable no-release marker: no public release is created' >> "$GITHUB_STEP_SUMMARY"
+            echo "immutable no-release marker on merged PR #${pr_number}: no public release is created" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           {
@@ -134,14 +127,6 @@ jobs:
           source_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${source}" --jq '.commit.verification.verified')"
           [[ "$preparation_verified" == 'true' && "$source_verified" == 'true' ]] || {
             echo 'release provenance commits must be GitHub-verified' >&2
-            exit 1
-          }
-          [[ "$(jq -r '.type' release-identity.json)" == "${{ steps.intent.outputs.type }}" ]] || {
-            echo 'merged PR labels do not match immutable preparation type' >&2
-            exit 1
-          }
-          [[ "$(jq -r '.channel' release-identity.json)" == "${{ steps.intent.outputs.channel }}" ]] || {
-            echo 'merged PR labels do not match immutable preparation channel' >&2
             exit 1
           }
           {
