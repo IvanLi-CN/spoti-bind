@@ -39,7 +39,14 @@
   Invalid saved locations remain unavailable and expose a settings action
   rather than falling back.
 - Accessibility checks are silent at startup. The system prompt is deferred
-  until an explicit active-mode selection or a menu media-control click.
+  until an explicit active-mode selection or a menu media-control click. Each
+  captured event refreshes the trust state without prompting; a trust change
+  immediately reconciles the event tap before routing the event.
+- PlayerLaunchCoordinator starts the ten-second launch deadline when a launch
+  request enters the serial queue. A queued request that expires while an
+  earlier gesture is still draining never launches or dispatches. A timed-out
+  dispatch remains pending until its runtime task finishes, so a late
+  cancellation-insensitive side effect cannot overlap the next gesture.
 - Demo mode uses an ephemeral defaults object, neutral display paths, and no
   player/runtime side effects. Its healthy baseline represents Sonora running,
   all four supported players discoverable, and Accessibility authorized. The
