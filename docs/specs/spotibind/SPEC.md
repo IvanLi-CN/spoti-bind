@@ -70,6 +70,7 @@
 
 - The system MUST migrate legacy `forwardingEnabled=false` to Off and otherwise default a missing Player Mode to Automatic. A legacy `targetPath` MUST remain a Fastpotify CLI path override only.
 - A launch handoff MUST wait asynchronously for at most ten seconds, dispatch the first key once after the target is running, and never replay it after timeout. Later independent gestures MUST remain ordered.
+- A queued launch whose predecessor exceeds the remaining handoff budget MUST fail before launching, even if that predecessor completes later. A stalled launch MUST fail closed for subsequent dispatch attempts without waiting indefinitely; no later gesture may overlap an unresolved launch side effect.
 
 ### REQ-FASTPOTIFY-007
 
