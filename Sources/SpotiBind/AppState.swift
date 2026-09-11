@@ -57,6 +57,7 @@ final class AppState: ObservableObject {
     private let demoConfiguration: UIDemoConfiguration?
     private var availability = PlayerAvailabilitySnapshot()
     private var applicationOverrides: [SupportedPlayer: URL] = [:]
+    private var discoveredApplicationURLs: [SupportedPlayer: URL] = [:]
     private var invalidPathPlayers: Set<SupportedPlayer> = []
     private var refreshTimer: Timer?
     private var activationObserver: NSObjectProtocol?
@@ -260,6 +261,11 @@ final class AppState: ObservableObject {
         tapStatus = status
     }
 
+    func accessibilityTrustedForEvent() -> Bool {
+        guard !demoRequested else { return accessibilityTrusted }
+        return AXIsProcessTrustedWithOptions(nil)
+    }
+
     func dispatchFromMenu(_ key: MediaKey) {
         guard !demoRequested else { return }
         guard accessibilityTrusted else {
@@ -271,7 +277,6 @@ final class AppState: ObservableObject {
 
     func dispatch(_ key: MediaKey) {
         guard !demoRequested else { return }
-        updateAvailability()
         let selection = resolvedSelection
         guard readiness.isReady, let player = selection.player else {
             return
@@ -279,7 +284,9 @@ final class AppState: ObservableObject {
         let request = PlayerDispatchRequest(
             selection: selection,
             executableURL: player == .fastpotify ? targetExecutable?.url : nil,
-            applicationURL: applicationURL(for: player)
+            applicationURL: player == .fastpotify
+                ? targetExecutable?.applicationURL
+                : discoveredApplicationURLs[player]
         )
         pendingDispatches += 1
         isDispatching = true
@@ -351,6 +358,7 @@ final class AppState: ObservableObject {
     private func resolveTargets() {
         pathProblems = [:]
         applicationOverrides = [:]
+        discoveredApplicationURLs = [:]
         invalidPathPlayers = []
 
         let previousTarget = targetExecutable?.url
@@ -395,6 +403,13 @@ final class AppState: ObservableObject {
                 }
                 pathStates[player] = .custom(url, valid: true)
                 applicationOverrides[player] = url
+            }
+        }
+
+        for player in [SupportedPlayer.spotify, .sonora, .spotifly] {
+            if let applicationURL = applicationOverrides[player]
+                ?? catalog.applicationURL(for: player, fastpotifyExecutable: targetExecutable) {
+                discoveredApplicationURLs[player] = applicationURL
             }
         }
 

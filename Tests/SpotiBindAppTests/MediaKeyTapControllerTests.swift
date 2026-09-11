@@ -39,17 +39,60 @@ final class MediaKeyTapControllerTests: XCTestCase {
         XCTAssertNotNil(result)
         XCTAssertTrue(state.dispatchedKeys.isEmpty)
     }
+
+    func testRevokedAccessibilityPassesSupportedMediaKeysThrough() {
+        let state = SpyMediaKeyTapState()
+        let controller = MediaKeyTapController()
+        controller.start(state: state)
+        defer { controller.stop() }
+
+        state.readiness = ForwardingReadiness(
+            forwardingEnabled: true,
+            accessibilityTrusted: true,
+            targetUsable: true
+        )
+        state.eventAccessibilityTrusted = false
+
+        let data1 = (UInt32(16) << 16) | (UInt32(0x0a) << 8)
+        let event = NSEvent.otherEvent(
+            with: .systemDefined,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            subtype: 8,
+            data1: Int(data1),
+            data2: 0
+        )!.cgEvent!
+        let systemDefinedType = CGEventType(
+            rawValue: UInt32(NSEvent.EventType.systemDefined.rawValue)
+        )!
+
+        let result = controller.handle(event: event, type: systemDefinedType)
+
+        XCTAssertNotNil(result)
+        XCTAssertEqual(state.eventTrustChecks, 1)
+        XCTAssertTrue(state.dispatchedKeys.isEmpty)
+    }
 }
 
 @MainActor
 private final class SpyMediaKeyTapState: MediaKeyTapState {
-    let readiness = ForwardingReadiness(
+    var readiness = ForwardingReadiness(
         forwardingEnabled: false,
         accessibilityTrusted: false,
         targetUsable: false
     )
     let accessibilityTrusted = false
     var dispatchedKeys: [MediaKey] = []
+    var eventAccessibilityTrusted = true
+    var eventTrustChecks = 0
+
+    func accessibilityTrustedForEvent() -> Bool {
+        eventTrustChecks += 1
+        return eventAccessibilityTrusted
+    }
 
     func dispatch(_ key: MediaKey) {
         dispatchedKeys.append(key)

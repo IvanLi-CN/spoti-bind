@@ -7,6 +7,7 @@ protocol MediaKeyTapState: AnyObject {
     var readiness: ForwardingReadiness { get }
     var accessibilityTrusted: Bool { get }
 
+    func accessibilityTrustedForEvent() -> Bool
     func dispatch(_ key: MediaKey)
     func setTapStatus(_ status: String)
     func setPlayerMode(_ mode: PlayerMode)
@@ -76,6 +77,9 @@ final class MediaKeyTapController {
 
         let data1 = UInt32(truncatingIfNeeded: NSEvent(cgEvent: event)?.data1 ?? 0)
         guard SystemDefinedMediaKeyDecoder().decode(data1: data1) != nil else {
+            return Unmanaged.passUnretained(event)
+        }
+        guard !state.readiness.isReady || state.accessibilityTrustedForEvent() else {
             return Unmanaged.passUnretained(event)
         }
 
