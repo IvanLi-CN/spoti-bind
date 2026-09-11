@@ -40,8 +40,10 @@
   rather than falling back.
 - Accessibility checks are silent at startup. The system prompt is deferred
   until an explicit active-mode selection or a menu media-control click. Each
-  captured event refreshes the trust state without prompting; a trust change
-  immediately reconciles the event tap before routing the event.
+  recognized media-key event refreshes the trust state without prompting;
+  unknown system-defined events and all mouse/keyboard events pass through
+  before any refresh. A trust change immediately reconciles the event tap
+  before routing the media-key event.
 - PlayerLaunchCoordinator starts the ten-second launch deadline when a launch
   request enters the serial queue. A queued request that expires while an
   earlier gesture is still draining never launches or dispatches. A timed-out
