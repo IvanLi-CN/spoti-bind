@@ -13,7 +13,7 @@
 - Product identity: SpotiBind is used for the executable, bundle, release
   artifacts, and public documentation; the Fastpotify CLI integration remains
   unchanged.
-- Visual evidence: the app exposes pre-start `UIDemoScenario` state for five
+- Visual evidence: the app exposes pre-start `UIDemoScenario` state for six
   smoke scenes and two explicit appearances. Popover evidence waits for the
   actual `MenuBarExtra(.window)` host, opens its real status button through
   the app-owned status-bar window, and captures it in-process; settings

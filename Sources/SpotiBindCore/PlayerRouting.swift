@@ -251,6 +251,63 @@ public protocol PlayerLaunchRuntime: Sendable {
     ) async -> Bool
 }
 
+private final class BoolTimeoutGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private let continuation: CheckedContinuation<Bool?, Never>
+    private var didFinish = false
+    private var tasks: [Task<Void, Never>] = []
+
+    init(continuation: CheckedContinuation<Bool?, Never>) {
+        self.continuation = continuation
+    }
+
+    func attach(_ tasks: Task<Void, Never>...) {
+        lock.lock()
+        if didFinish {
+            lock.unlock()
+            tasks.forEach { $0.cancel() }
+            return
+        }
+        self.tasks = tasks
+        lock.unlock()
+    }
+
+    func finish(_ value: Bool?) {
+        lock.lock()
+        guard !didFinish else {
+            lock.unlock()
+            return
+        }
+        didFinish = true
+        let tasks = self.tasks
+        lock.unlock()
+
+        tasks.forEach { $0.cancel() }
+        continuation.resume(returning: value)
+    }
+}
+
+private func boolWithinTimeout(
+    _ timeout: Duration,
+    operation: @escaping @Sendable () async -> Bool
+) async -> Bool? {
+    await withCheckedContinuation { continuation in
+        let gate = BoolTimeoutGate(continuation: continuation)
+        let operationTask = Task {
+            gate.finish(await operation())
+        }
+        let timeoutTask = Task {
+            do {
+                try await Task.sleep(for: timeout)
+            } catch {
+                return
+            }
+            gate.finish(nil)
+        }
+        gate.attach(operationTask, timeoutTask)
+    }
+}
+
 public actor PlayerLaunchCoordinator {
     private let runtime: any PlayerLaunchRuntime
     private let timeout: Duration
@@ -290,13 +347,23 @@ public actor PlayerLaunchCoordinator {
                     applicationURL: request.applicationURL
                 )
             case .launch:
-                guard await runtime.launch(player: player, applicationURL: request.applicationURL) else {
-                    return false
-                }
                 let clock = ContinuousClock()
                 let deadline = clock.now.advanced(by: timeout)
-                while clock.now < deadline {
-                    if await runtime.isRunning(player: player, applicationURL: request.applicationURL) {
+                guard await boolWithinTimeout(
+                    timeout,
+                    operation: {
+                        await runtime.launch(player: player, applicationURL: request.applicationURL)
+                    }
+                ) == true else {
+                    return false
+                }
+
+                while true {
+                    let remaining = clock.now.duration(to: deadline)
+                    guard remaining > .zero else { return false }
+                    if await boolWithinTimeout(remaining, operation: {
+                        await runtime.isRunning(player: player, applicationURL: request.applicationURL)
+                    }) == true {
                         return await runtime.dispatch(
                             key: key,
                             player: player,
@@ -304,9 +371,11 @@ public actor PlayerLaunchCoordinator {
                             applicationURL: request.applicationURL
                         )
                     }
-                    try? await Task.sleep(for: .milliseconds(100))
+
+                    let sleepDuration = clock.now.duration(to: deadline)
+                    guard sleepDuration > .zero else { return false }
+                    try? await Task.sleep(for: min(.milliseconds(100), sleepDuration))
                 }
-                return false
             }
         }
         pending = operation

@@ -75,11 +75,9 @@ final class SystemPlayerRuntime: PlayerLaunchRuntime, @unchecked Sendable {
         let applications = NSWorkspace.shared.runningApplications
         if let applicationURL {
             let expectedPath = applicationURL.standardizedFileURL.path
-            if let matching = applications.first(where: {
+            return applications.first(where: {
                 $0.bundleURL?.standardizedFileURL.path == expectedPath
-            }) {
-                return matching
-            }
+            })
         }
         if let bundleIdentifier = player.bundleIdentifier {
             return applications.first { $0.bundleIdentifier == bundleIdentifier }
@@ -214,11 +212,9 @@ final class PlayerWorkspaceCatalog {
     ) -> NSRunningApplication? {
         if let applicationURL {
             let expectedPath = applicationURL.standardizedFileURL.path
-            if let matching = NSWorkspace.shared.runningApplications.first(where: {
+            return NSWorkspace.shared.runningApplications.first(where: {
                 $0.bundleURL?.standardizedFileURL.path == expectedPath
-            }) {
-                return matching
-            }
+            })
         }
         guard let bundleIdentifier = player.bundleIdentifier else { return nil }
         return NSWorkspace.shared.runningApplications.first { $0.bundleIdentifier == bundleIdentifier }

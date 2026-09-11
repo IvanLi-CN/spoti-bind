@@ -22,9 +22,32 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
         let coordinator = PlayerLaunchCoordinator(runtime: runtime, timeout: .milliseconds(20))
         let request = PlayerDispatchRequest(selection: .launch(.spotifly))
 
+        let clock = ContinuousClock()
+        let startedAt = clock.now
         let result = await coordinator.dispatch(.playPause, request: request)
+        let elapsed = startedAt.duration(to: clock.now)
         let dispatches = await runtime.dispatches
         XCTAssertFalse(result)
+        XCTAssertTrue(dispatches.isEmpty)
+        XCTAssertLessThan(elapsed, .seconds(1))
+    }
+
+    func testLaunchOperationIsBoundedByTheTimeout() async {
+        let runtime = RecordingPlayerRuntime(
+            runningAfterChecks: 0,
+            launchDelay: .seconds(1)
+        )
+        let coordinator = PlayerLaunchCoordinator(runtime: runtime, timeout: .milliseconds(20))
+        let request = PlayerDispatchRequest(selection: .launch(.spotify))
+
+        let clock = ContinuousClock()
+        let startedAt = clock.now
+        let result = await coordinator.dispatch(.playPause, request: request)
+        let elapsed = startedAt.duration(to: clock.now)
+        let dispatches = await runtime.dispatches
+
+        XCTAssertFalse(result)
+        XCTAssertLessThan(elapsed, .seconds(1))
         XCTAssertTrue(dispatches.isEmpty)
     }
 
@@ -59,14 +82,23 @@ private actor RecordingPlayerRuntime: PlayerLaunchRuntime {
     private var runningChecks = 0
     private let runningAfterChecks: Int
     private let dispatchDelay: Duration
+    private let launchDelay: Duration
 
-    init(runningAfterChecks: Int, dispatchDelay: Duration = .zero) {
+    init(
+        runningAfterChecks: Int,
+        dispatchDelay: Duration = .zero,
+        launchDelay: Duration = .zero
+    ) {
         self.runningAfterChecks = runningAfterChecks
         self.dispatchDelay = dispatchDelay
+        self.launchDelay = launchDelay
     }
 
     func launch(player: SupportedPlayer, applicationURL: URL?) async -> Bool {
         launches.append(player)
+        if launchDelay > .zero {
+            try? await Task.sleep(for: launchDelay)
+        }
         return true
     }
 
