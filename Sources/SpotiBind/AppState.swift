@@ -261,6 +261,16 @@ final class AppState: ObservableObject {
     }
 
     func refreshRoutingAvailability() {
+        guard !demoRequested else {
+            updateAvailability()
+            return
+        }
+
+        let trusted = AXIsProcessTrustedWithOptions(nil)
+        if trusted != accessibilityTrusted {
+            accessibilityTrusted = trusted
+            onReadinessChanged?()
+        }
         updateAvailability()
     }
 

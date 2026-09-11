@@ -51,6 +51,25 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
         XCTAssertTrue(dispatches.isEmpty)
     }
 
+    func testLaunchDispatchIsBoundedByTheTimeout() async {
+        let runtime = RecordingPlayerRuntime(
+            runningAfterChecks: 0,
+            dispatchDelay: .seconds(1)
+        )
+        let coordinator = PlayerLaunchCoordinator(runtime: runtime, timeout: .milliseconds(20))
+        let request = PlayerDispatchRequest(selection: .launch(.spotify))
+
+        let clock = ContinuousClock()
+        let startedAt = clock.now
+        let result = await coordinator.dispatch(.playPause, request: request)
+        let elapsed = startedAt.duration(to: clock.now)
+        let dispatches = await runtime.dispatches
+
+        XCTAssertFalse(result)
+        XCTAssertLessThan(elapsed, .seconds(1))
+        XCTAssertEqual(dispatches, [DispatchRecord(key: .playPause, player: .spotify)])
+    }
+
     func testIndependentGesturesRemainSerialized() async {
         let runtime = RecordingPlayerRuntime(runningAfterChecks: 0, dispatchDelay: .milliseconds(10))
         let coordinator = PlayerLaunchCoordinator(runtime: runtime)

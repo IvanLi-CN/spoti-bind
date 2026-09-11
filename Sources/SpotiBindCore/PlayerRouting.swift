@@ -364,12 +364,16 @@ public actor PlayerLaunchCoordinator {
                     if await boolWithinTimeout(remaining, operation: {
                         await runtime.isRunning(player: player, applicationURL: request.applicationURL)
                     }) == true {
-                        return await runtime.dispatch(
-                            key: key,
-                            player: player,
-                            executableURL: request.executableURL,
-                            applicationURL: request.applicationURL
-                        )
+                        let dispatchBudget = clock.now.duration(to: deadline)
+                        guard dispatchBudget > .zero else { return false }
+                        return await boolWithinTimeout(dispatchBudget, operation: {
+                            await runtime.dispatch(
+                                key: key,
+                                player: player,
+                                executableURL: request.executableURL,
+                                applicationURL: request.applicationURL
+                            )
+                        }) == true
                     }
 
                     let sleepDuration = clock.now.duration(to: deadline)
