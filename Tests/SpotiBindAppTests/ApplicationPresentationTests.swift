@@ -70,6 +70,21 @@ final class ApplicationPresentationTests: XCTestCase {
         XCTAssertGreaterThan(bitmap.pixelsHigh, 0)
     }
 
+    func testSpotifyMarkLoadsAsMonochromeTemplate() throws {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("assets/spotify-icon-mono.svg")
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: sourceURL.path))
+        let image = try XCTUnwrap(SpotifyMark.templateImage(url: sourceURL))
+
+        XCTAssertTrue(image.isTemplate)
+        XCTAssertGreaterThan(image.size.width, 0)
+        XCTAssertGreaterThan(image.size.height, 0)
+    }
+
     func testStatusBarTemplateMissingResourceFallsBack() {
         XCTAssertNil(StatusBarIcon.templateImage(bundle: Bundle(for: ApplicationPresentationTests.self)))
         XCTAssertEqual(StatusBarIcon.fallbackSystemImage, "waveform")

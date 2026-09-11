@@ -7,7 +7,7 @@ SpotiBind validates its behavior at four layers.
   player path settings and legacy Reset behavior, cold-start timeouts, serial
   dispatch, and event-tap recovery policy.
 - The app UI smoke pass covers the window-style menu, the retained settings
-  window, 3+2 routing selection, visible problem actions, path chooser/reset,
+  window, 3x2 routing selection, visible problem actions, path chooser/reset,
   and deferred Accessibility prompting in both system appearances.
 - UI demo state is selected before `AppState.start()` with
   `SPOTIBIND_UI_DEMO=1`, `SPOTIBIND_UI_DEMO_SCENE`, and
@@ -30,6 +30,9 @@ SpotiBind validates its behavior at four layers.
 - Real-Mac routing must include a Sonora tray-only case: the next media key
   must reopen and activate Sonora's main window, then reach its PID shortcut
   exactly once without replaying the captured gesture.
+- Real-Mac routing must include Spotify Desktop: Space, Down Arrow, and Up
+  Arrow must reach the Spotify PID exactly once per press without activating
+  the app.
 - macOS CI runs the SwiftPM core tests and builds the app for both advertised target triples.
 - The app build and release jobs use `macos-26` with Xcode 26.4+ for the
   Icon Composer resource target; Swift test jobs remain on `macos-15`.

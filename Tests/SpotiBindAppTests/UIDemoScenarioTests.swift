@@ -43,6 +43,7 @@ final class UIDemoScenarioTests: XCTestCase {
 
         let noPlayer = UIDemoConfiguration(scenario: .noSupportedPlayer)
         XCTAssertEqual(noPlayer.availability.all, [
+            PlayerAvailability(player: .spotify, isInstalled: false, isRunning: false, canLaunch: false),
             PlayerAvailability(player: .fastpotify, isInstalled: false, isRunning: false, canLaunch: false),
             PlayerAvailability(player: .sonora, isInstalled: false, isRunning: false, canLaunch: false),
             PlayerAvailability(player: .spotifly, isInstalled: false, isRunning: false, canLaunch: false)

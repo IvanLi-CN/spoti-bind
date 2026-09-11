@@ -47,6 +47,7 @@ plist="$app_path/Contents/Info.plist"
 assets_car="$app_path/Contents/Resources/Assets.car"
 fallback_icon="$app_path/Contents/Resources/SpotiBind.icns"
 status_template="$app_path/Contents/Resources/StatusBarMark.svg"
+spotify_mark="$app_path/Contents/Resources/SpotifyMark.svg"
 if [[ ! -x "$binary" ]]; then
     printf 'App executable is missing or not executable: %s\n' "$binary" >&2
     exit 1
@@ -55,7 +56,7 @@ if [[ ! -f "$plist" ]]; then
     printf 'App Info.plist is missing: %s\n' "$plist" >&2
     exit 1
 fi
-for resource in "$assets_car" "$fallback_icon" "$status_template"; do
+for resource in "$assets_car" "$fallback_icon" "$status_template" "$spotify_mark"; do
     if [[ ! -s "$resource" ]]; then
         printf 'App resource is missing or empty: %s\n' "$resource" >&2
         exit 1
@@ -63,6 +64,10 @@ for resource in "$assets_car" "$fallback_icon" "$status_template"; do
 done
 if ! grep -q '<svg' "$status_template"; then
     printf 'Status bar template is not a readable SVG: %s\n' "$status_template" >&2
+    exit 1
+fi
+if ! grep -q '<svg' "$spotify_mark"; then
+    printf 'Spotify mark is not a readable SVG: %s\n' "$spotify_mark" >&2
     exit 1
 fi
 

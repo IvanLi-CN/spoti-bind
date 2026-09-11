@@ -149,7 +149,7 @@ final class PlayerWorkspaceCatalog {
             )
         )
 
-        for player in [SupportedPlayer.sonora, .spotifly] {
+        for player in [SupportedPlayer.spotify, .sonora, .spotifly] {
             if invalidCustomPlayers.contains(player) {
                 values.append(
                     PlayerAvailability(

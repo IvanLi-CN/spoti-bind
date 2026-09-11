@@ -23,6 +23,7 @@ final class PlayerPathConfigurationTests: XCTestCase {
 
     func testSettingsRoundTripPreservesEveryCustomPlayerPath() throws {
         let paths: [SupportedPlayer: PlayerPathConfiguration] = [
+            .spotify: .custom(URL(fileURLWithPath: "/Applications/Spotify.app")),
             .fastpotify: .custom(URL(fileURLWithPath: "/Applications/Fastpotify.app")),
             .sonora: .custom(URL(fileURLWithPath: "/Applications/Sonora.app")),
             .spotifly: .custom(URL(fileURLWithPath: "/Applications/Spotifly.app"))

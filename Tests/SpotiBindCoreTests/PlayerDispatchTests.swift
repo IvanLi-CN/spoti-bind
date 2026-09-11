@@ -8,6 +8,21 @@ final class PlayerDispatchTests: XCTestCase {
         XCTAssertEqual(PlayerDispatch.command(for: .previous, player: .fastpotify), .fastpotify(.previous))
     }
 
+    func testSpotifyUsesSpaceAndUpDownArrows() {
+        XCTAssertEqual(
+            PlayerDispatch.command(for: .playPause, player: .spotify),
+            .keyboard(KeyboardShortcut(keyCode: 49))
+        )
+        XCTAssertEqual(
+            PlayerDispatch.command(for: .next, player: .spotify),
+            .keyboard(KeyboardShortcut(keyCode: 125))
+        )
+        XCTAssertEqual(
+            PlayerDispatch.command(for: .previous, player: .spotify),
+            .keyboard(KeyboardShortcut(keyCode: 126))
+        )
+    }
+
     func testSpotiflyUsesSpaceAndCommandArrows() {
         XCTAssertEqual(
             PlayerDispatch.command(for: .playPause, player: .spotifly),

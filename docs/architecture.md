@@ -11,9 +11,9 @@ NSEvent systemDefined decoder -> RoutingPolicy -> pass-through / consume / dispa
                                                         |
                                                         v
                                       PlayerSelectionResolver + launch queue
-                                      /                    |                  \
-                                     /                     |                   \
-                 Fastpotify CLI dispatcher       Sonora CGEvent PID       Spotifly CGEvent PID
+                                      /              |             |             \
+                                     /               |             |              \
+                 Spotify CGEvent PID     Fastpotify CLI   Sonora CGEvent PID   Spotifly CGEvent PID
 ```
 
 ## Core boundary
@@ -31,7 +31,7 @@ NSEvent systemDefined decoder -> RoutingPolicy -> pass-through / consume / dispa
 - `FastpotifyCommandDispatcher`, an actor that serializes commands and probes
   `now-playing --raw` through a `FastpotifyProcessRunner` interface.
 - `PlayerDispatch` and `PlayerLaunchCoordinator`, which map media keys to the
-  three adapter contracts and serialize asynchronous cold-start handoffs.
+  four adapter contracts and serialize asynchronous cold-start handoffs.
 - `TapFailureTracker`, which makes the event-tap recovery rule deterministic
   and unit-testable.
 

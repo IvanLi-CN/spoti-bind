@@ -15,13 +15,6 @@ enum RoutingChoiceGridDensity {
         }
     }
 
-    var utilityHeight: CGFloat {
-        switch self {
-        case .menu: 72
-        case .settings: 80
-        }
-    }
-
     var playerSymbolSize: CGFloat {
         switch self {
         case .menu: 38
@@ -55,8 +48,10 @@ struct RoutingChoiceGrid: View {
     @ObservedObject var state: AppState
     let density: RoutingChoiceGridDensity
 
-    private let playerModes: [PlayerMode] = [.fastpotify, .sonora, .spotifly]
-    private let utilityModes: [PlayerMode] = [.automatic, .off]
+    private let gridRows: [[PlayerMode]] = [
+        [.automatic, .spotify, .sonora],
+        [.off, .fastpotify, .spotifly]
+    ]
 
     @ViewBuilder
     var body: some View {
@@ -70,9 +65,12 @@ struct RoutingChoiceGrid: View {
 
     private var menuGrid: some View {
         VStack(spacing: 0) {
-            menuRow(playerModes, height: density.playerHeight)
-            separator
-            menuRow(utilityModes, height: density.utilityHeight)
+            ForEach(Array(gridRows.enumerated()), id: \.offset) { index, row in
+                if index > 0 {
+                    separator
+                }
+                menuRow(row, height: density.playerHeight)
+            }
         }
         .clipShape(RoundedRectangle(cornerRadius: density.cornerRadius, style: .continuous))
         .overlay {
@@ -83,18 +81,16 @@ struct RoutingChoiceGrid: View {
 
     private var settingsGrid: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 22) {
-                ForEach(playerModes, id: \.self) { mode in
+            LazyVGrid(
+                columns: Array(
+                    repeating: GridItem(.flexible(), spacing: 22),
+                    count: 3
+                ),
+                spacing: 16
+            ) {
+                ForEach(gridRows.flatMap { $0 }, id: \.self) { mode in
                     settingsOption(for: mode)
                 }
-            }
-
-            HStack(spacing: 22) {
-                ForEach(utilityModes, id: \.self) { mode in
-                    settingsOption(for: mode)
-                }
-                Color.clear
-                    .frame(maxWidth: .infinity)
             }
         }
     }

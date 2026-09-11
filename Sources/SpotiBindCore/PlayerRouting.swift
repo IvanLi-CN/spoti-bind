@@ -2,6 +2,7 @@ import Foundation
 
 public enum PlayerMode: String, CaseIterable, Codable, Sendable, Equatable {
     case automatic
+    case spotify
     case fastpotify
     case sonora
     case spotifly
@@ -10,6 +11,7 @@ public enum PlayerMode: String, CaseIterable, Codable, Sendable, Equatable {
     public var displayName: String {
         switch self {
         case .automatic: "Automatic"
+        case .spotify: "Spotify"
         case .fastpotify: "Fastpotify"
         case .sonora: "Sonora"
         case .spotifly: "Spotifly"
@@ -19,6 +21,7 @@ public enum PlayerMode: String, CaseIterable, Codable, Sendable, Equatable {
 
     var player: SupportedPlayer? {
         switch self {
+        case .spotify: .spotify
         case .fastpotify: .fastpotify
         case .sonora: .sonora
         case .spotifly: .spotifly
@@ -28,12 +31,14 @@ public enum PlayerMode: String, CaseIterable, Codable, Sendable, Equatable {
 }
 
 public enum SupportedPlayer: String, CaseIterable, Codable, Sendable, Equatable {
+    case spotify
     case fastpotify
     case sonora
     case spotifly
 
     public var displayName: String {
         switch self {
+        case .spotify: "Spotify"
         case .fastpotify: "Fastpotify"
         case .sonora: "Sonora"
         case .spotifly: "Spotifly"
@@ -42,6 +47,8 @@ public enum SupportedPlayer: String, CaseIterable, Codable, Sendable, Equatable 
 
     public var bundleIdentifier: String? {
         switch self {
+        case .spotify:
+            "com.spotify.client"
         case .fastpotify:
             nil
         case .sonora:
@@ -53,9 +60,10 @@ public enum SupportedPlayer: String, CaseIterable, Codable, Sendable, Equatable 
 
     fileprivate var automaticSortOrder: Int {
         switch self {
-        case .fastpotify: 0
-        case .sonora: 1
-        case .spotifly: 2
+        case .spotify: 0
+        case .fastpotify: 1
+        case .sonora: 2
+        case .spotifly: 3
         }
     }
 }
@@ -138,7 +146,7 @@ public struct PlayerSelectionResolver: Sendable {
                 return .launch(launchable)
             }
             return .none
-        case .fastpotify, .sonora, .spotifly:
+        case .spotify, .fastpotify, .sonora, .spotifly:
             guard let player = mode.player else { return .none }
             let availability = snapshot[player]
             if availability.isRunning {
@@ -181,6 +189,8 @@ public enum PlayerDispatch: Sendable, Equatable {
         switch player {
         case .fastpotify:
             .fastpotify(key.fastpotifyCommand)
+        case .spotify:
+            .keyboard(spotifyShortcut(for: key))
         case .sonora:
             .keyboard(shortcut(for: key, modifiers: key == .playPause ? [] : .control))
         case .spotifly:
@@ -199,6 +209,17 @@ public enum PlayerDispatch: Sendable, Equatable {
             KeyboardShortcut(keyCode: 124, modifiers: modifiers)
         case .previous:
             KeyboardShortcut(keyCode: 123, modifiers: modifiers)
+        }
+    }
+
+    private static func spotifyShortcut(for key: MediaKey) -> KeyboardShortcut {
+        switch key {
+        case .playPause:
+            KeyboardShortcut(keyCode: 49)
+        case .next:
+            KeyboardShortcut(keyCode: 125)
+        case .previous:
+            KeyboardShortcut(keyCode: 126)
         }
     }
 }

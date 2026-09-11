@@ -351,15 +351,25 @@ struct PlayerMarkView: View {
     }
 
     var body: some View {
-        Image(systemName: fallbackSymbol ?? defaultSymbol)
-            .font(.system(size: size, weight: .medium))
-            .symbolRenderingMode(.monochrome)
-            .foregroundStyle(.primary)
-            .frame(width: size, height: size)
+        Group {
+            if player == .spotify, let image = SpotifyMark.templateImage() {
+                Image(nsImage: image)
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image(systemName: fallbackSymbol ?? defaultSymbol)
+                    .font(.system(size: size, weight: .medium))
+                    .symbolRenderingMode(.monochrome)
+            }
+        }
+        .foregroundStyle(.primary)
+        .frame(width: size, height: size)
     }
 
     private var defaultSymbol: String {
         switch player {
+        case .spotify: "music.note"
         case .fastpotify: "play.circle.fill"
         case .sonora: "waveform"
         case .spotifly: "paperplane"
@@ -368,9 +378,32 @@ struct PlayerMarkView: View {
     }
 }
 
+enum SpotifyMark {
+    static let resourceName = "SpotifyMark"
+
+    static func templateImage(bundle: Bundle = .main) -> NSImage? {
+        guard let url = bundle.url(forResource: resourceName, withExtension: "svg"),
+              let image = templateImage(url: url) else {
+            return nil
+        }
+
+        return image
+    }
+
+    static func templateImage(url: URL) -> NSImage? {
+        guard let image = NSImage(contentsOf: url) else {
+            return nil
+        }
+
+        image.isTemplate = true
+        return image
+    }
+}
+
 extension PlayerMode {
     var supportedPlayer: SupportedPlayer? {
         switch self {
+        case .spotify: .spotify
         case .fastpotify: .fastpotify
         case .sonora: .sonora
         case .spotifly: .spotifly
@@ -380,6 +413,7 @@ extension PlayerMode {
 
     var symbolName: String {
         switch self {
+        case .spotify: "music.note"
         case .fastpotify: "play.circle.fill"
         case .sonora: "waveform"
         case .spotifly: "paperplane"

@@ -1,10 +1,10 @@
 # SpotiBind
 
 SpotiBind is a small macOS menu-bar companion that routes the standard
-play/pause, next, and previous media keys to Fastpotify, Sonora, or Spotifly.
-The menu persists an Automatic, player-specific, or Off choice. Automatic uses
-running players in Fastpotify, Sonora, Spotifly order and otherwise starts the
-first installed launchable player. If permission or a usable target is
+play/pause, next, and previous media keys to Spotify, Fastpotify, Sonora, or
+Spotifly. The menu persists an Automatic, player-specific, or Off choice.
+Automatic uses running players in Spotify, Fastpotify, Sonora, Spotifly order
+and otherwise starts the first installed launchable player. If permission or a usable target is
 missing, macOS keeps its normal media-key behavior. The menu-bar panel also
 exposes previous, play/pause, and next controls, while Advanced Settings
 provides per-player location overrides and system controls.
@@ -15,6 +15,7 @@ reopens and activates the Sonora main window, then performs that command once.
 ## Requirements
 
 - macOS 13.0 or later
+- Spotify Desktop when Spotify is selected or installed for Automatic mode
 - Fastpotify 0.4.1 or later when Fastpotify is selected or installed for
   Automatic mode
 - Sonora when Sonora is selected or installed for Automatic mode
@@ -43,6 +44,7 @@ require the Finder context-menu open action.
 
 | Player | Play/pause | Next | Previous |
 | --- | --- | --- | --- |
+| Spotify | Space | Down Arrow | Up Arrow |
 | Fastpotify | `fastpotify play-pause` | `fastpotify next` | `fastpotify previous` |
 | Sonora | Space | Ctrl-Right | Ctrl-Left |
 | Spotifly | Space | Cmd-Right | Cmd-Left |
@@ -58,8 +60,8 @@ the initiating key once; a timeout never replays it. Accessibility prompting
 is deferred until the user enables an active forwarding mode or clicks a
 media control. Advanced Settings persists an automatic or custom location for
 each player. The legacy `targetPath` preference remains compatible for
-Fastpotify until the user explicitly resets its location; Sonora and Spotifly
-use their configured application bundles or their fixed bundle identifiers.
+Fastpotify until the user explicitly resets its location; Spotify, Sonora, and
+Spotifly use their configured application bundles or their fixed bundle identifiers.
 
 ## Build and test
 

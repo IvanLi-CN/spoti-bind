@@ -8,10 +8,11 @@ final class PlayerSelectionTests: XCTestCase {
         let snapshot = PlayerAvailabilitySnapshot([
             availability(.spotifly, installed: true, running: true, launchable: true),
             availability(.sonora, installed: true, running: true, launchable: true),
-            availability(.fastpotify, installed: true, running: true, launchable: true)
+            availability(.fastpotify, installed: true, running: true, launchable: true),
+            availability(.spotify, installed: true, running: true, launchable: true)
         ])
 
-        XCTAssertEqual(resolver.resolve(mode: .automatic, snapshot: snapshot), .running(.fastpotify))
+        XCTAssertEqual(resolver.resolve(mode: .automatic, snapshot: snapshot), .running(.spotify))
     }
 
     func testAutomaticStartsFirstInstalledPlayerWhenNoneAreRunning() {
@@ -21,6 +22,17 @@ final class PlayerSelectionTests: XCTestCase {
         ])
 
         XCTAssertEqual(resolver.resolve(mode: .automatic, snapshot: snapshot), .launch(.sonora))
+    }
+
+    func testAutomaticStartsSpotifyBeforeOtherInstalledPlayers() {
+        let snapshot = PlayerAvailabilitySnapshot([
+            availability(.spotify, installed: true, running: false, launchable: true),
+            availability(.fastpotify, installed: true, running: false, launchable: true),
+            availability(.sonora, installed: true, running: false, launchable: true),
+            availability(.spotifly, installed: true, running: false, launchable: true)
+        ])
+
+        XCTAssertEqual(resolver.resolve(mode: .automatic, snapshot: snapshot), .launch(.spotify))
     }
 
     func testAutomaticSkipsUninstalledPlayers() {
@@ -35,10 +47,12 @@ final class PlayerSelectionTests: XCTestCase {
 
     func testManualModeOnlySelectsTheRequestedPlayer() {
         let snapshot = PlayerAvailabilitySnapshot([
+            availability(.spotify, installed: true, running: true, launchable: true),
             availability(.fastpotify, installed: true, running: true, launchable: true),
             availability(.sonora, installed: true, running: false, launchable: true)
         ])
 
+        XCTAssertEqual(resolver.resolve(mode: .spotify, snapshot: snapshot), .running(.spotify))
         XCTAssertEqual(resolver.resolve(mode: .sonora, snapshot: snapshot), .launch(.sonora))
         XCTAssertEqual(resolver.resolve(mode: .spotifly, snapshot: snapshot), .none)
     }
@@ -71,7 +85,12 @@ final class PlayerSelectionTests: XCTestCase {
         XCTAssertEqual(PlayerModeMigration.mode(storedMode: nil, legacyForwardingEnabled: false), .off)
         XCTAssertEqual(PlayerModeMigration.mode(storedMode: nil, legacyForwardingEnabled: true), .automatic)
         XCTAssertEqual(PlayerModeMigration.mode(storedMode: nil, legacyForwardingEnabled: nil), .automatic)
+        XCTAssertEqual(PlayerModeMigration.mode(storedMode: PlayerMode.spotify.rawValue, legacyForwardingEnabled: false), .spotify)
         XCTAssertEqual(PlayerModeMigration.mode(storedMode: PlayerMode.sonora.rawValue, legacyForwardingEnabled: false), .sonora)
+    }
+
+    func testSpotifyUsesTheOfficialDesktopBundleIdentifier() {
+        XCTAssertEqual(SupportedPlayer.spotify.bundleIdentifier, "com.spotify.client")
     }
 
     private func availability(

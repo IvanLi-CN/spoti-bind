@@ -386,7 +386,7 @@ final class AppState: ObservableObject {
             }
         }
 
-        for player in [SupportedPlayer.sonora, .spotifly] {
+        for player in [SupportedPlayer.spotify, .sonora, .spotifly] {
             switch pathSettings.configuration(for: player) {
             case .automatic, .inheritLegacy:
                 pathStates[player] = .automatic
