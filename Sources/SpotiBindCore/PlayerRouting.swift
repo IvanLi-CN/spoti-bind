@@ -344,7 +344,22 @@ public actor PlayerLaunchCoordinator {
         let deadline = clock.now.advanced(by: timeout)
         let operation = Task<Bool, Never> {
             if let previous {
-                _ = await previous.value
+                if isLaunchRequest {
+                    let waitBudget = clock.now.duration(to: deadline)
+                    guard waitBudget > .zero else {
+                        self.setLaunchBarrier(active: false)
+                        return false
+                    }
+                    let previousResult = await boolWithinTimeout(waitBudget) {
+                        await previous.value
+                    }
+                    guard previousResult == true else {
+                        self.setLaunchBarrier(active: false)
+                        return false
+                    }
+                } else {
+                    _ = await previous.value
+                }
             }
             guard let player = request.selection.player else {
                 if isLaunchRequest {
