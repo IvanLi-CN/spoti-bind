@@ -328,6 +328,8 @@ public actor PlayerLaunchCoordinator {
         let previous = pending
         let runtime = runtime
         let timeout = timeout
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
         let operation = Task<Bool, Never> {
             if let previous {
                 _ = await previous.value
@@ -347,10 +349,10 @@ public actor PlayerLaunchCoordinator {
                     applicationURL: request.applicationURL
                 )
             case .launch:
-                let clock = ContinuousClock()
-                let deadline = clock.now.advanced(by: timeout)
+                let launchBudget = clock.now.duration(to: deadline)
+                guard launchBudget > .zero else { return false }
                 guard await boolWithinTimeout(
-                    timeout,
+                    launchBudget,
                     operation: {
                         await runtime.launch(player: player, applicationURL: request.applicationURL)
                     }

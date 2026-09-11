@@ -97,6 +97,34 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
         XCTAssertEqual(maximumConcurrentDispatches, 1)
     }
 
+    func testQueuedLaunchExpiresBeforeThePreviousGestureFinishes() async {
+        let runtime = RecordingPlayerRuntime(
+            runningAfterChecks: 0,
+            dispatchDelay: .milliseconds(100)
+        )
+        let coordinator = PlayerLaunchCoordinator(runtime: runtime, timeout: .milliseconds(20))
+        let runningRequest = PlayerDispatchRequest(selection: .running(.spotify))
+        let launchRequest = PlayerDispatchRequest(selection: .launch(.spotify))
+
+        let firstTask = Task {
+            await coordinator.dispatch(.playPause, request: runningRequest)
+        }
+        await runtime.waitForDispatchCount(1)
+        let secondTask = Task {
+            await coordinator.dispatch(.next, request: launchRequest)
+        }
+
+        let second = await secondTask.value
+        let first = await firstTask.value
+        let launches = await runtime.launches
+        let dispatches = await runtime.dispatches
+
+        XCTAssertFalse(second)
+        XCTAssertTrue(first)
+        XCTAssertTrue(launches.isEmpty)
+        XCTAssertEqual(dispatches, [DispatchRecord(key: .playPause, player: .spotify)])
+    }
+
     func testIndependentGesturesRemainSerialized() async {
         let runtime = RecordingPlayerRuntime(runningAfterChecks: 0, dispatchDelay: .milliseconds(10))
         let coordinator = PlayerLaunchCoordinator(runtime: runtime)
