@@ -312,6 +312,7 @@ public actor PlayerLaunchCoordinator {
     private let runtime: any PlayerLaunchRuntime
     private let timeout: Duration
     private var pending: Task<Bool, Never>?
+    private var launchBarrierActive = false
 
     public init(
         runtime: any PlayerLaunchRuntime,
@@ -325,6 +326,17 @@ public actor PlayerLaunchCoordinator {
         _ key: MediaKey,
         request: PlayerDispatchRequest
     ) async -> Bool {
+        if launchBarrierActive {
+            return false
+        }
+        let isLaunchRequest: Bool
+        if case .launch = request.selection {
+            isLaunchRequest = true
+            launchBarrierActive = true
+        } else {
+            isLaunchRequest = false
+        }
+
         let previous = pending
         let runtime = runtime
         let timeout = timeout
@@ -335,6 +347,9 @@ public actor PlayerLaunchCoordinator {
                 _ = await previous.value
             }
             guard let player = request.selection.player else {
+                if isLaunchRequest {
+                    self.setLaunchBarrier(active: false)
+                }
                 return false
             }
 
@@ -350,7 +365,10 @@ public actor PlayerLaunchCoordinator {
                 )
             case .launch:
                 let launchBudget = clock.now.duration(to: deadline)
-                guard launchBudget > .zero else { return false }
+                guard launchBudget > .zero else {
+                    self.setLaunchBarrier(active: false)
+                    return false
+                }
                 let launchTask = Task {
                     await runtime.launch(player: player, applicationURL: request.applicationURL)
                 }
@@ -364,8 +382,10 @@ public actor PlayerLaunchCoordinator {
                     // Keep the serial queue occupied until a cancellation-
                     // insensitive launch has finished its side effect.
                     _ = await launchTask.value
+                    self.setLaunchBarrier(active: false)
                     return false
                 }
+                self.setLaunchBarrier(active: false)
                 guard launchResult == true else {
                     return false
                 }
@@ -410,6 +430,10 @@ public actor PlayerLaunchCoordinator {
             }) == true
         }
         return await operation.value
+    }
+
+    private func setLaunchBarrier(active: Bool) {
+        launchBarrierActive = active
     }
 }
 

@@ -116,10 +116,34 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
         }
         let second = await secondTask.value
 
+        try? await Task.sleep(for: .milliseconds(120))
+        let third = await coordinator.dispatch(.next, request: runningRequest)
         let events = await runtime.events
         XCTAssertFalse(first)
-        XCTAssertTrue(second)
+        XCTAssertFalse(second)
+        XCTAssertTrue(third)
         XCTAssertEqual(events, ["launch-begin", "launch-end", "dispatch-next"])
+    }
+
+    func testHangingLaunchDoesNotBlockLaterDispatchCalls() async {
+        let runtime = HangingLaunchPlayerRuntime()
+        let coordinator = PlayerLaunchCoordinator(runtime: runtime, timeout: .milliseconds(20))
+        let launchRequest = PlayerDispatchRequest(selection: .launch(.spotify))
+        let runningRequest = PlayerDispatchRequest(selection: .running(.spotify))
+
+        let first = await coordinator.dispatch(.playPause, request: launchRequest)
+        let clock = ContinuousClock()
+        let startedAt = clock.now
+        let second = await coordinator.dispatch(.next, request: runningRequest)
+        let elapsed = startedAt.duration(to: clock.now)
+
+        XCTAssertFalse(first)
+        XCTAssertFalse(second)
+        XCTAssertLessThan(elapsed, .seconds(1))
+        let dispatchCount = await runtime.dispatchCount
+        XCTAssertEqual(dispatchCount, 0)
+
+        await runtime.finishLaunch()
     }
 
     func testQueuedLaunchExpiresBeforeThePreviousGestureFinishes() async {
@@ -256,4 +280,34 @@ private actor RecordingPlayerRuntime: PlayerLaunchRuntime {
 private struct DispatchRecord: Equatable, Sendable {
     let key: MediaKey
     let player: SupportedPlayer
+}
+
+private actor HangingLaunchPlayerRuntime: PlayerLaunchRuntime {
+    private var launchFinished = false
+    private(set) var dispatchCount = 0
+
+    func launch(player: SupportedPlayer, applicationURL: URL?) async -> Bool {
+        while !launchFinished {
+            await Task.yield()
+        }
+        return true
+    }
+
+    func isRunning(player: SupportedPlayer, applicationURL: URL?) async -> Bool {
+        true
+    }
+
+    func dispatch(
+        key: MediaKey,
+        player: SupportedPlayer,
+        executableURL: URL?,
+        applicationURL: URL?
+    ) async -> Bool {
+        dispatchCount += 1
+        return true
+    }
+
+    func finishLaunch() {
+        launchFinished = true
+    }
 }

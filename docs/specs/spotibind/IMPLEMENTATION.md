@@ -35,7 +35,8 @@
   PID keyboard input surface, and dispatches the captured gesture once.
   Spotify and Spotifly launch requests explicitly keep the application in the
   background; a launch timeout drains its underlying open operation before the
-  next queued gesture can run.
+  next queued gesture can run, while an unresolved launch barrier fails later
+  dispatch calls immediately instead of waiting indefinitely.
 - Advanced Settings persists Automatic or custom locations for Spotify,
   Fastpotify, Sonora, and Spotifly. Fastpotify accepts an app bundle or CLI;
   Spotify, Sonora, and Spotifly validate the selected bundle identifier.
