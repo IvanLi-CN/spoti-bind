@@ -366,14 +366,23 @@ public actor PlayerLaunchCoordinator {
                     }) == true {
                         let dispatchBudget = clock.now.duration(to: deadline)
                         guard dispatchBudget > .zero else { return false }
-                        return await boolWithinTimeout(dispatchBudget, operation: {
+                        let dispatchTask = Task {
                             await runtime.dispatch(
                                 key: key,
                                 player: player,
                                 executableURL: request.executableURL,
                                 applicationURL: request.applicationURL
                             )
-                        }) == true
+                        }
+                        let result = await boolWithinTimeout(dispatchBudget, operation: {
+                            await dispatchTask.value
+                        })
+                        if result == nil {
+                            // Keep this operation pending until a runtime that
+                            // ignores cancellation has finished its side effect.
+                            _ = await dispatchTask.value
+                        }
+                        return result == true
                     }
 
                     let sleepDuration = clock.now.duration(to: deadline)
@@ -383,6 +392,11 @@ public actor PlayerLaunchCoordinator {
             }
         }
         pending = operation
+        if case .launch = request.selection {
+            return await boolWithinTimeout(timeout, operation: {
+                await operation.value
+            }) == true
+        }
         return await operation.value
     }
 }
