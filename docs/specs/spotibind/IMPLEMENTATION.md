@@ -39,11 +39,12 @@
   Invalid saved locations remain unavailable and expose a settings action
   rather than falling back.
 - Accessibility checks are silent at startup. The system prompt is deferred
-  until an explicit active-mode selection or a menu media-control click. Each
-  recognized media-key event refreshes the trust state without prompting;
-  unknown system-defined events and all mouse/keyboard events pass through
-  before any refresh. A trust change immediately reconciles the event tap
-  before routing the media-key event.
+  until an explicit active-mode selection or a menu media-control click. Status
+  refreshes run from the app lifecycle and periodic timer without prompting;
+  the synchronous event callback only decodes and routes a recognized media key
+  from the cached readiness snapshot. Unknown system-defined events and all
+  mouse/keyboard events pass through unchanged. A readiness change reconciles
+  the event tap outside the callback.
 - PlayerLaunchCoordinator starts the ten-second launch deadline when a launch
   request enters the serial queue. A queued request that expires while an
   earlier gesture is still draining never launches or dispatches. A timed-out

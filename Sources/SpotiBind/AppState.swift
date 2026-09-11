@@ -260,20 +260,6 @@ final class AppState: ObservableObject {
         tapStatus = status
     }
 
-    func refreshRoutingAvailability() {
-        guard !demoRequested else {
-            updateAvailability()
-            return
-        }
-
-        let trusted = AXIsProcessTrustedWithOptions(nil)
-        if trusted != accessibilityTrusted {
-            accessibilityTrusted = trusted
-            onReadinessChanged?()
-        }
-        updateAvailability()
-    }
-
     func dispatchFromMenu(_ key: MediaKey) {
         guard !demoRequested else { return }
         guard accessibilityTrusted else {

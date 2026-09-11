@@ -7,7 +7,6 @@ protocol MediaKeyTapState: AnyObject {
     var readiness: ForwardingReadiness { get }
     var accessibilityTrusted: Bool { get }
 
-    func refreshRoutingAvailability()
     func dispatch(_ key: MediaKey)
     func setTapStatus(_ status: String)
     func setPlayerMode(_ mode: PlayerMode)
@@ -79,8 +78,6 @@ final class MediaKeyTapController {
         guard SystemDefinedMediaKeyDecoder().decode(data1: data1) != nil else {
             return Unmanaged.passUnretained(event)
         }
-
-        state.refreshRoutingAvailability()
 
         switch MediaKeyEventRouter().decision(
             eventType: type.rawValue,

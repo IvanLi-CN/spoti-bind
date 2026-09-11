@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class MediaKeyTapControllerTests: XCTestCase {
-    func testMouseEventsPassThroughWithoutRefreshingRoutingState() {
+    func testMouseEventsPassThroughWithoutEnteringMediaKeyRouting() {
         let state = SpyMediaKeyTapState()
         let controller = MediaKeyTapController()
         controller.start(state: state)
@@ -21,11 +21,10 @@ final class MediaKeyTapControllerTests: XCTestCase {
         let result = controller.handle(event: event, type: .leftMouseDown)
 
         XCTAssertNotNil(result)
-        XCTAssertEqual(state.refreshCalls, 0)
         XCTAssertTrue(state.dispatchedKeys.isEmpty)
     }
 
-    func testUnknownSystemDefinedEventsPassThroughWithoutRefreshingRoutingState() {
+    func testUnknownSystemDefinedEventsPassThroughWithoutEnteringMediaKeyRouting() {
         let state = SpyMediaKeyTapState()
         let controller = MediaKeyTapController()
         controller.start(state: state)
@@ -38,7 +37,6 @@ final class MediaKeyTapControllerTests: XCTestCase {
         let result = controller.handle(event: event, type: systemDefinedType)
 
         XCTAssertNotNil(result)
-        XCTAssertEqual(state.refreshCalls, 0)
         XCTAssertTrue(state.dispatchedKeys.isEmpty)
     }
 }
@@ -51,12 +49,7 @@ private final class SpyMediaKeyTapState: MediaKeyTapState {
         targetUsable: false
     )
     let accessibilityTrusted = false
-    var refreshCalls = 0
     var dispatchedKeys: [MediaKey] = []
-
-    func refreshRoutingAvailability() {
-        refreshCalls += 1
-    }
 
     func dispatch(_ key: MediaKey) {
         dispatchedKeys.append(key)
