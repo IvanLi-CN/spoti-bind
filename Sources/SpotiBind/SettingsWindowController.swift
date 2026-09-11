@@ -2,14 +2,16 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class SettingsWindowController: NSWindowController {
+final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private let hostingController: NSHostingController<AnyView>
     private let contentMetrics = SettingsContentMetrics()
     private var isProblemBannerVisible = false
     private var isFitScheduled = false
     private var needsContentHeightFit = false
+    private let onClose: () -> Void
 
-    init(state: AppState) {
+    init(state: AppState, onClose: @escaping () -> Void = {}) {
+        self.onClose = onClose
         let contentView = Self.windowContent(for: state) { [contentMetrics] height in
             contentMetrics.update(height)
         } onProblemBannerVisibilityChange: { [contentMetrics] isVisible in
@@ -25,6 +27,7 @@ final class SettingsWindowController: NSWindowController {
         window.minSize = NSSize(width: 600, height: 520)
         window.isReleasedWhenClosed = false
         super.init(window: window)
+        window.delegate = self
         contentMetrics.onHeightChange = { [weak self] _ in
             self?.contentHeightDidChange()
         }
@@ -68,6 +71,10 @@ final class SettingsWindowController: NSWindowController {
         if !wasVisible {
             scheduleContentHeightFit()
         }
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        onClose()
     }
 
     private func problemBannerVisibilityDidChange(_ isVisible: Bool) {

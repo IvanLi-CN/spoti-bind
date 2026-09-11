@@ -4,8 +4,12 @@
 
 1. Add exactly one `type:*` label and `channel:stable` to the same-repository PR. New PRs receive `type:patch` and `channel:stable` automatically.
 2. Run `scripts/macos/test.sh` with a full Xcode developer toolchain.
-3. Confirm `lipo -archs` reports both `arm64` and `x86_64`, the bundle
-   identifier is `cc.ivanli.spotibind`, and the signature is Ad Hoc.
+3. Use Xcode 26.4+ and run `scripts/macos/compile-icon-resources.sh`.
+4. Run `scripts/macos/package.sh` and `scripts/macos/verify-release.sh`.
+5. Confirm `lipo -archs` reports both `arm64` and `x86_64`, the bundle
+   identifier is `cc.ivanli.spotibind`, `CFBundleIconName` is `SpotiBind`,
+   `Assets.car`, `SpotiBind.icns`, and `StatusBarMark.svg` are present, and
+   the signature is Ad Hoc.
 
 After all required PR checks pass, `Prepare release version` creates a
 GitHub-verified `VERSION`-only commit on the PR branch. Merging that PR to

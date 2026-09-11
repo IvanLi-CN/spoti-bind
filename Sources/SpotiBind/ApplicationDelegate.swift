@@ -4,10 +4,13 @@ import AppKit
 final class ApplicationDelegate: NSObject, NSApplicationDelegate {
     let state = AppState()
     private let mediaKeyTapController = MediaKeyTapController()
+    private lazy var presentationController = ApplicationPresentationController(
+        isUIDemo: state.isUIDemo
+    )
     private var settingsWindowController: SettingsWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApplication.shared.setActivationPolicy(state.isUIDemo ? .regular : .accessory)
+        presentationController.configureForLaunch()
         state.onReadinessChanged = { [weak self] in
             self?.mediaKeyTapController.reconcile()
         }
@@ -30,8 +33,11 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate {
 
     private func showSettingsWindow() {
         if settingsWindowController == nil {
-            settingsWindowController = SettingsWindowController(state: state)
+            settingsWindowController = SettingsWindowController(state: state) { [weak self] in
+                self?.presentationController.settingsDidClose()
+            }
         }
+        presentationController.settingsDidOpen()
         settingsWindowController?.showAndActivate()
     }
 }

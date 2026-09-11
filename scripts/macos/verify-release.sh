@@ -44,6 +44,9 @@ done
 
 binary="$app_path/Contents/MacOS/SpotiBind"
 plist="$app_path/Contents/Info.plist"
+assets_car="$app_path/Contents/Resources/Assets.car"
+fallback_icon="$app_path/Contents/Resources/SpotiBind.icns"
+status_template="$app_path/Contents/Resources/StatusBarMark.svg"
 if [[ ! -x "$binary" ]]; then
     printf 'App executable is missing or not executable: %s\n' "$binary" >&2
     exit 1
@@ -52,6 +55,48 @@ if [[ ! -f "$plist" ]]; then
     printf 'App Info.plist is missing: %s\n' "$plist" >&2
     exit 1
 fi
+for resource in "$assets_car" "$fallback_icon" "$status_template"; do
+    if [[ ! -s "$resource" ]]; then
+        printf 'App resource is missing or empty: %s\n' "$resource" >&2
+        exit 1
+    fi
+done
+if ! grep -q '<svg' "$status_template"; then
+    printf 'Status bar template is not a readable SVG: %s\n' "$status_template" >&2
+    exit 1
+fi
+
+asset_info="$(assetutil --info "$assets_car" 2>/dev/null)" || {
+    printf 'Unable to inspect compiled icon Assets.car: %s\n' "$assets_car" >&2
+    exit 1
+}
+for appearance in NSAppearanceNameAqua NSAppearanceNameDarkAqua ISAppearanceTintable; do
+    if ! grep -q "$appearance" <<< "$asset_info"; then
+        printf 'Compiled Assets.car is missing expected icon specialization: %s\n' "$appearance" >&2
+        exit 1
+    fi
+done
+
+iconutil_bin="$(xcrun --find iconutil 2>/dev/null || true)"
+if [[ -z "$iconutil_bin" ]]; then
+    printf 'iconutil is required to validate the macOS 13 fallback icon.\n' >&2
+    exit 1
+fi
+iconset_parent="$(mktemp -d "${TMPDIR:-/tmp}/spotibind-release-iconset.XXXXXX")"
+iconset_check="$iconset_parent/fallback.iconset"
+trap 'rm -rf "$iconset_parent"' EXIT
+"$iconutil_bin" --convert iconset --output "$iconset_check" "$fallback_icon"
+for icon_file in \
+    icon_16x16.png icon_16x16@2x.png \
+    icon_32x32.png icon_32x32@2x.png \
+    icon_128x128.png icon_128x128@2x.png \
+    icon_256x256.png icon_256x256@2x.png \
+    icon_512x512.png icon_512x512@2x.png; do
+    if [[ ! -s "$iconset_check/$icon_file" ]]; then
+        printf 'Fallback ICNS is missing %s.\n' "$icon_file" >&2
+        exit 1
+    fi
+done
 
 archs="$(lipo -archs "$binary")"
 [[ " $archs " == *" arm64 "* ]] || { printf 'arm64 slice missing: %s\n' "$archs" >&2; exit 1; }
@@ -68,6 +113,8 @@ minimum="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$plist")"
 [[ "$minimum" == "13.0" ]] || { printf 'Unexpected minimum system version: %s\n' "$minimum" >&2; exit 1; }
 identifier="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")"
 [[ "$identifier" == "cc.ivanli.spotibind" ]] || { printf 'Unexpected bundle identifier: %s\n' "$identifier" >&2; exit 1; }
+icon_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$plist")"
+[[ "$icon_name" == "SpotiBind" ]] || { printf 'Unexpected bundle icon name: %s\n' "$icon_name" >&2; exit 1; }
 
 hdiutil imageinfo "$dmg_path" >/dev/null
 checksum_dir="$(cd "$(dirname "$checksums_path")" && pwd)"

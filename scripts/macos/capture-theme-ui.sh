@@ -49,10 +49,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "$app_bundle/Contents/MacOS"
-cp "$app_bin" "$app_bundle/Contents/MacOS/SpotiBind"
-cp "$repo_root/packaging/macos/Info.plist" "$app_bundle/Contents/Info.plist"
-chmod +x "$app_bundle/Contents/MacOS/SpotiBind"
+"$script_dir/assemble-app.sh" --binary "$app_bin" --app-path "$app_bundle" >/dev/null
 swiftc "$script_dir/popover-window-probe.swift" -o "$probe_bin"
 
 SPOTIBIND_UI_DEMO=1 \

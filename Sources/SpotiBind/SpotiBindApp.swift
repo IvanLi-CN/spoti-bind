@@ -7,11 +7,10 @@ struct SpotiBindApp: App {
     @NSApplicationDelegateAdaptor(ApplicationDelegate.self) private var applicationDelegate
 
     var body: some Scene {
-        // `waveform.and.arrow.forward` is unavailable on macOS 13 and leaves
-        // the status item without a drawable symbol. Keep the menu-bar mark
-        // to a baseline symbol; the panel itself communicates forwarding.
-        MenuBarExtra("SpotiBind", systemImage: "waveform") {
+        MenuBarExtra {
             MenuPanelView(state: applicationDelegate.state)
+        } label: {
+            StatusBarIconView()
         }
         .menuBarExtraStyle(.window)
     }

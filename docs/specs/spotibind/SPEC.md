@@ -5,7 +5,7 @@
 ## Context and Scope
 
 - Context: macOS hardware media keys normally follow the system's current Now Playing owner, while SpotiBind must direct supported transport commands to one selected supported player.
-- In scope: public event capture, persistent player selection, deterministic automatic discovery, Fastpotify CLI control, PID-directed Spotifly/Sonora shortcuts, Sonora main-window reopening when required for its input surface, Accessibility status, menu-bar control, and Ad Hoc universal distribution.
+- In scope: public event capture, persistent player selection, deterministic automatic discovery, Fastpotify CLI control, PID-directed Spotifly/Sonora shortcuts, Sonora main-window reopening when required for its input surface, Accessibility status, menu-bar control, native Default/Dark/Mono application icon resources, settings presentation policy, and Ad Hoc universal distribution.
 - Out of scope: playback ownership inside any player, private MediaRemote APIs, Apple Events, Accessibility UI scripting, upstream player changes, and unrelated distribution channels.
 
 ## Terms and Interfaces
@@ -17,6 +17,10 @@
 - `Player Selection`: The target resolved from the current mode and availability snapshot. Automatic prefers running players in `Fastpotify`, `Sonora`, `Spotifly` order, then the first launchable installed player in that order.
 - `Forwarding Readiness`: The cached state where a non-Off mode is selected, Accessibility is authorized, and the resolver has a usable target.
 - `Pass-through`: Leaving the original event unconsumed so macOS performs normal routing.
+- `Application Icon`: The layered SpotiBind mark compiled by Icon Composer into the bundle's `Assets.car`, with a macOS 13 fallback generated from the same source.
+- `Status Bar Template Mark`: The transparent monochrome SVG used by the menu-bar extra; it is tintable and independent of the application icon.
+- `Bundle Assembly`: The deterministic step that combines a SwiftPM executable, metadata, compiled icon resources, and the status-bar template before signing.
+- `Settings Presentation Mode`: The app activation policy used while the retained Advanced Settings window is open (`regular`) and after it closes (`accessory`); UI Demo remains `regular`.
 - Interfaces: Fastpotify CLI verbs `play-pause`, `next`, `previous`, and probe `now-playing --raw`; Spotifly PID shortcuts Space, Cmd-Right, Cmd-Left; Sonora PID shortcuts Space, Ctrl-Right, Ctrl-Left.
 
 ## Requirements
@@ -58,12 +62,30 @@
   reports Swift 6 before invoking SwiftPM. Selection MUST resolve the compiler
   through the Xcode developer directory (`DEVELOPER_DIR`/`xcrun`), rather than
   assuming a fixed Xcode binary path. The current hosted runner is macOS 15,
-  while the product deployment baseline remains macOS 13.
+  while the product deployment baseline remains macOS 13. The `PR / Build app`,
+  `Main / Build app`, and Draft Release jobs run on `macos-26` with Xcode 26.4+
+  for Icon Composer; Swift test jobs remain on `macos-15`.
 
 ### REQ-FASTPOTIFY-006
 
 - The system MUST migrate legacy `forwardingEnabled=false` to Off and otherwise default a missing Player Mode to Automatic. A legacy `targetPath` MUST remain a Fastpotify CLI path override only.
 - A launch handoff MUST wait asynchronously for at most ten seconds, dispatch the first key once after the target is running, and never replay it after timeout. Later independent gestures MUST remain ordered.
+
+### REQ-FASTPOTIFY-007
+
+- The application MUST declare `CFBundleIconName=SpotiBind` and ship Default,
+  Dark, and Mono Icon Composer renditions in `Assets.car`, plus the fallback
+  resource required by macOS 13. The source MUST NOT pre-bake system corner,
+  shadow, or glass treatment.
+- The menu-bar extra MUST load a transparent monochrome SVG template from the
+  bundle and fall back to `waveform` when that resource is unavailable.
+- Opening retained Advanced Settings MUST use activation policy `regular` and
+  closing that window MUST restore `accessory` for the shipped app. Minimize,
+  focus loss, About, and repeated opens MUST NOT restore `accessory`; UI Demo
+  MUST remain `regular`.
+- SwiftPM remains the code and XCTest build entry point. The resource-only
+  Xcode target MAY compile Icon Composer resources but MUST NOT own Swift source
+  or business logic.
 
 ## Verification
 
@@ -91,12 +113,23 @@
 - covers: `REQ-FASTPOTIFY-005`
 - Pass condition: both slices are present, the bundle verifies, the checksum matches, and the merge SHA owns the public version tag and Release assets.
 
+### VER-FASTPOTIFY-005
+
+- Method: `scripts/macos/compile-icon-resources.sh`, `ictool` previews at 16,
+  32, 128, and 512 pixels, `scripts/macos/verify-release.sh`, and
+  `ApplicationPresentationTests`.
+- covers: `REQ-FASTPOTIFY-007`
+- Pass condition: all three renditions and fallback resources are present,
+  template loading/fallback and activation-policy transitions pass, and no
+  bundle is signed before resource assembly.
+
 ## Related ADRs
 
 - [Use MenuBarExtra with a thin AppKit bridge around a testable Swift core](../../adr/0002-keep-the-appkit-shell-thin.md)
 - [Ship V1 outside the App Sandbox with Ad Hoc universal distribution](../../adr/0003-ship-v1-outside-the-app-sandbox-with-ad-hoc-signing.md)
 - [Use macOS 13 as the V1 deployment target](../../adr/0005-use-macos-13-as-the-v1-deployment-target.md)
 - [Use SwiftPM as the single build entrypoint](../../adr/0006-use-swiftpm-as-the-single-build-entrypoint.md)
+- [Use Icon Composer only for native application icon resources](../../adr/0010-use-icon-composer-for-native-application-icon-resources.md)
 - [Rename the pre-release application identity to SpotiBind](../../adr/0007-rename-the-pre-release-application-identity-to-spotibind.md)
 - [Use player adapters and public PID-directed key routing](../../adr/0008-use-player-adapters-and-public-pid-key-routing.md)
 - [Automate public release after a verified main merge](../../adr/0009-automate-public-release-after-verified-main-merge.md)

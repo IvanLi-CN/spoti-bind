@@ -23,7 +23,7 @@ jobs:
   release:
     name: Release
     if: github.ref == 'refs/heads/main'
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - name: Resolve immutable merge identity
         id: identity
@@ -61,6 +61,11 @@ jobs:
           git fetch origin main --no-tags
           git merge-base --is-ancestor "$TARGET_SHA" origin/main || {
             echo 'release target must already be merged into the trusted main ref' >&2
+            exit 1
+          }
+          merge_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}" --jq '.commit.verification.verified')"
+          [[ "$merge_verified" == 'true' ]] || {
+            echo 'release target merge commit must be GitHub-verified' >&2
             exit 1
           }
           branch_tip="${parents##* }"
@@ -137,7 +142,7 @@ jobs:
         if: steps.provenance.outputs.type != 'type:none'
         run: |
           set -euo pipefail
-          scripts/ci/select-swift6.sh
+          scripts/ci/select-swift6.sh --minimum-xcode 26.4
           scripts/macos/test.sh
           scripts/macos/package.sh
           scripts/macos/verify-release.sh
