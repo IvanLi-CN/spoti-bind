@@ -3,14 +3,27 @@
 import SpotiBindCore
 
 @MainActor
+protocol MediaKeyTapState: AnyObject {
+    var readiness: ForwardingReadiness { get }
+    var accessibilityTrusted: Bool { get }
+
+    func accessibilityTrustedForEvent() -> Bool
+    func dispatch(_ key: MediaKey)
+    func setTapStatus(_ status: String)
+    func setPlayerMode(_ mode: PlayerMode)
+}
+
+extension AppState: MediaKeyTapState {}
+
+@MainActor
 final class MediaKeyTapController {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var retryTimer: Timer?
-    private weak var state: AppState?
+    private weak var state: (any MediaKeyTapState)?
     private var failureTracker = TapFailureTracker()
 
-    func start(state: AppState) {
+    func start(state: any MediaKeyTapState) {
         self.state = state
         installIfPossible()
         retryTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
@@ -44,7 +57,7 @@ final class MediaKeyTapController {
         eventTap = nil
     }
 
-    fileprivate func handle(
+    func handle(
         event: CGEvent,
         type: CGEventType
     ) -> Unmanaged<CGEvent>? {
@@ -53,16 +66,23 @@ final class MediaKeyTapController {
             return Unmanaged.passUnretained(event)
         }
 
+        let systemDefinedEventType = UInt32(NSEvent.EventType.systemDefined.rawValue)
+        guard type.rawValue == systemDefinedEventType else {
+            return Unmanaged.passUnretained(event)
+        }
+
         guard let state else {
             return Unmanaged.passUnretained(event)
         }
 
-        state.refreshRoutingAvailability()
+        let data1 = UInt32(truncatingIfNeeded: NSEvent(cgEvent: event)?.data1 ?? 0)
+        guard SystemDefinedMediaKeyDecoder().decode(data1: data1) != nil else {
+            return Unmanaged.passUnretained(event)
+        }
+        guard !state.readiness.isReady || state.accessibilityTrustedForEvent() else {
+            return Unmanaged.passUnretained(event)
+        }
 
-        let systemDefinedEventType = UInt32(NSEvent.EventType.systemDefined.rawValue)
-        let data1 = type.rawValue == systemDefinedEventType
-            ? UInt32(truncatingIfNeeded: NSEvent(cgEvent: event)?.data1 ?? 0)
-            : nil
         switch MediaKeyEventRouter().decision(
             eventType: type.rawValue,
             systemDefinedEventType: systemDefinedEventType,

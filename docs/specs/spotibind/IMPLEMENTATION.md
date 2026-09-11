@@ -13,7 +13,7 @@
 - Product identity: SpotiBind is used for the executable, bundle, release
   artifacts, and public documentation; the Fastpotify CLI integration remains
   unchanged.
-- Visual evidence: the app exposes pre-start `UIDemoScenario` state for five
+- Visual evidence: the app exposes pre-start `UIDemoScenario` state for six
   smoke scenes and two explicit appearances. Popover evidence waits for the
   actual `MenuBarExtra(.window)` host, opens its real status button through
   the app-owned status-bar window, and captures it in-process; settings
@@ -21,7 +21,7 @@
 
 ## Implementation Coverage
 
-- Requirement coverage: `REQ-FASTPOTIFY-001` through `REQ-FASTPOTIFY-006` are implemented by the Core, App, scripts, workflows, and documentation paths in this repository.
+- Requirement coverage: `REQ-FASTPOTIFY-001` through `REQ-FASTPOTIFY-007` are implemented by the Core, App, scripts, workflows, and documentation paths in this repository.
 - Verification commands: `swift test`, `scripts/macos/build.sh`,
   `scripts/macos/compile-icon-resources.sh`, `scripts/macos/package.sh`, and
   `scripts/macos/verify-release.sh`.
@@ -33,15 +33,31 @@
 - Sonora's tray-only activation policy is treated as a launchable input state.
   The next media key reopens and activates Sonora's main window, waits for its
   PID keyboard input surface, and dispatches the captured gesture once.
-- Advanced Settings persists Automatic or custom locations for Fastpotify,
-  Sonora, and Spotifly. Fastpotify accepts an app bundle or CLI; Sonora and
-  Spotifly validate the selected bundle identifier. Invalid saved locations
-  remain unavailable and expose a settings action rather than falling back.
+  Spotify and Spotifly launch requests explicitly keep the application in the
+  background; a launch timeout drains its underlying open operation before the
+  next queued gesture can run, while an unresolved launch barrier fails later
+  dispatch calls immediately instead of waiting indefinitely.
+- Advanced Settings persists Automatic or custom locations for Spotify,
+  Fastpotify, Sonora, and Spotifly. Fastpotify accepts an app bundle or CLI;
+  Spotify, Sonora, and Spotifly validate the selected bundle identifier.
+  Invalid saved locations remain unavailable and expose a settings action
+  rather than falling back.
 - Accessibility checks are silent at startup. The system prompt is deferred
-  until an explicit active-mode selection or a menu media-control click.
+  until an explicit active-mode selection or a menu media-control click. Status
+  refreshes run from the app lifecycle and periodic timer without prompting;
+  the synchronous event callback only decodes a recognized media key, performs
+  a silent trust check, and routes from the cached readiness and application URL
+  state. It never scans player availability or waits for launch. Unknown
+  system-defined events and all mouse/keyboard events pass through unchanged.
+  A readiness change reconciles the event tap outside the callback.
+- PlayerLaunchCoordinator starts the ten-second launch deadline when a launch
+  request enters the serial queue. A queued request that expires while an
+  earlier gesture is still draining never launches or dispatches. A timed-out
+  dispatch remains pending until its runtime task finishes, so a late
+  cancellation-insensitive side effect cannot overlap the next gesture.
 - Demo mode uses an ephemeral defaults object, neutral display paths, and no
   player/runtime side effects. Its healthy baseline represents Sonora running,
-  all three supported players discoverable, and Accessibility authorized. The
+  all four supported players discoverable, and Accessibility authorized. The
   Demo process uses a regular activation policy so an owner can identify it
   during capture; the shipped app remains an accessory app.
 - The menu panel keeps its three transport controls on one native Glass surface
@@ -54,6 +70,9 @@
   back to `waveform` when the resource is absent. Opening retained Advanced
   Settings switches the shipped app to regular activation policy; closing the
   window restores accessory, while UI Demo stays regular.
+- The Spotify option loads the bundled official monochrome mark as
+  `SpotifyMark.svg`, marks it as an AppKit template image, and applies the same
+  `.primary` tint treatment as the other player choices.
 - The Icon Composer `tinted` specialization uses the dedicated white
   `spotibind-icon-mono.svg` foreground so Clear and Tinted dark styles retain
   contrast; the original black `spotibind-logo-monochrome.svg` remains an

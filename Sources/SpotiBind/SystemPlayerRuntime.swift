@@ -21,7 +21,10 @@ final class SystemPlayerRuntime: PlayerLaunchRuntime, @unchecked Sendable {
                 // Sonora only installs its keyboard shortcut context while a
                 // main window is present. Reopening a tray-resident instance
                 // restores that input surface before dispatch.
-                configuration.activates = player == .sonora
+                configuration.activates = false
+                if player == .sonora {
+                    configuration.activates = true
+                }
                 NSWorkspace.shared.openApplication(at: url, configuration: configuration) { application, error in
                     continuation.resume(returning: application != nil && error == nil)
                 }
@@ -75,11 +78,9 @@ final class SystemPlayerRuntime: PlayerLaunchRuntime, @unchecked Sendable {
         let applications = NSWorkspace.shared.runningApplications
         if let applicationURL {
             let expectedPath = applicationURL.standardizedFileURL.path
-            if let matching = applications.first(where: {
+            return applications.first(where: {
                 $0.bundleURL?.standardizedFileURL.path == expectedPath
-            }) {
-                return matching
-            }
+            })
         }
         if let bundleIdentifier = player.bundleIdentifier {
             return applications.first { $0.bundleIdentifier == bundleIdentifier }
@@ -149,7 +150,7 @@ final class PlayerWorkspaceCatalog {
             )
         )
 
-        for player in [SupportedPlayer.sonora, .spotifly] {
+        for player in [SupportedPlayer.spotify, .sonora, .spotifly] {
             if invalidCustomPlayers.contains(player) {
                 values.append(
                     PlayerAvailability(
@@ -214,11 +215,9 @@ final class PlayerWorkspaceCatalog {
     ) -> NSRunningApplication? {
         if let applicationURL {
             let expectedPath = applicationURL.standardizedFileURL.path
-            if let matching = NSWorkspace.shared.runningApplications.first(where: {
+            return NSWorkspace.shared.runningApplications.first(where: {
                 $0.bundleURL?.standardizedFileURL.path == expectedPath
-            }) {
-                return matching
-            }
+            })
         }
         guard let bundleIdentifier = player.bundleIdentifier else { return nil }
         return NSWorkspace.shared.runningApplications.first { $0.bundleIdentifier == bundleIdentifier }

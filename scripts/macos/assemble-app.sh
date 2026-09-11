@@ -117,6 +117,10 @@ if [[ ! -s "$repo_root/assets/spotibind-status-bar.svg" ]]; then
     printf 'Status bar template source is missing or empty.\n' >&2
     exit 1
 fi
+if [[ ! -s "$repo_root/assets/spotify-icon-mono.svg" ]]; then
+    printf 'Spotify icon source is missing or empty.\n' >&2
+    exit 1
+fi
 
 staging_path="$(mktemp -d "$app_parent/.spotibind-app.XXXXXX")"
 mkdir -p "$staging_path/Contents/MacOS" "$staging_path/Contents/Resources"
@@ -125,6 +129,7 @@ cp "$repo_root/packaging/macos/Info.plist" "$staging_path/Contents/Info.plist"
 cp "$compiled_resources/Assets.car" "$staging_path/Contents/Resources/Assets.car"
 cp "$compiled_resources/SpotiBind.icns" "$staging_path/Contents/Resources/SpotiBind.icns"
 cp "$repo_root/assets/spotibind-status-bar.svg" "$staging_path/Contents/Resources/StatusBarMark.svg"
+cp "$repo_root/assets/spotify-icon-mono.svg" "$staging_path/Contents/Resources/SpotifyMark.svg"
 
 if [[ -n "$version" ]]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$staging_path/Contents/Info.plist"
@@ -136,7 +141,8 @@ for resource in \
     "$staging_path/Contents/Info.plist" \
     "$staging_path/Contents/Resources/Assets.car" \
     "$staging_path/Contents/Resources/SpotiBind.icns" \
-    "$staging_path/Contents/Resources/StatusBarMark.svg"; do
+    "$staging_path/Contents/Resources/StatusBarMark.svg" \
+    "$staging_path/Contents/Resources/SpotifyMark.svg"; do
     if [[ ! -s "$resource" ]]; then
         printf 'Staged app resource is missing or empty: %s\n' "$resource" >&2
         exit 1

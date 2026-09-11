@@ -64,6 +64,12 @@ struct UIDemoConfiguration: Equatable, Sendable {
         let neutralPathSettings = PlayerPathSettings()
         let healthyAvailability = PlayerAvailabilitySnapshot([
             PlayerAvailability(
+                player: .spotify,
+                isInstalled: true,
+                isRunning: true,
+                canLaunch: true
+            ),
+            PlayerAvailability(
                 player: .fastpotify,
                 isInstalled: true,
                 isRunning: false,

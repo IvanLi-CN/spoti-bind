@@ -1,12 +1,20 @@
 # SpotiBind
 
-SpotiBind is a macOS menu-bar companion that directs hardware media controls to an existing Fastpotify instance. It owns interception, routing, and delivery reporting; Fastpotify owns playback.
+SpotiBind is a macOS menu-bar companion that directs hardware media controls to a selected supported desktop player. It owns interception, routing, and delivery reporting; each player owns playback.
 
 ## Input and Routing
 
 **Media Key**:
 A hardware media-control key gesture whose press and release represent one supported transport intent.
 _Avoid_: Hotkey, shortcut
+
+**Supported Player**:
+A desktop player with a released input surface that SpotiBind can target for the three supported media-key commands.
+_Avoid_: Official app, music service
+
+**Spotify**:
+The official Spotify macOS desktop client, represented as a distinct Supported Player from Spotifly.
+_Avoid_: Official Spotify app, Spotifly
 
 **Forwarding**:
 The choice to consume a supported Media Key and request its matching command from the selected player adapter.
