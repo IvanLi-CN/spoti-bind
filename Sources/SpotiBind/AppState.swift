@@ -268,7 +268,7 @@ final class AppState: ObservableObject {
 
     func dispatchFromMenu(_ key: MediaKey) {
         guard !demoRequested else { return }
-        guard accessibilityTrusted else {
+        guard accessibilityTrusted, accessibilityTrustedForEvent() else {
             requestAccessibilityPermission()
             return
         }

@@ -21,7 +21,10 @@ final class SystemPlayerRuntime: PlayerLaunchRuntime, @unchecked Sendable {
                 // Sonora only installs its keyboard shortcut context while a
                 // main window is present. Reopening a tray-resident instance
                 // restores that input surface before dispatch.
-                configuration.activates = player == .sonora
+                configuration.activates = false
+                if player == .sonora {
+                    configuration.activates = true
+                }
                 NSWorkspace.shared.openApplication(at: url, configuration: configuration) { application, error in
                     continuation.resume(returning: application != nil && error == nil)
                 }

@@ -351,12 +351,22 @@ public actor PlayerLaunchCoordinator {
             case .launch:
                 let launchBudget = clock.now.duration(to: deadline)
                 guard launchBudget > .zero else { return false }
-                guard await boolWithinTimeout(
+                let launchTask = Task {
+                    await runtime.launch(player: player, applicationURL: request.applicationURL)
+                }
+                let launchResult = await boolWithinTimeout(
                     launchBudget,
                     operation: {
-                        await runtime.launch(player: player, applicationURL: request.applicationURL)
+                        await launchTask.value
                     }
-                ) == true else {
+                )
+                if launchResult == nil {
+                    // Keep the serial queue occupied until a cancellation-
+                    // insensitive launch has finished its side effect.
+                    _ = await launchTask.value
+                    return false
+                }
+                guard launchResult == true else {
                     return false
                 }
 

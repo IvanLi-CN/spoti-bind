@@ -97,6 +97,31 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
         XCTAssertEqual(maximumConcurrentDispatches, 1)
     }
 
+    func testTimedOutLaunchDrainsBeforeTheNextGesture() async {
+        let runtime = RecordingPlayerRuntime(
+            runningAfterChecks: 0,
+            launchDelay: .milliseconds(100),
+            ignoresLaunchCancellation: true
+        )
+        let coordinator = PlayerLaunchCoordinator(runtime: runtime, timeout: .milliseconds(20))
+        let launchRequest = PlayerDispatchRequest(selection: .launch(.spotify))
+        let runningRequest = PlayerDispatchRequest(selection: .running(.spotify))
+
+        let firstTask = Task {
+            await coordinator.dispatch(.playPause, request: launchRequest)
+        }
+        let first = await firstTask.value
+        let secondTask = Task {
+            await coordinator.dispatch(.next, request: runningRequest)
+        }
+        let second = await secondTask.value
+
+        let events = await runtime.events
+        XCTAssertFalse(first)
+        XCTAssertTrue(second)
+        XCTAssertEqual(events, ["launch-begin", "launch-end", "dispatch-next"])
+    }
+
     func testQueuedLaunchExpiresBeforeThePreviousGestureFinishes() async {
         let runtime = RecordingPlayerRuntime(
             runningAfterChecks: 0,
@@ -151,6 +176,7 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
 private actor RecordingPlayerRuntime: PlayerLaunchRuntime {
     private(set) var launches: [SupportedPlayer] = []
     private(set) var dispatches: [DispatchRecord] = []
+    private(set) var events: [String] = []
     private(set) var maximumConcurrentDispatches = 0
     private var activeDispatches = 0
     private var runningChecks = 0
@@ -158,24 +184,36 @@ private actor RecordingPlayerRuntime: PlayerLaunchRuntime {
     private let dispatchDelay: Duration
     private let launchDelay: Duration
     private let ignoresDispatchCancellation: Bool
+    private let ignoresLaunchCancellation: Bool
 
     init(
         runningAfterChecks: Int,
         dispatchDelay: Duration = .zero,
         launchDelay: Duration = .zero,
-        ignoresDispatchCancellation: Bool = false
+        ignoresDispatchCancellation: Bool = false,
+        ignoresLaunchCancellation: Bool = false
     ) {
         self.runningAfterChecks = runningAfterChecks
         self.dispatchDelay = dispatchDelay
         self.launchDelay = launchDelay
         self.ignoresDispatchCancellation = ignoresDispatchCancellation
+        self.ignoresLaunchCancellation = ignoresLaunchCancellation
     }
 
     func launch(player: SupportedPlayer, applicationURL: URL?) async -> Bool {
         launches.append(player)
+        events.append("launch-begin")
         if launchDelay > .zero {
-            try? await Task.sleep(for: launchDelay)
+            if ignoresLaunchCancellation {
+                let delay = launchDelay
+                await Task.detached {
+                    try? await Task.sleep(for: delay)
+                }.value
+            } else {
+                try? await Task.sleep(for: launchDelay)
+            }
         }
+        events.append("launch-end")
         return true
     }
 
@@ -193,6 +231,7 @@ private actor RecordingPlayerRuntime: PlayerLaunchRuntime {
         activeDispatches += 1
         maximumConcurrentDispatches = max(maximumConcurrentDispatches, activeDispatches)
         dispatches.append(DispatchRecord(key: key, player: player))
+        events.append("dispatch-\(key)")
         if dispatchDelay > .zero {
             if ignoresDispatchCancellation {
                 let delay = dispatchDelay

@@ -33,6 +33,9 @@
 - Sonora's tray-only activation policy is treated as a launchable input state.
   The next media key reopens and activates Sonora's main window, waits for its
   PID keyboard input surface, and dispatches the captured gesture once.
+  Spotify and Spotifly launch requests explicitly keep the application in the
+  background; a launch timeout drains its underlying open operation before the
+  next queued gesture can run.
 - Advanced Settings persists Automatic or custom locations for Spotify,
   Fastpotify, Sonora, and Spotifly. Fastpotify accepts an app bundle or CLI;
   Spotify, Sonora, and Spotifly validate the selected bundle identifier.
