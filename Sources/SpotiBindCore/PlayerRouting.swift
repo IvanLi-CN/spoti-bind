@@ -365,6 +365,7 @@ private enum DispatchPhase: Sendable {
 private final class DispatchAttemptState: @unchecked Sendable {
     private let lock = NSLock()
     private var currentPhase: DispatchPhase = .queued
+    private var didFinish = false
 
     func set(_ phase: DispatchPhase) {
         lock.lock()
@@ -377,6 +378,18 @@ private final class DispatchAttemptState: @unchecked Sendable {
         defer { lock.unlock() }
         return currentPhase
     }
+
+    func finish() {
+        lock.lock()
+        didFinish = true
+        lock.unlock()
+    }
+
+    func isFinished() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return didFinish
+    }
 }
 
 public actor PlayerLaunchCoordinator: PlayerDispatching {
@@ -384,6 +397,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
     private let timeout: Duration
     private var pending: Task<PlayerDispatchResult, Never>?
     private var pendingOperationID: UInt64?
+    private var pendingAttemptState: DispatchAttemptState?
     private var launchBarrierActive = false
     private var nextOperationID: UInt64 = 0
     private var timedOutTail: UInt64?
@@ -400,6 +414,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
         _ key: MediaKey,
         request: PlayerDispatchRequest
     ) async -> PlayerDispatchResult {
+        collectFinishedTail()
         let isLaunchRequest: Bool
         if case .launch = request.selection {
             isLaunchRequest = true
@@ -424,6 +439,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
         nextOperationID &+= 1
         let operation = Task.detached(priority: .userInitiated) { () -> PlayerDispatchResult in
             defer {
+                attemptState.finish()
                 Task { await self.operationFinished(operationID) }
             }
             if let previous {
@@ -579,6 +595,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
         }
         pending = operation
         pendingOperationID = operationID
+        pendingAttemptState = attemptState
         let completed = await boolWithinTimeout(timeout, operation: {
             await operation.value.isDelivered
         })
@@ -610,7 +627,21 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
             self.timedOutTail = nil
         }
         pending = nil
+        pendingAttemptState = nil
         pendingOperationID = nil
+    }
+
+    private func collectFinishedTail() {
+        guard let pendingOperationID,
+              pendingAttemptState?.isFinished() == true else {
+            return
+        }
+        if let timedOutTail, pendingOperationID >= timedOutTail {
+            self.timedOutTail = nil
+        }
+        pending = nil
+        pendingAttemptState = nil
+        self.pendingOperationID = nil
     }
 }
 
