@@ -26,9 +26,10 @@
 - Queue timeout handling now returns each gesture's deadline result without
   allowing a queued operation to execute after its predecessor drains; the
   serial tail remains occupied until cancellation-insensitive side effects
-  finish. The timeout signal is delivered independently of cooperative task
-  scheduling so launch barriers and caller deadlines remain stable under
-  runner load.
+  finish. The timeout gate uses a Swift concurrency clock task, while actor
+  state records the timed-out tail until its side effect completes so delayed
+  wake-ups cannot release a queued gesture into a side effect. Launch barriers
+  and caller deadlines remain stable under runner load.
 - Automatic routing now retains the player that failed its first launch or
   input-surface handoff until a same-configuration gesture is delivered;
   refreshes and unrelated player lifecycle changes do not trigger fallback.

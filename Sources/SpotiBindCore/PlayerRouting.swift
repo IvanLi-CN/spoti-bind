@@ -277,7 +277,7 @@ private final class BoolTimeoutGate: @unchecked Sendable {
     private let continuation: CheckedContinuation<Bool?, Never>
     private var didFinish = false
     private var operationTask: Task<Void, Never>?
-    private var timeoutWorkItem: DispatchWorkItem?
+    private var timeoutTask: Task<Void, Never>?
 
     init(continuation: CheckedContinuation<Bool?, Never>) {
         self.continuation = continuation
@@ -285,17 +285,17 @@ private final class BoolTimeoutGate: @unchecked Sendable {
 
     func attach(
         operationTask: Task<Void, Never>,
-        timeoutWorkItem: DispatchWorkItem
+        timeoutTask: Task<Void, Never>
     ) {
         lock.lock()
         if didFinish {
             lock.unlock()
             operationTask.cancel()
-            timeoutWorkItem.cancel()
+            timeoutTask.cancel()
             return
         }
         self.operationTask = operationTask
-        self.timeoutWorkItem = timeoutWorkItem
+        self.timeoutTask = timeoutTask
         lock.unlock()
     }
 
@@ -307,26 +307,13 @@ private final class BoolTimeoutGate: @unchecked Sendable {
         }
         didFinish = true
         let operationTask = self.operationTask
-        let timeoutWorkItem = self.timeoutWorkItem
+        let timeoutTask = self.timeoutTask
         lock.unlock()
 
         operationTask?.cancel()
-        timeoutWorkItem?.cancel()
+        timeoutTask?.cancel()
         continuation.resume(returning: value)
     }
-}
-
-private func dispatchInterval(for duration: Duration) -> DispatchTimeInterval {
-    let components = duration.components
-    let seconds = max(0, components.seconds)
-    let attoseconds = max(0, components.attoseconds)
-    let nanosecondsPerSecond: Int64 = 1_000_000_000
-    let attosecondsPerNanosecond: Int64 = 1_000_000_000
-    let maxSeconds = Int64(Int.max) / nanosecondsPerSecond
-    guard seconds <= maxSeconds else { return .seconds(Int.max) }
-    let totalNanoseconds = seconds * nanosecondsPerSecond
-        + min(attoseconds / attosecondsPerNanosecond, Int64(Int.max) - seconds * nanosecondsPerSecond)
-    return .nanoseconds(Int(totalNanoseconds))
 }
 
 private func boolWithinTimeout(
@@ -336,19 +323,23 @@ private func boolWithinTimeout(
     await withCheckedContinuation { continuation in
         let gate = BoolTimeoutGate(continuation: continuation)
         let operationTask = Task.detached(priority: .userInitiated) {
-            gate.finish(await operation())
+            guard !Task.isCancelled else { return }
+            let value = await operation()
+            guard !Task.isCancelled else { return }
+            gate.finish(value)
         }
-        let timeoutWorkItem = DispatchWorkItem {
+        let timeoutTask = Task.detached(priority: .userInitiated) {
+            do {
+                try await Task.sleep(for: timeout)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
             gate.finish(nil)
         }
-        gate.attach(operationTask: operationTask, timeoutWorkItem: timeoutWorkItem)
+        gate.attach(operationTask: operationTask, timeoutTask: timeoutTask)
         if timeout <= .zero {
             gate.finish(nil)
-        } else {
-            DispatchQueue.global(qos: .userInitiated).asyncAfter(
-                deadline: .now() + dispatchInterval(for: timeout),
-                execute: timeoutWorkItem
-            )
         }
     }
 }
@@ -382,6 +373,8 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
     private let timeout: Duration
     private var pending: Task<PlayerDispatchResult, Never>?
     private var launchBarrierActive = false
+    private var nextOperationID: UInt64 = 0
+    private var timedOutTail: UInt64?
 
     public init(
         runtime: any PlayerLaunchRuntime,
@@ -414,7 +407,14 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: timeout)
         let attemptState = DispatchAttemptState()
+        let operationID = nextOperationID
+        nextOperationID &+= 1
         let operation = Task.detached(priority: .userInitiated) { () -> PlayerDispatchResult in
+            defer {
+                Task {
+                    await self.operationFinished(operationID)
+                }
+            }
             if let previous {
                 let remaining = clock.now.duration(to: deadline)
                 guard remaining > .zero else {
@@ -454,6 +454,12 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
                     await self.setLaunchBarrier(active: false)
                     return .launchTimedOut
                 }
+            }
+            if await self.hasTimedOutTail {
+                if isLaunchRequest {
+                    await self.setLaunchBarrier(active: false)
+                }
+                return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
             }
             guard let player = request.selection.player else {
                 if isLaunchRequest {
@@ -566,6 +572,11 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
             await operation.value.isDelivered
         })
         guard completed != nil else {
+            timedOutTail = operationID
+            Task {
+                _ = await operation.value
+                self.operationFinished(operationID)
+            }
             switch attemptState.phase() {
             case .dispatching:
                 return .dispatchTimedOut
@@ -580,6 +591,16 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
 
     private func setLaunchBarrier(active: Bool) {
         launchBarrierActive = active
+    }
+
+    private var hasTimedOutTail: Bool {
+        timedOutTail != nil
+    }
+
+    private func operationFinished(_ operationID: UInt64) {
+        if timedOutTail == operationID {
+            timedOutTail = nil
+        }
     }
 }
 
