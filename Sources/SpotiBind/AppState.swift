@@ -56,6 +56,9 @@ final class AppState: ObservableObject {
     private let playerDispatcher: any PlayerDispatching
     private let applicationRevealer: any PlayerApplicationRevealing
     private let availabilityProvider: (() -> PlayerAvailabilitySnapshot)?
+    private let accessibilityTrustChecker: any AccessibilityTrustChecking
+    private let accessibilityPollingScheduler: any AccessibilityPollingScheduling
+    private let accessibilitySettingsOpener: any AccessibilitySettingsOpening
     private let demoRequested: Bool
     private let demoConfiguration: UIDemoConfiguration?
     private var availability = PlayerAvailabilitySnapshot()
@@ -63,6 +66,7 @@ final class AppState: ObservableObject {
     private var discoveredApplicationURLs: [SupportedPlayer: URL] = [:]
     private var invalidPathPlayers: Set<SupportedPlayer> = []
     private var refreshTimer: Timer?
+    private var accessibilityPollingHandle: (any AccessibilityPollingHandle)?
     private var activationObserver: NSObjectProtocol?
     private var probeTask: Task<Void, Never>?
     private var pendingDispatches = 0
@@ -78,7 +82,10 @@ final class AppState: ObservableObject {
         environment: [String: String]? = nil,
         initialAvailability: PlayerAvailabilitySnapshot? = nil,
         initialAccessibilityTrusted: Bool? = nil,
-        initialProbeHealthy: Bool? = nil
+        initialProbeHealthy: Bool? = nil,
+        accessibilityTrustChecker: any AccessibilityTrustChecking = SystemAccessibilityTrustChecker(),
+        accessibilityPollingScheduler: any AccessibilityPollingScheduling = MainRunLoopAccessibilityPollingScheduler(),
+        accessibilitySettingsOpener: any AccessibilitySettingsOpening = SystemAccessibilitySettingsOpener()
     ) {
         let environment = environment ?? ProcessInfo.processInfo.environment
         let demoConfiguration = UIDemoConfiguration.parse(
@@ -108,6 +115,9 @@ final class AppState: ObservableObject {
         self.applicationRevealer = applicationRevealer
             ?? (demoRequested ? DemoPlayerApplicationRevealer() : SystemPlayerApplicationRevealer())
         self.availabilityProvider = availabilityProvider
+        self.accessibilityTrustChecker = accessibilityTrustChecker
+        self.accessibilityPollingScheduler = accessibilityPollingScheduler
+        self.accessibilitySettingsOpener = accessibilitySettingsOpener
         self.accessibilityTrusted = initialAccessibilityTrusted
             ?? demoConfiguration?.accessibilityTrusted
             ?? false
@@ -218,6 +228,7 @@ final class AppState: ObservableObject {
     func stop() {
         refreshTimer?.invalidate()
         refreshTimer = nil
+        stopAccessibilityPolling()
         if let activationObserver {
             NotificationCenter.default.removeObserver(activationObserver)
             self.activationObserver = nil
@@ -228,10 +239,10 @@ final class AppState: ObservableObject {
 
     func refreshStatus(promptForAccessibility: Bool) {
         guard !demoRequested else { return }
-        let options: CFDictionary? = promptForAccessibility
-            ? ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-            : nil
-        accessibilityTrusted = AXIsProcessTrustedWithOptions(options)
+        accessibilityTrusted = accessibilityTrustChecker.check(prompt: promptForAccessibility)
+        if accessibilityTrusted || playerMode == .off {
+            stopAccessibilityPolling()
+        }
         resolveTargets()
         updateAvailability()
         onReadinessChanged?()
@@ -241,6 +252,7 @@ final class AppState: ObservableObject {
     func requestAccessibilityPermission() {
         guard !demoRequested else { return }
         refreshStatus(promptForAccessibility: true)
+        startAccessibilityPollingIfNeeded()
     }
 
     func setPlayerMode(_ mode: PlayerMode) {
@@ -254,6 +266,9 @@ final class AppState: ObservableObject {
             return
         }
         playerMode = mode
+        if mode == .off {
+            stopAccessibilityPolling()
+        }
         defaults.set(mode.rawValue, forKey: Keys.playerMode)
         clearDispatchIssue()
         updateAvailability()
@@ -290,9 +305,10 @@ final class AppState: ObservableObject {
             string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
         )!
 
-        if !NSWorkspace.shared.open(currentSettingsURL) {
-            NSWorkspace.shared.open(legacySettingsURL)
+        if !accessibilitySettingsOpener.open(currentSettingsURL) {
+            _ = accessibilitySettingsOpener.open(legacySettingsURL)
         }
+        startAccessibilityPollingIfNeeded()
     }
 
     func openAdvancedSettings() {
@@ -305,7 +321,7 @@ final class AppState: ObservableObject {
 
     func accessibilityTrustedForEvent() -> Bool {
         guard !demoRequested else { return accessibilityTrusted }
-        return AXIsProcessTrustedWithOptions(nil)
+        return accessibilityTrustChecker.check(prompt: false)
     }
 
     func dispatchFromMenu(_ key: MediaKey) {
@@ -319,6 +335,41 @@ final class AppState: ObservableObject {
         }
         guard accessibilityTrusted else { return }
         dispatch(key)
+    }
+
+    private func startAccessibilityPollingIfNeeded() {
+        guard !demoRequested,
+              playerMode != .off,
+              !accessibilityTrusted,
+              accessibilityPollingHandle == nil else {
+            return
+        }
+
+        accessibilityPollingHandle = accessibilityPollingScheduler.scheduleRepeating(every: 1) {
+            [weak self] in
+            self?.pollAccessibilityTrust()
+        }
+    }
+
+    private func stopAccessibilityPolling() {
+        accessibilityPollingHandle?.cancel()
+        accessibilityPollingHandle = nil
+    }
+
+    private func pollAccessibilityTrust() {
+        guard !demoRequested, playerMode != .off else {
+            stopAccessibilityPolling()
+            return
+        }
+        guard !accessibilityTrusted else {
+            stopAccessibilityPolling()
+            return
+        }
+        guard accessibilityTrustChecker.check(prompt: false) else { return }
+
+        accessibilityTrusted = true
+        stopAccessibilityPolling()
+        onReadinessChanged?()
     }
 
     func dispatch(_ key: MediaKey) {

@@ -50,10 +50,16 @@ timeout.
 
 ## Consequences
 
-The app now requires Accessibility for both event capture and PID-directed
-keyboard delivery, but it does not request Automation or private media
-permissions. A Sonora media key may bring its main window to the foreground
-when the app is tray-resident; Spotify, Fastpotify, and Spotifly retain
+SpotiBind requires Accessibility before it captures global media keys or
+installs its event tap. The app does not request Automation or private media
+permissions. Its Fastpotify CLI integration is permission-independent, and the
+public `CGEvent.postToPid` contract does not declare a TCC prerequisite; the
+app's Accessibility gate is a product boundary for global capture and tap
+lifecycle, not a claim about that API. After an explicit authorization flow,
+the app silently polls trust once per second and reconciles the existing tap as
+soon as trust becomes available; the regular revocation refresh remains
+periodic. A Sonora media key may bring its main window to the foreground when
+the app is tray-resident; Spotify, Fastpotify, and Spotifly retain
 background-only routing. macOS 13 remains the baseline for Spotify, Fastpotify,
 and Sonora. Spotifly
 real-device validation is only advertised on an environment that supports its
