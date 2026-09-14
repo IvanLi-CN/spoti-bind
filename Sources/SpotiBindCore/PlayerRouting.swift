@@ -390,15 +390,37 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
         let attemptState = DispatchAttemptState()
         let operation = Task<PlayerDispatchResult, Never> {
             if let previous {
-                let previousResult = await previous.value
                 let remaining = clock.now.duration(to: deadline)
-                if isLaunchRequest {
-                    guard remaining > .zero, previousResult.isDelivered else {
+                guard remaining > .zero else {
+                    // Keep this operation in the serial tail even when its
+                    // own deadline has already expired. It must not permit a
+                    // later gesture to overlap the unresolved predecessor.
+                    _ = await previous.value
+                    if isLaunchRequest {
                         self.setLaunchBarrier(active: false)
-                        return .launchTimedOut
                     }
-                } else {
-                    guard remaining > .zero else { return .dispatchTimedOut }
+                    return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
+                }
+
+                let previousCompleted = await boolWithinTimeout(remaining, operation: {
+                    _ = await previous.value
+                    return true
+                })
+                guard previousCompleted != nil else {
+                    // The caller receives its deadline result, while this
+                    // queue operation drains the predecessor without ever
+                    // executing a launch or dispatch side effect.
+                    _ = await previous.value
+                    if isLaunchRequest {
+                        self.setLaunchBarrier(active: false)
+                    }
+                    return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
+                }
+
+                let previousResult = await previous.value
+                if isLaunchRequest, !previousResult.isDelivered {
+                    self.setLaunchBarrier(active: false)
+                    return .launchTimedOut
                 }
             }
             guard let player = request.selection.player else {
