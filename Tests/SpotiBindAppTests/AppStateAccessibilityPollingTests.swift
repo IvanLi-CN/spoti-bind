@@ -76,6 +76,10 @@ final class AppStateAccessibilityPollingTests: XCTestCase {
         secondState.requestAccessibilityPermission()
         secondState.stop()
         XCTAssertTrue(secondScheduler.handle?.cancelled == true)
+        let promptsBeforeStoppedFire = checker.prompts
+        secondScheduler.fire()
+        XCTAssertFalse(secondState.accessibilityTrusted)
+        XCTAssertEqual(checker.prompts, promptsBeforeStoppedFire)
     }
 
     private func makeState(

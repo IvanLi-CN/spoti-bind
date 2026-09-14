@@ -67,6 +67,7 @@ final class AppState: ObservableObject {
     private var invalidPathPlayers: Set<SupportedPlayer> = []
     private var refreshTimer: Timer?
     private var accessibilityPollingHandle: (any AccessibilityPollingHandle)?
+    private var accessibilityPollingGeneration = 0
     private var activationObserver: NSObjectProtocol?
     private var probeTask: Task<Void, Never>?
     private var pendingDispatches = 0
@@ -345,18 +346,22 @@ final class AppState: ObservableObject {
             return
         }
 
+        accessibilityPollingGeneration += 1
+        let generation = accessibilityPollingGeneration
         accessibilityPollingHandle = accessibilityPollingScheduler.scheduleRepeating(every: 1) {
             [weak self] in
-            self?.pollAccessibilityTrust()
+            self?.pollAccessibilityTrust(generation: generation)
         }
     }
 
     private func stopAccessibilityPolling() {
+        accessibilityPollingGeneration += 1
         accessibilityPollingHandle?.cancel()
         accessibilityPollingHandle = nil
     }
 
-    private func pollAccessibilityTrust() {
+    private func pollAccessibilityTrust(generation: Int) {
+        guard generation == accessibilityPollingGeneration else { return }
         guard !demoRequested, playerMode != .off else {
             stopAccessibilityPolling()
             return
