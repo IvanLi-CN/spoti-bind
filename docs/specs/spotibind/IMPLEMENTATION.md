@@ -56,8 +56,10 @@
   dispatch remains pending until its runtime task finishes, and a queued
   request remains linked to its predecessor until that predecessor finishes,
   so a late cancellation-insensitive side effect cannot overlap the next
-  gesture. A timed-out launch likewise keeps its barrier and queue tail until
-  the launch task has finished.
+  gesture. Queue wait now returns the caller's timeout at its own deadline while
+  the tail operation drains the predecessor and skips its own side effect. A
+  timed-out launch likewise keeps its barrier and queue tail until the launch
+  task has finished.
 - PlayerLaunchCoordinator conforms to `PlayerDispatching` and returns a
   `PlayerDispatchResult` for every gesture. Launch failures, launch timeouts,
   target readiness failures, dispatch failures, dispatch timeouts, and launch

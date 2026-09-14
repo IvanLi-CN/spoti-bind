@@ -23,6 +23,10 @@
   Finder recovery action for first-launch trust failures. Support claims use a
   pre-merge manual trust, close, cold-start, and single-key check; Gatekeeper
   approval remains a user action and is never bypassed.
+- Queue timeout handling now returns each gesture's deadline result without
+  allowing a queued operation to execute after its predecessor drains; the
+  serial tail remains occupied until cancellation-insensitive side effects
+  finish.
 
 ## Related Changes
 
