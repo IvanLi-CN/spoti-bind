@@ -418,6 +418,12 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
                 }
 
                 let previousResult = await previous.value
+                guard clock.now.duration(to: deadline) > .zero else {
+                    if isLaunchRequest {
+                        self.setLaunchBarrier(active: false)
+                    }
+                    return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
+                }
                 if isLaunchRequest, !previousResult.isDelivered {
                     self.setLaunchBarrier(active: false)
                     return .launchTimedOut
@@ -452,6 +458,9 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
                     _ = await dispatchTask.value
                     return .dispatchTimedOut
                 }
+                guard clock.now.duration(to: deadline) > .zero else {
+                    return .dispatchTimedOut
+                }
                 return result ? .delivered : .dispatchFailed
             case .launch:
                 attemptState.set(.launching)
@@ -482,6 +491,9 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
                 guard launchResult == true else {
                     return .launchFailed
                 }
+                guard clock.now.duration(to: deadline) > .zero else {
+                    return .launchTimedOut
+                }
 
                 attemptState.set(.waitingForTarget)
                 while true {
@@ -511,6 +523,9 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
                             _ = await dispatchTask.value
                         }
                         guard let result else { return .dispatchTimedOut }
+                        guard clock.now.duration(to: deadline) > .zero else {
+                            return .dispatchTimedOut
+                        }
                         return result ? .delivered : .dispatchFailed
                     }
 
