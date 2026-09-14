@@ -26,7 +26,8 @@
 - Queue timeout handling now returns each gesture's deadline result without
   allowing a queued operation to execute after its predecessor drains; the
   serial tail remains occupied until cancellation-insensitive side effects
-  finish.
+  finish, and the immediate successor is dropped when a queued dispatch has
+  already timed out.
 
 ## Related Changes
 

@@ -358,6 +358,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
     private let timeout: Duration
     private var pending: Task<PlayerDispatchResult, Never>?
     private var launchBarrierActive = false
+    private var timedOutQueueTail = false
 
     public init(
         runtime: any PlayerLaunchRuntime,
@@ -371,15 +372,24 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
         _ key: MediaKey,
         request: PlayerDispatchRequest
     ) async -> PlayerDispatchResult {
-        if launchBarrierActive {
-            return .launchBlocked
-        }
         let isLaunchRequest: Bool
         if case .launch = request.selection {
             isLaunchRequest = true
-            launchBarrierActive = true
         } else {
             isLaunchRequest = false
+        }
+        if launchBarrierActive {
+            return .launchBlocked
+        }
+        if !isLaunchRequest, timedOutQueueTail {
+            // A queued gesture already expired while its predecessor was
+            // draining. Drop this immediate successor without replacing the
+            // serial tail or starting a late side effect.
+            timedOutQueueTail = false
+            return .dispatchTimedOut
+        }
+        if isLaunchRequest {
+            launchBarrierActive = true
         }
 
         let previous = pending
@@ -540,6 +550,12 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
             await operation.value.isDelivered
         })
         guard completed != nil else {
+            if !isLaunchRequest, previous != nil, attemptState.phase() == .queued {
+                // Preserve the unresolved tail and suppress the next queued
+                // gesture. The marker is consumed by the next non-launch
+                // request.
+                timedOutQueueTail = true
+            }
             switch attemptState.phase() {
             case .dispatching:
                 return .dispatchTimedOut
@@ -555,6 +571,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
     private func setLaunchBarrier(active: Bool) {
         launchBarrierActive = active
     }
+
 }
 
 public enum PlayerModeMigration {
