@@ -145,11 +145,7 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
     }
 
     func testTimedOutLaunchDispatchDrainsBeforeTheNextGesture() async {
-        let runtime = RecordingPlayerRuntime(
-            runningAfterChecks: 0,
-            dispatchDelay: .milliseconds(100),
-            ignoresDispatchCancellation: true
-        )
+        let runtime = HangingDispatchPlayerRuntime()
         let coordinator = PlayerLaunchCoordinator(runtime: runtime, timeout: .milliseconds(20))
         let launchRequest = PlayerDispatchRequest(selection: .launch(.spotify))
         let runningRequest = PlayerDispatchRequest(selection: .running(.spotify))
@@ -157,6 +153,7 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
         let firstTask = Task {
             await coordinator.dispatch(.playPause, request: launchRequest)
         }
+        await runtime.waitForDispatchCount(1)
         let first = await firstTask.value
         let secondTask = Task {
             await coordinator.dispatch(.next, request: runningRequest)
@@ -175,7 +172,8 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
         XCTAssertEqual(inFlightDispatches.map(\.key), [.playPause])
         XCTAssertEqual(inFlightMaximumConcurrentDispatches, 1)
 
-        try? await Task.sleep(for: .milliseconds(120))
+        await runtime.finishDispatch()
+        try? await Task.sleep(for: .milliseconds(40))
         let dispatches = await runtime.dispatches
         let maximumConcurrentDispatches = await runtime.maximumConcurrentDispatches
         XCTAssertEqual(dispatches.map(\.key), [.playPause])
@@ -213,16 +211,16 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
     }
 
     func testTimedOutLaunchKeepsTheQueueTailUntilLaunchFinishes() async {
-        let runtime = RecordingPlayerRuntime(
-            runningAfterChecks: 0,
-            launchDelay: .milliseconds(100),
-            ignoresLaunchCancellation: true
-        )
+        let runtime = HangingLaunchPlayerRuntime()
         let coordinator = PlayerLaunchCoordinator(runtime: runtime, timeout: .milliseconds(20))
         let launchRequest = PlayerDispatchRequest(selection: .launch(.spotify))
         let runningRequest = PlayerDispatchRequest(selection: .running(.spotify))
 
-        let first = await coordinator.dispatch(.playPause, request: launchRequest)
+        let firstTask = Task {
+            await coordinator.dispatch(.playPause, request: launchRequest)
+        }
+        await runtime.waitForLaunchStart()
+        let first = await firstTask.value
         let second = await coordinator.dispatch(.next, request: runningRequest)
 
         let inFlightDispatches = await runtime.dispatches
@@ -230,8 +228,12 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
         XCTAssertEqual(second, .launchBlocked)
         XCTAssertTrue(inFlightDispatches.isEmpty)
 
-        try? await Task.sleep(for: .milliseconds(120))
-        let third = await coordinator.dispatch(.previous, request: runningRequest)
+        await runtime.finishLaunch()
+        let third = await dispatchEventuallyDelivered(
+            .previous,
+            coordinator: coordinator,
+            request: runningRequest
+        )
         XCTAssertEqual(third, .delivered)
         let dispatches = await runtime.dispatches
         XCTAssertEqual(dispatches.map(\.key), [.previous])
@@ -267,11 +269,7 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
     }
 
     func testTimedOutLaunchDrainsBeforeTheNextGesture() async {
-        let runtime = RecordingPlayerRuntime(
-            runningAfterChecks: 0,
-            launchDelay: .milliseconds(100),
-            ignoresLaunchCancellation: true
-        )
+        let runtime = HangingLaunchPlayerRuntime()
         let coordinator = PlayerLaunchCoordinator(runtime: runtime, timeout: .milliseconds(20))
         let launchRequest = PlayerDispatchRequest(selection: .launch(.spotify))
         let runningRequest = PlayerDispatchRequest(selection: .running(.spotify))
@@ -279,14 +277,19 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
         let firstTask = Task {
             await coordinator.dispatch(.playPause, request: launchRequest)
         }
+        await runtime.waitForLaunchStart()
         let first = await firstTask.value
         let secondTask = Task {
             await coordinator.dispatch(.next, request: runningRequest)
         }
         let second = await secondTask.value
 
-        try? await Task.sleep(for: .milliseconds(120))
-        let third = await coordinator.dispatch(.next, request: runningRequest)
+        await runtime.finishLaunch()
+        let third = await dispatchEventuallyDelivered(
+            .next,
+            coordinator: coordinator,
+            request: runningRequest
+        )
         let events = await runtime.events
         XCTAssertEqual(first, .launchTimedOut)
         XCTAssertEqual(second, .launchBlocked)
@@ -364,6 +367,21 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
         XCTAssertEqual(dispatches.map(\.key), [.playPause, .next])
         XCTAssertEqual(maximumConcurrentDispatches, 1)
     }
+}
+
+private func dispatchEventuallyDelivered(
+    _ key: MediaKey,
+    coordinator: PlayerLaunchCoordinator,
+    request: PlayerDispatchRequest
+) async -> PlayerDispatchResult {
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(1))
+    var result = await coordinator.dispatch(key, request: request)
+    while result != .delivered, clock.now.duration(to: deadline) > .zero {
+        await Task.yield()
+        result = await coordinator.dispatch(key, request: request)
+    }
+    return result
 }
 
 private actor RecordingPlayerRuntime: PlayerLaunchRuntime {
@@ -484,12 +502,18 @@ private actor FailFirstDispatchPlayerRuntime: PlayerLaunchRuntime {
 
 private actor HangingLaunchPlayerRuntime: PlayerLaunchRuntime {
     private var launchFinished = false
+    private var launchStarted = false
     private(set) var dispatchCount = 0
+    private(set) var dispatches: [DispatchRecord] = []
+    private(set) var events: [String] = []
 
     func launch(player: SupportedPlayer, applicationURL: URL?) async -> Bool {
+        launchStarted = true
+        events.append("launch-begin")
         while !launchFinished {
             await Task.yield()
         }
+        events.append("launch-end")
         return true
     }
 
@@ -504,7 +528,15 @@ private actor HangingLaunchPlayerRuntime: PlayerLaunchRuntime {
         applicationURL: URL?
     ) async -> Bool {
         dispatchCount += 1
+        dispatches.append(DispatchRecord(key: key, player: player))
+        events.append("dispatch-\(key)")
         return true
+    }
+
+    func waitForLaunchStart() async {
+        while !launchStarted {
+            await Task.yield()
+        }
     }
 
     func finishLaunch() {
