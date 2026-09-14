@@ -1,9 +1,35 @@
 @preconcurrency import AppKit
 @preconcurrency import CoreGraphics
+import os
 import SpotiBindCore
+
+@MainActor
+protocol PlayerApplicationRevealing {
+    func reveal(player: SupportedPlayer, applicationURL: URL?)
+}
+
+@MainActor
+final class SystemPlayerApplicationRevealer: PlayerApplicationRevealing {
+    func reveal(player: SupportedPlayer, applicationURL: URL?) {
+        let resolvedURL = applicationURL ?? player.bundleIdentifier.flatMap {
+            NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0)
+        }
+        guard let resolvedURL else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([resolvedURL])
+    }
+}
+
+@MainActor
+final class DemoPlayerApplicationRevealer: PlayerApplicationRevealing {
+    func reveal(player: SupportedPlayer, applicationURL: URL?) {}
+}
 
 final class SystemPlayerRuntime: PlayerLaunchRuntime, @unchecked Sendable {
     private let dispatcher: FastpotifyCommandDispatcher
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "SpotiBind",
+        category: "player-runtime"
+    )
 
     init(dispatcher: FastpotifyCommandDispatcher) {
         self.dispatcher = dispatcher
@@ -26,6 +52,13 @@ final class SystemPlayerRuntime: PlayerLaunchRuntime, @unchecked Sendable {
                     configuration.activates = true
                 }
                 NSWorkspace.shared.openApplication(at: url, configuration: configuration) { application, error in
+                    if application == nil || error != nil {
+                        let errorDomain = error?._domain ?? "none"
+                        let errorCode = error?._code ?? 0
+                        self.logger.error(
+                            "player=\(player.rawValue, privacy: .public) stage=launch error_domain=\(errorDomain, privacy: .public) error_code=\(errorCode, privacy: .public)"
+                        )
+                    }
                     continuation.resume(returning: application != nil && error == nil)
                 }
             }

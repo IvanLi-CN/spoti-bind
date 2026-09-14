@@ -251,24 +251,51 @@ public protocol PlayerLaunchRuntime: Sendable {
     ) async -> Bool
 }
 
+public enum PlayerDispatchResult: Sendable, Equatable {
+    case delivered
+    case launchFailed
+    case launchTimedOut
+    case targetNotReady
+    case dispatchFailed
+    case dispatchTimedOut
+    case launchBlocked
+
+    public var isDelivered: Bool {
+        self == .delivered
+    }
+}
+
+public protocol PlayerDispatching: Sendable {
+    func dispatch(
+        _ key: MediaKey,
+        request: PlayerDispatchRequest
+    ) async -> PlayerDispatchResult
+}
+
 private final class BoolTimeoutGate: @unchecked Sendable {
     private let lock = NSLock()
     private let continuation: CheckedContinuation<Bool?, Never>
     private var didFinish = false
-    private var tasks: [Task<Void, Never>] = []
+    private var operationTask: Task<Void, Never>?
+    private var timeoutTimer: DispatchSourceTimer?
 
     init(continuation: CheckedContinuation<Bool?, Never>) {
         self.continuation = continuation
     }
 
-    func attach(_ tasks: Task<Void, Never>...) {
+    func attach(
+        operationTask: Task<Void, Never>,
+        timeoutTimer: DispatchSourceTimer
+    ) {
         lock.lock()
         if didFinish {
             lock.unlock()
-            tasks.forEach { $0.cancel() }
+            operationTask.cancel()
+            timeoutTimer.cancel()
             return
         }
-        self.tasks = tasks
+        self.operationTask = operationTask
+        self.timeoutTimer = timeoutTimer
         lock.unlock()
     }
 
@@ -279,12 +306,31 @@ private final class BoolTimeoutGate: @unchecked Sendable {
             return
         }
         didFinish = true
-        let tasks = self.tasks
+        let operationTask = self.operationTask
+        let timeoutTimer = self.timeoutTimer
         lock.unlock()
 
-        tasks.forEach { $0.cancel() }
+        operationTask?.cancel()
+        timeoutTimer?.cancel()
         continuation.resume(returning: value)
     }
+}
+
+private func dispatchNanoseconds(for timeout: Duration) -> Int {
+    let components = timeout.components
+    guard components.seconds > 0 || components.attoseconds > 0 else {
+        return 0
+    }
+    let (secondsInNanoseconds, overflow) = components.seconds.multipliedReportingOverflow(by: 1_000_000_000)
+    if overflow {
+        return Int.max
+    }
+    let fractionalNanoseconds = components.attoseconds / 1_000_000_000
+    let (total, fractionalOverflow) = secondsInNanoseconds.addingReportingOverflow(fractionalNanoseconds)
+    if fractionalOverflow {
+        return Int.max
+    }
+    return Int(clamping: total)
 }
 
 private func boolWithinTimeout(
@@ -293,26 +339,68 @@ private func boolWithinTimeout(
 ) async -> Bool? {
     await withCheckedContinuation { continuation in
         let gate = BoolTimeoutGate(continuation: continuation)
-        let operationTask = Task {
-            gate.finish(await operation())
+        let operationTask = Task.detached(priority: .userInitiated) {
+            guard !Task.isCancelled else { return }
+            let value = await operation()
+            guard !Task.isCancelled else { return }
+            gate.finish(value)
         }
-        let timeoutTask = Task {
-            do {
-                try await Task.sleep(for: timeout)
-            } catch {
-                return
-            }
+        let timeoutTimer = DispatchSource.makeTimerSource(queue: .global(qos: .userInitiated))
+        timeoutTimer.schedule(deadline: .now() + .nanoseconds(dispatchNanoseconds(for: timeout)))
+        timeoutTimer.setEventHandler {
             gate.finish(nil)
         }
-        gate.attach(operationTask, timeoutTask)
+        gate.attach(operationTask: operationTask, timeoutTimer: timeoutTimer)
+        timeoutTimer.resume()
     }
 }
 
-public actor PlayerLaunchCoordinator {
+private enum DispatchPhase: Sendable {
+    case queued
+    case launching
+    case waitingForTarget
+    case dispatching
+}
+
+private final class DispatchAttemptState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var currentPhase: DispatchPhase = .queued
+    private var didFinish = false
+
+    func set(_ phase: DispatchPhase) {
+        lock.lock()
+        currentPhase = phase
+        lock.unlock()
+    }
+
+    func phase() -> DispatchPhase {
+        lock.lock()
+        defer { lock.unlock() }
+        return currentPhase
+    }
+
+    func finish() {
+        lock.lock()
+        didFinish = true
+        lock.unlock()
+    }
+
+    func isFinished() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return didFinish
+    }
+}
+
+public actor PlayerLaunchCoordinator: PlayerDispatching {
     private let runtime: any PlayerLaunchRuntime
     private let timeout: Duration
-    private var pending: Task<Bool, Never>?
+    private var pending: Task<PlayerDispatchResult, Never>?
+    private var pendingOperationID: UInt64?
+    private var pendingAttemptState: DispatchAttemptState?
     private var launchBarrierActive = false
+    private var nextOperationID: UInt64 = 0
+    private var timedOutTail: UInt64?
 
     public init(
         runtime: any PlayerLaunchRuntime,
@@ -325,16 +413,19 @@ public actor PlayerLaunchCoordinator {
     public func dispatch(
         _ key: MediaKey,
         request: PlayerDispatchRequest
-    ) async -> Bool {
-        if launchBarrierActive {
-            return false
-        }
+    ) async -> PlayerDispatchResult {
+        collectFinishedTail()
         let isLaunchRequest: Bool
         if case .launch = request.selection {
             isLaunchRequest = true
-            launchBarrierActive = true
         } else {
             isLaunchRequest = false
+        }
+        if launchBarrierActive {
+            return .launchBlocked
+        }
+        if isLaunchRequest {
+            launchBarrierActive = true
         }
 
         let previous = pending
@@ -342,47 +433,99 @@ public actor PlayerLaunchCoordinator {
         let timeout = timeout
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: timeout)
-        let operation = Task<Bool, Never> {
+        let attemptState = DispatchAttemptState()
+        let blockedByTimedOutTail = timedOutTail != nil
+        let operationID = nextOperationID
+        nextOperationID &+= 1
+        let operation = Task.detached(priority: .userInitiated) { () -> PlayerDispatchResult in
+            defer {
+                attemptState.finish()
+                Task { await self.operationFinished(operationID) }
+            }
             if let previous {
-                if isLaunchRequest {
-                    let waitBudget = clock.now.duration(to: deadline)
-                    guard waitBudget > .zero else {
-                        self.setLaunchBarrier(active: false)
-                        return false
-                    }
-                    let previousResult = await boolWithinTimeout(waitBudget) {
-                        await previous.value
-                    }
-                    guard previousResult == true else {
-                        self.setLaunchBarrier(active: false)
-                        return false
-                    }
-                } else {
+                let remaining = clock.now.duration(to: deadline)
+                guard remaining > .zero else {
+                    // Keep this operation in the serial tail even when its
+                    // own deadline has already expired. It must not permit a
+                    // later gesture to overlap the unresolved predecessor.
                     _ = await previous.value
+                    if isLaunchRequest {
+                        await self.setLaunchBarrier(active: false)
+                    }
+                    return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
                 }
+
+                let previousCompleted = await boolWithinTimeout(remaining, operation: {
+                    _ = await previous.value
+                    return true
+                })
+                guard previousCompleted != nil else {
+                    // The caller receives its deadline result, while this
+                    // queue operation drains the predecessor without ever
+                    // executing a launch or dispatch side effect.
+                    _ = await previous.value
+                    if isLaunchRequest {
+                        await self.setLaunchBarrier(active: false)
+                    }
+                    return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
+                }
+
+                _ = await previous.value
+                guard clock.now.duration(to: deadline) > .zero else {
+                    if isLaunchRequest {
+                        await self.setLaunchBarrier(active: false)
+                    }
+                    return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
+                }
+                // A completed predecessor failure has no unresolved side
+                // effect. Continue with a queued launch while budget remains;
+                // only an expired predecessor suppresses the launch above.
+            }
+            if blockedByTimedOutTail {
+                if isLaunchRequest {
+                    await self.setLaunchBarrier(active: false)
+                }
+                return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
             }
             guard let player = request.selection.player else {
                 if isLaunchRequest {
-                    self.setLaunchBarrier(active: false)
+                    await self.setLaunchBarrier(active: false)
                 }
-                return false
+                return .dispatchFailed
             }
 
             switch request.selection {
             case .none:
-                return false
+                return .dispatchFailed
             case .running:
-                return await runtime.dispatch(
-                    key: key,
-                    player: player,
-                    executableURL: request.executableURL,
-                    applicationURL: request.applicationURL
-                )
+                attemptState.set(.dispatching)
+                let dispatchBudget = clock.now.duration(to: deadline)
+                guard dispatchBudget > .zero else { return .dispatchTimedOut }
+                let dispatchTask = Task {
+                    await runtime.dispatch(
+                        key: key,
+                        player: player,
+                        executableURL: request.executableURL,
+                        applicationURL: request.applicationURL
+                    )
+                }
+                guard let result = await boolWithinTimeout(dispatchBudget, operation: {
+                    await dispatchTask.value
+                }) else {
+                    dispatchTask.cancel()
+                    _ = await dispatchTask.value
+                    return .dispatchTimedOut
+                }
+                guard clock.now.duration(to: deadline) > .zero else {
+                    return .dispatchTimedOut
+                }
+                return result ? .delivered : .dispatchFailed
             case .launch:
+                attemptState.set(.launching)
                 let launchBudget = clock.now.duration(to: deadline)
                 guard launchBudget > .zero else {
-                    self.setLaunchBarrier(active: false)
-                    return false
+                    await self.setLaunchBarrier(active: false)
+                    return .launchTimedOut
                 }
                 let launchTask = Task {
                     await runtime.launch(player: player, applicationURL: request.applicationURL)
@@ -394,25 +537,32 @@ public actor PlayerLaunchCoordinator {
                     }
                 )
                 if launchResult == nil {
-                    // Keep the serial queue occupied until a cancellation-
-                    // insensitive launch has finished its side effect.
+                    // Keep the barrier active until a cancellation-insensitive
+                    // launch has finished its side effect. The outer wait
+                    // returns the timeout result to the caller at the deadline,
+                    // while this operation remains the serial queue tail.
                     _ = await launchTask.value
-                    self.setLaunchBarrier(active: false)
-                    return false
+                    await self.setLaunchBarrier(active: false)
+                    return .launchTimedOut
                 }
-                self.setLaunchBarrier(active: false)
+                await self.setLaunchBarrier(active: false)
                 guard launchResult == true else {
-                    return false
+                    return .launchFailed
+                }
+                guard clock.now.duration(to: deadline) > .zero else {
+                    return .launchTimedOut
                 }
 
+                attemptState.set(.waitingForTarget)
                 while true {
                     let remaining = clock.now.duration(to: deadline)
-                    guard remaining > .zero else { return false }
+                    guard remaining > .zero else { return .targetNotReady }
                     if await boolWithinTimeout(remaining, operation: {
                         await runtime.isRunning(player: player, applicationURL: request.applicationURL)
                     }) == true {
+                        attemptState.set(.dispatching)
                         let dispatchBudget = clock.now.duration(to: deadline)
-                        guard dispatchBudget > .zero else { return false }
+                        guard dispatchBudget > .zero else { return .dispatchTimedOut }
                         let dispatchTask = Task {
                             await runtime.dispatch(
                                 key: key,
@@ -427,28 +577,71 @@ public actor PlayerLaunchCoordinator {
                         if result == nil {
                             // Keep this operation pending until a runtime that
                             // ignores cancellation has finished its side effect.
+                            dispatchTask.cancel()
                             _ = await dispatchTask.value
                         }
-                        return result == true
+                        guard let result else { return .dispatchTimedOut }
+                        guard clock.now.duration(to: deadline) > .zero else {
+                            return .dispatchTimedOut
+                        }
+                        return result ? .delivered : .dispatchFailed
                     }
 
                     let sleepDuration = clock.now.duration(to: deadline)
-                    guard sleepDuration > .zero else { return false }
+                    guard sleepDuration > .zero else { return .targetNotReady }
                     try? await Task.sleep(for: min(.milliseconds(100), sleepDuration))
                 }
             }
         }
         pending = operation
-        if case .launch = request.selection {
-            return await boolWithinTimeout(timeout, operation: {
-                await operation.value
-            }) == true
+        pendingOperationID = operationID
+        pendingAttemptState = attemptState
+        let completed = await boolWithinTimeout(timeout, operation: {
+            await operation.value.isDelivered
+        })
+        guard completed != nil else {
+            timedOutTail = operationID
+            switch attemptState.phase() {
+            case .dispatching:
+                return .dispatchTimedOut
+            case .queued, .launching:
+                return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
+            case .waitingForTarget:
+                return .targetNotReady
+            }
         }
         return await operation.value
     }
 
     private func setLaunchBarrier(active: Bool) {
         launchBarrierActive = active
+    }
+
+    private func operationFinished(
+        _ operationID: UInt64
+    ) {
+        guard pendingOperationID == operationID else {
+            return
+        }
+        if let timedOutTail, operationID >= timedOutTail {
+            self.timedOutTail = nil
+        }
+        pending = nil
+        pendingAttemptState = nil
+        pendingOperationID = nil
+    }
+
+    private func collectFinishedTail() {
+        guard let pendingOperationID,
+              pendingAttemptState?.isFinished() == true else {
+            return
+        }
+        if let timedOutTail, pendingOperationID >= timedOutTail {
+            self.timedOutTail = nil
+        }
+        pending = nil
+        pendingAttemptState = nil
+        self.pendingOperationID = nil
     }
 }
 

@@ -15,6 +15,8 @@
 - `Player Availability Snapshot`: An injected, testable view of whether each supported player is installed, running, launchable, or must be reopened before dispatch.
 - `Player Input Surface`: The public input surface required by a PID keyboard adapter. Sonora's on-screen main window provides that surface; a tray-resident instance must be reopened before it can receive the adapter shortcut.
 - `Player Selection`: The target resolved from the current mode and availability snapshot. Automatic prefers running players in `Spotify`, `Fastpotify`, `Sonora`, `Spotifly` order, then the first launchable installed player in that order.
+- `Player Dispatch Result`: The structured outcome of one captured gesture: `delivered`, `launchFailed`, `launchTimedOut`, `targetNotReady`, `dispatchFailed`, `dispatchTimedOut`, or `launchBlocked`.
+- `Player Launch Failure`: A launch, launch-timeout, or input-surface readiness failure that keeps the selected player and gesture unchanged and offers a Finder recovery action.
 - `Forwarding Readiness`: The cached state where a non-Off mode is selected, Accessibility is authorized, and the resolver has a usable target.
 - `Pass-through`: Leaving the original event unconsumed so macOS performs normal routing.
 - `Application Icon`: The layered SpotiBind mark compiled by Icon Composer into the bundle's `Assets.car`, with a macOS 13 fallback generated from the same source.
@@ -42,6 +44,7 @@
 ### REQ-FASTPOTIFY-003
 
 - The system MUST execute one player-specific command for each distinct key gesture, ignore repeats within one hold, serialize commands, and never replay an event after dispatch failure.
+- The coordinator MUST return a `Player Dispatch Result` for every submitted gesture. A launch failure, launch timeout, or unavailable input surface MUST fail closed without sending a keyboard event; a dispatch failure or dispatch timeout MUST not replay the gesture. A later gesture MUST remain serialized behind any cancellation-insensitive launch or dispatch side effect.
 - Spotify MUST receive Space, Down Arrow, and Up Arrow as ordinary keyboard events targeted by PID without activating or focusing the application. Fastpotify MUST use fixed direct CLI arguments. Spotifly MUST receive ordinary keyboard events targeted by PID without activating or focusing the application. Sonora MUST receive ordinary keyboard events targeted by PID; when it is cold or tray-resident, the system MUST launch or reopen and activate Sonora's main window, wait for its input surface, then dispatch the first key exactly once. Sonora MUST NOT be hidden because its released shortcuts require the main window's workspace context.
 - Inputs: decoded control keys and the target captured when the press is submitted.
 - Outputs: a player dispatch result and user-visible failure state without shell interpretation.
@@ -71,6 +74,7 @@
 - The system MUST migrate legacy `forwardingEnabled=false` to Off and otherwise default a missing Player Mode to Automatic. A legacy `targetPath` MUST remain a Fastpotify CLI path override only.
 - A launch handoff MUST wait asynchronously for at most ten seconds, dispatch the first key once after the target is running, and never replay it after timeout. Later independent gestures MUST remain ordered.
 - A queued launch whose predecessor exceeds the remaining handoff budget MUST fail before launching, even if that predecessor completes later. A stalled launch MUST fail closed for subsequent dispatch attempts without waiting indefinitely; no later gesture may overlap an unresolved launch side effect.
+- When a GUI player's first trust/launch attempt fails, the application MUST retain a neutral player-launch failure state for the same mode and path, offer `Show in Finder` for that bundle, and leave Gatekeeper approval to the user. Refreshes and unrelated player lifecycle changes MUST NOT clear the state; only a later delivered gesture under the same mode and path may clear it. Explicit mode changes or player path replacement replace the old state. Automatic mode MUST NOT fall back to another player after this failure.
 
 ### REQ-FASTPOTIFY-007
 
@@ -98,9 +102,9 @@
 
 ### VER-FASTPOTIFY-002
 
-- Method: `PlayerDispatchTests`, `PlayerLaunchCoordinatorTests`, and `FastpotifyIntegrationTests` with injected runtimes.
+- Method: `PlayerDispatchTests`, `PlayerLaunchCoordinatorTests`, and `FastpotifyIntegrationTests` with injected runtimes, plus `AppStateTests` and `RoutingPresentationTests`.
 - covers: `REQ-FASTPOTIFY-003`, `REQ-FASTPOTIFY-006`
-- Pass condition: all four adapter mappings, serial delivery, one-time cold-start delivery, timeout behavior, and legacy migration pass.
+- Pass condition: all four adapter mappings, structured launch/dispatch results, serial delivery, one-time cold-start delivery, timeout behavior, Finder recovery action, same-configuration clearing, and legacy migration pass.
 
 ### VER-FASTPOTIFY-003
 
@@ -150,14 +154,21 @@
   evidence set and must not be counted as a substitute.
 - Capture: `capture-theme-ui.sh` starts an isolated Demo process. Popover
   capture opens the real `MenuBarExtra(.window)` host through the app-owned
-  status-item button's public `performClick` action, then uses the unique
-  WindowServer popover ID from that same PID with `screencapture -x -l`.
+  status-item button's public `performClick` action, verifies the unique AX
+  `AXWindow` with an empty title and matching size in that PID, then uses the
+  unique WindowServer popover ID from the same PID with `screencapture -x -l`.
   Settings capture uses its unique WindowServer ID from the same PID in the
   same way; missing, ambiguous, non-imageable, empty, or failed outputs are
   errors with no fullscreen or other-surface fallback.
 - Error scenes are smoke-only: `accessibility-required`,
-  `no-supported-player`, `path-unavailable`, and `dispatch-failure` are not
-  committed as a complete visual matrix.
+  `no-supported-player`, `path-unavailable`, `dispatch-failure`, and
+  `player-launch-failure` are not committed as a complete visual matrix. This
+  change records a bounded `player-launch-failure` smoke set for the menu
+  popover and Settings window in both supported appearances:
+  - [player-launch-failure-light-popover.png](./assets/player-launch-failure-light-popover.png)
+  - [player-launch-failure-dark-popover.png](./assets/player-launch-failure-dark-popover.png)
+  - [player-launch-failure-light-settings.png](./assets/player-launch-failure-light-settings.png)
+  - [player-launch-failure-dark-settings.png](./assets/player-launch-failure-dark-settings.png)
 - Current delivery evidence, verified with owner confirmation and scoped to
   the target application only:
   - [menu-automatic-light.png](./assets/menu-automatic-light.png)

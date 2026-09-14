@@ -218,13 +218,14 @@ private struct StatusSummaryView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(displayTitle)
                     .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(state.statusDetail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -233,7 +234,7 @@ private struct StatusSummaryView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .accessibilityLabel(actionTitle)
-                    .accessibilityHint("Opens the setting needed to resolve the current issue.")
+                    .accessibilityHint(actionHint)
                     .help(actionTitle)
             }
         }
@@ -244,7 +245,19 @@ private struct StatusSummaryView: View {
         switch state.statusAction {
         case .accessibility: "Open"
         case .settings: "Review"
+        case .revealInFinder: "Show in Finder"
         case nil: ""
+        }
+    }
+
+    private var actionHint: String {
+        switch state.statusAction {
+        case .revealInFinder:
+            "Reveals the player app in Finder so you can approve its first launch."
+        case .accessibility, .settings:
+            "Opens the setting needed to resolve the current issue."
+        case nil:
+            ""
         }
     }
 

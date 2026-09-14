@@ -19,6 +19,28 @@
   Xcode target.
 - SwiftPM is the single repository build entrypoint according to ADR-0006; Xcode remains an optional IDE.
 - ADR-0009 replaces tag-triggered Draft Releases with a label-gated, identity-bound public Release after verified main merges. `VERSION` remains the only numeric source and `type:none` is the explicit no-release exception.
+- The player launch boundary now exposes structured dispatch outcomes and a
+  Finder recovery action for first-launch trust failures. Support claims use a
+  pre-merge manual trust, close, cold-start, and single-key check; Gatekeeper
+  approval remains a user action and is never bypassed.
+- Queue timeout handling now returns each gesture's deadline result without
+  allowing a queued operation to execute after its predecessor drains; the
+  serial tail remains occupied until cancellation-insensitive side effects
+  finish. The timeout gate uses a Swift concurrency clock task, while actor
+  state records the timed-out tail until its side effect completes so delayed
+  wake-ups cannot release a queued gesture into a side effect. Queued
+  successors snapshot the tail state on entry, preventing predecessor cleanup
+  from releasing a successor that was already blocked. Launch barriers and
+  caller deadlines remain stable under runner load. A completed ordinary
+  dispatch failure no longer suppresses a queued launch that still has budget.
+- Automatic-mode forwarding readiness now follows the failure-aware dispatch
+  selection. When the failed player becomes unavailable, the event tap remains
+  pass-through instead of consuming a gesture that cannot be sent.
+- Automatic routing now retains the player that failed its first launch or
+  input-surface handoff until a same-configuration gesture is delivered;
+  refreshes and unrelated player lifecycle changes do not trigger fallback.
+  Dispatch failures preserve that recovery state, and Finder actions use the
+  failed bundle URL captured by AppState.
 
 ## Related Changes
 

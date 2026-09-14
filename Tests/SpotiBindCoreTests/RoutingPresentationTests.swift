@@ -60,6 +60,24 @@ final class RoutingPresentationTests: XCTestCase {
         XCTAssertEqual(presentation.action, .settings)
     }
 
+    func testPlayerLaunchFailureOffersFinderRecovery() {
+        let presentation = RoutingPresentation.make(
+            mode: .sonora,
+            accessibilityTrusted: true,
+            issue: .playerLaunchFailed(player: .sonora),
+            selection: .launch(.sonora),
+            tapStatus: "Ready",
+            targetDetail: "/Applications/Sonora.app"
+        )
+
+        XCTAssertEqual(presentation.title, "Could not start Sonora")
+        XCTAssertEqual(
+            presentation.detail,
+            "Open the app in Finder to approve it, then try again."
+        )
+        XCTAssertEqual(presentation.action, .revealInFinder(player: .sonora))
+    }
+
     func testRestartedCaptureIsInformational() {
         let presentation = RoutingPresentation.make(
             mode: .automatic,

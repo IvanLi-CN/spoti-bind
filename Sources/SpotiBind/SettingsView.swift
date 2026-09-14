@@ -128,6 +128,7 @@ private struct ProblemBanner: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(state.statusTitle)
                     .font(.headline)
@@ -139,6 +140,8 @@ private struct ProblemBanner: View {
                     Button(actionTitle, action: state.performStatusAction)
                         .buttonStyle(.link)
                         .font(.subheadline.weight(.semibold))
+                        .accessibilityHint(actionHint)
+                        .help(actionTitle)
                 }
             }
             Spacer(minLength: 8)
@@ -152,6 +155,17 @@ private struct ProblemBanner: View {
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(.orange.opacity(0.55), lineWidth: 1)
+        }
+    }
+
+    private var actionHint: String {
+        switch state.statusAction {
+        case .revealInFinder:
+            "Reveals the player app in Finder so you can approve its first launch."
+        case .accessibility, .settings:
+            "Opens the setting needed to resolve the current issue."
+        case nil:
+            ""
         }
     }
 }

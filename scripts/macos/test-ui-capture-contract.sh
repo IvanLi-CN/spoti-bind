@@ -9,6 +9,9 @@ popover_probe="$script_dir/popover-window-probe.swift"
 bash -n "$theme_script" "$settings_script"
 [[ ! -e "$script_dir/capture-ui.sh" ]]
 [[ -f "$popover_probe" ]]
+grep -Fq 'AXUIElementCreateApplication' "$popover_probe"
+grep -Fq 'kAXRoleAttribute' "$popover_probe"
+grep -Fq 'kAXTitleAttribute' "$popover_probe"
 grep -Fq 'screencapture -x -l "$window_id"' "$theme_script"
 grep -Fq 'screencapture -x -l "$window_id"' "$settings_script"
 ! grep -Fq 'NSPanel' "$script_dir/../../Sources/SpotiBind/UISnapshot.swift"

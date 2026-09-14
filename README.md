@@ -31,13 +31,19 @@ installed CLI need those boundaries.
 ## Install
 
 Download the universal DMG from the public GitHub Release, open it, and move
-`SpotiBind.app` to `/Applications`. The first launch may require opening
-the app from Finder's context menu because an Ad Hoc build is not notarized.
+`SpotiBind.app` to `/Applications`. The first launch may require opening the
+app from Finder's context menu because an Ad Hoc build is not notarized. Before
+treating a GUI player as supported, open that player once from Finder and
+approve its first launch in the macOS trust prompt; SpotiBind never bypasses
+this step.
 Then open the menu-bar item, choose an active forwarding mode, or use a media
 control to trigger the Accessibility prompt.
 
-The public artifact is built and verified by CI. Physical media-key checks are
-recorded as post-release evidence; the Ad Hoc build is not notarized and may
+The public artifact is built and verified by CI. Release readiness additionally
+requires a pre-merge manual check for each advertised GUI player: after Finder
+approval, close the player, cold-start SpotiBind, and verify that the first
+media key is delivered exactly once. Record macOS version, architecture,
+player version, and the result. The Ad Hoc build is not notarized and may
 require the Finder context-menu open action.
 
 ## Behavior
@@ -51,7 +57,12 @@ require the Finder context-menu open action.
 
 One command is sent for each press. Repeated events during one hold and the
 release event are consumed without sending another command. A command failure
-is shown in the menu and is never replayed to another player.
+is shown in the menu and is never replayed to another player. If a GUI player
+cannot be trusted or launched on its first attempt, the status card explains
+the neutral recovery reason and offers `Show in Finder` for the selected bundle.
+After a launch callback failure, the local unified log records only the player
+identifier, stage, error domain, and error code; it does not record paths,
+accounts, or playback content.
 
 The menu provides the current readiness status, a single-choice target picker,
 media controls, a direct issue action, and links to Advanced Settings, About,
