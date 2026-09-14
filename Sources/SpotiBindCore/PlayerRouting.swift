@@ -335,7 +335,7 @@ private func boolWithinTimeout(
 ) async -> Bool? {
     await withCheckedContinuation { continuation in
         let gate = BoolTimeoutGate(continuation: continuation)
-        let operationTask = Task {
+        let operationTask = Task.detached(priority: .userInitiated) {
             gate.finish(await operation())
         }
         let timeoutWorkItem = DispatchWorkItem {
@@ -414,7 +414,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: timeout)
         let attemptState = DispatchAttemptState()
-        let operation = Task<PlayerDispatchResult, Never> {
+        let operation = Task.detached(priority: .userInitiated) { () -> PlayerDispatchResult in
             if let previous {
                 let remaining = clock.now.duration(to: deadline)
                 guard remaining > .zero else {
@@ -423,7 +423,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
                     // later gesture to overlap the unresolved predecessor.
                     _ = await previous.value
                     if isLaunchRequest {
-                        self.setLaunchBarrier(active: false)
+                        await self.setLaunchBarrier(active: false)
                     }
                     return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
                 }
@@ -438,7 +438,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
                     // executing a launch or dispatch side effect.
                     _ = await previous.value
                     if isLaunchRequest {
-                        self.setLaunchBarrier(active: false)
+                        await self.setLaunchBarrier(active: false)
                     }
                     return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
                 }
@@ -446,18 +446,18 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
                 let previousResult = await previous.value
                 guard clock.now.duration(to: deadline) > .zero else {
                     if isLaunchRequest {
-                        self.setLaunchBarrier(active: false)
+                        await self.setLaunchBarrier(active: false)
                     }
                     return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
                 }
                 if isLaunchRequest, !previousResult.isDelivered {
-                    self.setLaunchBarrier(active: false)
+                    await self.setLaunchBarrier(active: false)
                     return .launchTimedOut
                 }
             }
             guard let player = request.selection.player else {
                 if isLaunchRequest {
-                    self.setLaunchBarrier(active: false)
+                    await self.setLaunchBarrier(active: false)
                 }
                 return .dispatchFailed
             }
@@ -492,7 +492,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
                 attemptState.set(.launching)
                 let launchBudget = clock.now.duration(to: deadline)
                 guard launchBudget > .zero else {
-                    self.setLaunchBarrier(active: false)
+                    await self.setLaunchBarrier(active: false)
                     return .launchTimedOut
                 }
                 let launchTask = Task {
@@ -510,10 +510,10 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
                     // returns the timeout result to the caller at the deadline,
                     // while this operation remains the serial queue tail.
                     _ = await launchTask.value
-                    self.setLaunchBarrier(active: false)
+                    await self.setLaunchBarrier(active: false)
                     return .launchTimedOut
                 }
-                self.setLaunchBarrier(active: false)
+                await self.setLaunchBarrier(active: false)
                 guard launchResult == true else {
                     return .launchFailed
                 }

@@ -19,6 +19,11 @@ final class SystemPlayerApplicationRevealer: PlayerApplicationRevealing {
     }
 }
 
+@MainActor
+final class DemoPlayerApplicationRevealer: PlayerApplicationRevealing {
+    func reveal(player: SupportedPlayer, applicationURL: URL?) {}
+}
+
 final class SystemPlayerRuntime: PlayerLaunchRuntime, @unchecked Sendable {
     private let dispatcher: FastpotifyCommandDispatcher
     private let logger = Logger(

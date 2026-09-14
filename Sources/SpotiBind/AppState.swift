@@ -55,6 +55,7 @@ final class AppState: ObservableObject {
     private let runtime: SystemPlayerRuntime
     private let playerDispatcher: any PlayerDispatching
     private let applicationRevealer: any PlayerApplicationRevealing
+    private let availabilityProvider: (() -> PlayerAvailabilitySnapshot)?
     private let demoRequested: Bool
     private let demoConfiguration: UIDemoConfiguration?
     private var availability = PlayerAvailabilitySnapshot()
@@ -73,6 +74,7 @@ final class AppState: ObservableObject {
         dispatcher: FastpotifyCommandDispatcher? = nil,
         playerDispatcher: (any PlayerDispatching)? = nil,
         applicationRevealer: (any PlayerApplicationRevealing)? = nil,
+        availabilityProvider: (() -> PlayerAvailabilitySnapshot)? = nil,
         environment: [String: String]? = nil,
         initialAvailability: PlayerAvailabilitySnapshot? = nil,
         initialAccessibilityTrusted: Bool? = nil,
@@ -82,7 +84,8 @@ final class AppState: ObservableObject {
         let demoConfiguration = UIDemoConfiguration.parse(
             environment: environment
         )
-        self.demoRequested = environment["SPOTIBIND_UI_DEMO"] == "1"
+        let demoRequested = environment["SPOTIBIND_UI_DEMO"] == "1"
+        self.demoRequested = demoRequested
         self.demoConfiguration = demoConfiguration
         let configuredDefaults = defaults ?? (demoRequested ? UserDefaults() : .standard)
         let actualDispatcher = dispatcher ?? FastpotifyCommandDispatcher(runner: SystemProcessRunner())
@@ -102,7 +105,9 @@ final class AppState: ObservableObject {
         self.dispatcher = actualDispatcher
         self.runtime = SystemPlayerRuntime(dispatcher: actualDispatcher)
         self.playerDispatcher = playerDispatcher ?? PlayerLaunchCoordinator(runtime: runtime)
-        self.applicationRevealer = applicationRevealer ?? SystemPlayerApplicationRevealer()
+        self.applicationRevealer = applicationRevealer
+            ?? (demoRequested ? DemoPlayerApplicationRevealer() : SystemPlayerApplicationRevealer())
+        self.availabilityProvider = availabilityProvider
         self.accessibilityTrusted = initialAccessibilityTrusted
             ?? demoConfiguration?.accessibilityTrusted
             ?? false
@@ -171,9 +176,17 @@ final class AppState: ObservableObject {
         case .settings:
             openAdvancedSettings()
         case .revealInFinder(let player):
+            let failedURL: URL?
+            if let failureContext,
+               failureContext.player == player,
+               failureContext.mode == playerMode {
+                failedURL = failureContext.applicationURL
+            } else {
+                failedURL = applicationURL(for: player)
+            }
             applicationRevealer.reveal(
                 player: player,
-                applicationURL: applicationURL(for: player)
+                applicationURL: failedURL
             )
         case nil:
             break
@@ -310,7 +323,7 @@ final class AppState: ObservableObject {
 
     func dispatch(_ key: MediaKey) {
         guard !demoRequested else { return }
-        let selection = resolvedSelection
+        let selection = dispatchSelection
         guard readiness.isReady, let player = selection.player else {
             return
         }
@@ -351,7 +364,9 @@ final class AppState: ObservableObject {
                 dispatchFailure = nil
                 failureContext = context
             case .dispatchFailed, .dispatchTimedOut:
-                playerLaunchFailure = nil
+                if failureContext != context {
+                    playerLaunchFailure = nil
+                }
                 dispatchFailure = "\(player.displayName) media-key dispatch failed."
                 failureContext = context
             case .launchBlocked:
@@ -474,19 +489,24 @@ final class AppState: ObservableObject {
             }
         }
 
-        if previousTarget != targetExecutable?.url {
+        if previousTarget != targetExecutable?.url,
+           failureContext?.player == .fastpotify {
             probeHealthy = false
             clearDispatchIssue()
         }
     }
 
     private func updateAvailability() {
-        availability = catalog.snapshot(
-            fastpotifyExecutable: targetExecutable,
-            fastpotifyProbeHealthy: probeHealthy,
-            customApplicationURLs: applicationOverrides,
-            invalidCustomPlayers: invalidPathPlayers
-        )
+        if let availabilityProvider {
+            availability = availabilityProvider()
+        } else {
+            availability = catalog.snapshot(
+                fastpotifyExecutable: targetExecutable,
+                fastpotifyProbeHealthy: probeHealthy,
+                customApplicationURLs: applicationOverrides,
+                invalidCustomPlayers: invalidPathPlayers
+            )
+        }
     }
 
     private func probeTarget() {
@@ -546,6 +566,24 @@ final class AppState: ObservableObject {
             tapStatus: tapStatus,
             targetDetail: targetDetail
         )
+    }
+
+    private var dispatchSelection: PlayerSelection {
+        guard playerMode == .automatic,
+              let failureContext,
+              failureContext.mode == .automatic else {
+            return resolvedSelection
+        }
+
+        let failedPlayer = failureContext.player
+        let failedAvailability = availability[failedPlayer]
+        if failedAvailability.isRunning {
+            return failedAvailability.requiresLaunch ? .launch(failedPlayer) : .running(failedPlayer)
+        }
+        if failedAvailability.isInstalled && failedAvailability.canLaunch {
+            return .launch(failedPlayer)
+        }
+        return .none
     }
 
     private func isValidApplication(_ url: URL, for player: SupportedPlayer) -> Bool {
