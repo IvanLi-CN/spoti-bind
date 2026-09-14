@@ -13,9 +13,9 @@ SpotiBind validates its behavior at four layers.
   `SPOTIBIND_UI_DEMO=1`, `SPOTIBIND_UI_DEMO_SCENE`, and
   `SPOTIBIND_UI_APPEARANCE=light|dark`. Supported scenes are `healthy`,
   `automatic-selection`, `accessibility-required`, `no-supported-player`,
-  `path-unavailable`, and `dispatch-failure`. Demo mode uses neutral paths and
-  never reads or writes the user's defaults, prompts for Accessibility,
-  discovers players, or posts media keys.
+  `path-unavailable`, `dispatch-failure`, and `player-launch-failure`. Demo
+  mode uses neutral paths and never reads or writes the user's defaults,
+  prompts for Accessibility, discovers players, or posts media keys.
 - Theme evidence uses `scripts/macos/capture-theme-ui.sh <light|dark> <out-dir> [scene]`.
   It writes `theme-<appearance>-popover.png` and
   `theme-<appearance>-settings.png`. The popover image is captured only from
@@ -44,7 +44,14 @@ SpotiBind validates its behavior at four layers.
   recovery. Fastpotify and Sonora checks run on macOS 13+; Spotifly checks run
   only on a macOS 26.2+ environment that can install its current release.
 
-The real-Mac checklist is post-release evidence because CI cannot grant Accessibility authorization or reproduce physical media-key routing; it does not block publication of the CI-verified artifact.
+Before a GUI player is claimed as supported, the candidate artifact must pass a
+pre-merge real-Mac check: approve the player's first launch from Finder, close
+the player, cold-start SpotiBind, and verify one initiating media key is
+delivered exactly once. Record macOS version, architecture, player version, and
+result. The broader real-Mac checklist below remains supplementary post-release
+evidence because CI cannot grant Accessibility authorization or reproduce all
+physical media-key routing; this gate does not add a GitHub Actions required
+context or change the automatic release workflow.
 
 Run the local commands from the repository root:
 
@@ -79,7 +86,8 @@ be consumed by the event tap.
 `UIDemoScenarioTests` and `UIAppearanceTests` cover the pre-start demo
 projection and the light/dark appearance contract. Full healthy visual
 evidence is limited to the two supported surfaces, `popover` and
-`settings-window`; error scenes are smoke-only and do not produce committed
+`settings-window`; `player-launch-failure` and the other error scenes are
+smoke-only and do not produce committed
 PNG matrices. The legacy `docs/specs/spotibind/assets/menu-popover.png` is not
 counted as a current evidence asset; the four new PNGs are committed only
 after the real Popover host gate passes.

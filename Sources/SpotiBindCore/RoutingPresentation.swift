@@ -2,12 +2,14 @@ import Foundation
 
 public enum RoutingIssue: Equatable, Sendable {
     case pathUnavailable(player: SupportedPlayer, detail: String)
+    case playerLaunchFailed(player: SupportedPlayer)
     case dispatchFailure(detail: String)
 }
 
 public enum RoutingStatusAction: Equatable, Sendable {
     case accessibility
     case settings
+    case revealInFinder(player: SupportedPlayer)
 }
 
 public struct RoutingPresentation: Equatable, Sendable {
@@ -51,6 +53,13 @@ public struct RoutingPresentation: Equatable, Sendable {
                 title: "\(player.displayName) path unavailable",
                 detail: detail,
                 action: .settings
+            )
+        }
+        if case .playerLaunchFailed(let player) = issue {
+            return RoutingPresentation(
+                title: "Could not start \(player.displayName)",
+                detail: "Open the app in Finder to approve it, then try again.",
+                action: .revealInFinder(player: player)
             )
         }
         if case .dispatchFailure(let detail) = issue {

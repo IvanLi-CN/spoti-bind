@@ -58,6 +58,10 @@ final class UIDemoScenarioTests: XCTestCase {
 
         let failure = UIDemoConfiguration(scenario: .dispatchFailure)
         XCTAssertEqual(failure.dispatchFailure, "Sonora media-key dispatch failed.")
+
+        let launchFailure = UIDemoConfiguration(scenario: .playerLaunchFailure)
+        XCTAssertEqual(launchFailure.playerLaunchFailure, .sonora)
+        XCTAssertNil(launchFailure.dispatchFailure)
     }
 
     func testDemoIsDisabledWithoutTheExplicitSwitch() {

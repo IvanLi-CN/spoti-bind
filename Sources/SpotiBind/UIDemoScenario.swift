@@ -28,6 +28,7 @@ enum UIDemoScenario: String, CaseIterable, Sendable {
     case noSupportedPlayer = "no-supported-player"
     case pathUnavailable = "path-unavailable"
     case dispatchFailure = "dispatch-failure"
+    case playerLaunchFailure = "player-launch-failure"
 
     static func parse(environment: [String: String]) -> UIDemoScenario? {
         guard environment["SPOTIBIND_UI_DEMO"] == "1" else { return nil }
@@ -43,6 +44,7 @@ struct UIDemoConfiguration: Equatable, Sendable {
     let probeHealthy: Bool
     let tapStatus: String
     let dispatchFailure: String?
+    let playerLaunchFailure: SupportedPlayer?
     let availability: PlayerAvailabilitySnapshot
     let pathSettings: PlayerPathSettings
     let pathStates: [SupportedPlayer: PlayerPathState]
@@ -96,6 +98,7 @@ struct UIDemoConfiguration: Equatable, Sendable {
             probeHealthy = true
             tapStatus = "Ready"
             dispatchFailure = nil
+            playerLaunchFailure = nil
             availability = healthyAvailability
             pathSettings = neutralPathSettings
             pathStates = [:]
@@ -106,6 +109,7 @@ struct UIDemoConfiguration: Equatable, Sendable {
             probeHealthy = true
             tapStatus = "Ready"
             dispatchFailure = nil
+            playerLaunchFailure = nil
             availability = healthyAvailability
             pathSettings = neutralPathSettings
             pathStates = [:]
@@ -116,6 +120,7 @@ struct UIDemoConfiguration: Equatable, Sendable {
             probeHealthy = false
             tapStatus = "Ready"
             dispatchFailure = nil
+            playerLaunchFailure = nil
             availability = PlayerAvailabilitySnapshot()
             pathSettings = neutralPathSettings
             pathStates = [:]
@@ -126,6 +131,7 @@ struct UIDemoConfiguration: Equatable, Sendable {
             probeHealthy = true
             tapStatus = "Ready"
             dispatchFailure = nil
+            playerLaunchFailure = nil
             availability = healthyAvailability
             var settings = neutralPathSettings
             settings.set(.custom(neutralSonoraPath), for: .sonora)
@@ -140,6 +146,18 @@ struct UIDemoConfiguration: Equatable, Sendable {
             probeHealthy = true
             tapStatus = "Ready"
             dispatchFailure = "Sonora media-key dispatch failed."
+            playerLaunchFailure = nil
+            availability = healthyAvailability
+            pathSettings = neutralPathSettings
+            pathStates = [:]
+            pathProblems = [:]
+        case .playerLaunchFailure:
+            playerMode = .sonora
+            accessibilityTrusted = true
+            probeHealthy = true
+            tapStatus = "Ready"
+            dispatchFailure = nil
+            playerLaunchFailure = .sonora
             availability = healthyAvailability
             pathSettings = neutralPathSettings
             pathStates = [:]

@@ -26,10 +26,25 @@ not consulted, and a tag or asset belonging to another SHA fails closed. The
 failure sidecar records the PR, labels, source/merge SHA, version, tag, assets,
 run URL, and this recovery instruction.
 
-## Required real-Mac evidence
+## Required pre-merge real-Mac evidence
 
-Physical media-key checks remain release evidence, but do not block publication
-of the verified CI artifact. Run the checklist on macOS 13 for each advertised
+Before advertising support for any GUI player, complete this check against the
+candidate artifact and record the macOS version, machine architecture, player
+version, and result:
+
+- Download the candidate Ad Hoc artifact and open the GUI player once from
+  Finder, approving the macOS first-launch trust prompt.
+- Close the player completely, cold-start SpotiBind, and send one media key.
+- Confirm the first key reaches the selected player exactly once and that no
+  other player receives a fallback dispatch.
+
+This is a merge-readiness evidence gate, not a new GitHub Actions required
+context. The existing CI checks and post-merge automatic release workflow are
+unchanged.
+
+## Additional real-Mac evidence
+
+Run the broader physical media-key checklist on macOS 13 for each advertised
 architecture after publication:
 
 - grant and revoke Accessibility permission and confirm the menu status;
@@ -53,6 +68,6 @@ architecture after publication:
 - confirm a command failure is visible and is not replayed;
 - select Off and confirm the system media-key route remains available.
 
-Record the machine architecture, macOS version, Fastpotify version, and date in
+Record the machine architecture, macOS version, each target player version, and date in
 the release evidence. Keep the Ad Hoc/Gatekeeper caveat in user-facing install
-guidance.
+guidance; no checklist step may bypass Finder or remove quarantine.

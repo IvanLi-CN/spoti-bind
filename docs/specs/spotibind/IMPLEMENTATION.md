@@ -13,7 +13,7 @@
 - Product identity: SpotiBind is used for the executable, bundle, release
   artifacts, and public documentation; the Fastpotify CLI integration remains
   unchanged.
-- Visual evidence: the app exposes pre-start `UIDemoScenario` state for six
+- Visual evidence: the app exposes pre-start `UIDemoScenario` state for seven
   smoke scenes and two explicit appearances. Popover evidence waits for the
   actual `MenuBarExtra(.window)` host, opens its real status button through
   the app-owned status-bar window, and captures it in-process; settings
@@ -25,7 +25,7 @@
 - Verification commands: `swift test`, `scripts/macos/build.sh`,
   `scripts/macos/compile-icon-resources.sh`, `scripts/macos/package.sh`, and
   `scripts/macos/verify-release.sh`.
-- Rollout facts: verified main merges publish a public Ad Hoc Release automatically; real macOS 13 Accessibility and physical-key checks are retained as post-release evidence.
+- Rollout facts: verified main merges publish a public Ad Hoc Release automatically; each GUI player requires a pre-merge Finder trust and cold-start media-key check before it is advertised as supported.
 
 ## Coverage / rollout summary
 
@@ -53,8 +53,20 @@
 - PlayerLaunchCoordinator starts the ten-second launch deadline when a launch
   request enters the serial queue. A queued request that expires while an
   earlier gesture is still draining never launches or dispatches. A timed-out
-  dispatch remains pending until its runtime task finishes, so a late
-  cancellation-insensitive side effect cannot overlap the next gesture.
+  dispatch remains pending until its runtime task finishes, and a queued
+  request remains linked to its predecessor until that predecessor finishes,
+  so a late cancellation-insensitive side effect cannot overlap the next
+  gesture. A timed-out launch likewise keeps its barrier and queue tail until
+  the launch task has finished.
+- PlayerLaunchCoordinator conforms to `PlayerDispatching` and returns a
+  `PlayerDispatchResult` for every gesture. Launch failures, launch timeouts,
+  target readiness failures, dispatch failures, dispatch timeouts, and launch
+  barriers remain distinguishable to AppState without changing the serial
+  no-replay contract.
+- SystemPlayerRuntime logs only the player identifier, launch stage, NSError
+  domain, and code for an `NSWorkspace` launch callback failure. Finder
+  recovery is injected through `PlayerApplicationRevealing`; the production
+  implementation reveals the selected bundle and tests record the URL.
 - Demo mode uses an ephemeral defaults object, neutral display paths, and no
   player/runtime side effects. Its healthy baseline represents Sonora running,
   all four supported players discoverable, and Accessibility authorized. The
@@ -82,11 +94,13 @@
 
 ## Remaining Gaps
 
-- Real macOS 13 Fastpotify/Sonora and macOS 26.2+ Spotifly physical-key validation requires access to matching hardware and installed applications.
+- Real macOS 13 Fastpotify/Sonora and macOS 26.2+ Spotifly physical-key validation requires access to matching hardware and installed applications. GUI-player support claims remain blocked until the pre-merge Finder trust and cold-start check is recorded.
 - Apple's public `MenuBarExtra` API still has no presentation action; the Demo
   capture path uses the app-owned real status-bar window and public AppKit
   `performClick` to open the host, then fails closed after a bounded wait.
-  The four healthy evidence PNGs are committed below; the pre-existing
+  The `player-launch-failure` scene is available for deterministic status-card
+  and Finder-action smoke coverage. The four healthy evidence PNGs are
+  committed below; the pre-existing
   `menu-popover.png` remains a legacy asset and is not counted.
 
 ## Related Changes

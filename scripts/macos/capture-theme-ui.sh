@@ -17,7 +17,7 @@ case "$appearance" in
         ;;
 esac
 case "$scene" in
-    healthy|automatic-selection|accessibility-required|no-supported-player|path-unavailable|dispatch-failure) ;;
+    healthy|automatic-selection|accessibility-required|no-supported-player|path-unavailable|dispatch-failure|player-launch-failure) ;;
     *)
         printf 'Unknown UI demo scene: %s\n' "$scene" >&2
         exit 2

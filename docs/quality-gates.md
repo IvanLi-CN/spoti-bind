@@ -13,6 +13,16 @@ The repository's intended protection policy is deliberately small for a solo-mai
 
 The GitHub repository's branch ruleset and labels are remote state. They are aligned idempotently with `gh` after PR review and checked against this declaration; this repository change does not silently mutate remote policy. Release failure delivery uses the SHA-pinned Oidrune OIDC workflow and does not require a repository notification secret.
 
+## Manual release-readiness gate
+
+Before a GUI player is claimed as supported, the candidate artifact must pass a
+manual macOS check: open the player from Finder and approve its first-launch
+trust prompt, close it, cold-start SpotiBind, and verify one initiating media
+key is delivered exactly once. Record macOS version, architecture, player
+version, and result in the release evidence. This is an owner-facing merge gate
+and does not add or change GitHub Actions required-check contexts or the
+post-merge automatic release workflow.
+
 ## Bootstrap
 
 Because `pull_request_target` loads from the base branch, the first rollout must
