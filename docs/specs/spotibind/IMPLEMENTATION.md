@@ -99,8 +99,9 @@
   capture path uses the app-owned real status-bar window and public AppKit
   `performClick` to open the host, then fails closed after a bounded wait.
   The `player-launch-failure` scene is available for deterministic status-card
-  and Finder-action smoke coverage. The four healthy evidence PNGs are
-  committed below; the pre-existing
+  and Finder-action smoke coverage. The four healthy evidence PNGs and the
+  bounded four-image launch-failure smoke set are committed below; the
+  pre-existing
   `menu-popover.png` remains a legacy asset and is not counted.
 
 ## Related Changes

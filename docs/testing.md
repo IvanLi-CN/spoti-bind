@@ -87,7 +87,8 @@ be consumed by the event tap.
 projection and the light/dark appearance contract. Full healthy visual
 evidence is limited to the two supported surfaces, `popover` and
 `settings-window`; `player-launch-failure` and the other error scenes are
-smoke-only and do not produce committed
-PNG matrices. The legacy `docs/specs/spotibind/assets/menu-popover.png` is not
-counted as a current evidence asset; the four new PNGs are committed only
-after the real Popover host gate passes.
+smoke-only and do not produce committed complete PNG matrices. This change
+records a bounded four-image `player-launch-failure` smoke set for the real
+popover and settings surfaces after their WindowServer gates pass. The legacy
+`docs/specs/spotibind/assets/menu-popover.png` is not counted as a current
+evidence asset.

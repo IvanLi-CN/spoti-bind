@@ -161,7 +161,13 @@
   errors with no fullscreen or other-surface fallback.
 - Error scenes are smoke-only: `accessibility-required`,
   `no-supported-player`, `path-unavailable`, `dispatch-failure`, and
-  `player-launch-failure` are not committed as a complete visual matrix.
+  `player-launch-failure` are not committed as a complete visual matrix. This
+  change records a bounded `player-launch-failure` smoke set for the menu
+  popover and Settings window in both supported appearances:
+  - [player-launch-failure-light-popover.png](./assets/player-launch-failure-light-popover.png)
+  - [player-launch-failure-dark-popover.png](./assets/player-launch-failure-dark-popover.png)
+  - [player-launch-failure-light-settings.png](./assets/player-launch-failure-light-settings.png)
+  - [player-launch-failure-dark-settings.png](./assets/player-launch-failure-dark-settings.png)
 - Current delivery evidence, verified with owner confirmation and scoped to
   the target application only:
   - [menu-automatic-light.png](./assets/menu-automatic-light.png)
