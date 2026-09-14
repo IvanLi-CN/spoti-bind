@@ -29,6 +29,11 @@
   finish. The timeout signal is delivered independently of cooperative task
   scheduling so launch barriers and caller deadlines remain stable under
   runner load.
+- Automatic routing now retains the player that failed its first launch or
+  input-surface handoff until a same-configuration gesture is delivered;
+  refreshes and unrelated player lifecycle changes do not trigger fallback.
+  Dispatch failures preserve that recovery state, and Finder actions use the
+  failed bundle URL captured by AppState.
 
 ## Related Changes
 

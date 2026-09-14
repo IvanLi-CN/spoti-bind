@@ -67,6 +67,13 @@
   target readiness failures, dispatch failures, dispatch timeouts, and launch
   barriers remain distinguishable to AppState without changing the serial
   no-replay contract.
+- AppState keeps the failed GUI player selected after a launch or input-surface
+  failure, including in Automatic mode; availability refreshes cannot switch
+  the next gesture to another player. A dispatch failure or timeout does not
+  replace the Finder recovery state, and a successful gesture clears it only
+  when the mode, player, and captured application path still match. Finder
+  recovery receives the bundle URL captured with the failed attempt, while UI
+  Demo uses a side-effect-free revealer.
 - SystemPlayerRuntime logs only the player identifier, launch stage, NSError
   domain, and code for an `NSWorkspace` launch callback failure. Finder
   recovery is injected through `PlayerApplicationRevealing`; the production
