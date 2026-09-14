@@ -17,6 +17,23 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
         XCTAssertTrue(dispatches.isEmpty)
     }
 
+    func testQueuedLaunchContinuesAfterImmediatePreviousDispatchFailure() async {
+        let runtime = FailFirstDispatchPlayerRuntime()
+        let coordinator = PlayerLaunchCoordinator(runtime: runtime, timeout: .seconds(1))
+        let runningRequest = PlayerDispatchRequest(selection: .running(.spotify))
+        let launchRequest = PlayerDispatchRequest(selection: .launch(.spotify))
+
+        let first = await coordinator.dispatch(.playPause, request: runningRequest)
+        let second = await coordinator.dispatch(.next, request: launchRequest)
+
+        XCTAssertEqual(first, .dispatchFailed)
+        XCTAssertEqual(second, .delivered)
+        let launches = await runtime.launches
+        let dispatches = await runtime.dispatches
+        XCTAssertEqual(launches, [.spotify])
+        XCTAssertEqual(dispatches.map(\.key), [.playPause, .next])
+    }
+
     func testDispatchFailureReturnsStructuredResult() async {
         let runtime = RecordingPlayerRuntime(runningAfterChecks: 0, dispatchResult: false)
         let coordinator = PlayerLaunchCoordinator(runtime: runtime)
@@ -437,6 +454,31 @@ private actor RecordingPlayerRuntime: PlayerLaunchRuntime {
 private struct DispatchRecord: Equatable, Sendable {
     let key: MediaKey
     let player: SupportedPlayer
+}
+
+private actor FailFirstDispatchPlayerRuntime: PlayerLaunchRuntime {
+    private(set) var launches: [SupportedPlayer] = []
+    private(set) var dispatches: [DispatchRecord] = []
+    private var dispatchResults = [false, true]
+
+    func launch(player: SupportedPlayer, applicationURL: URL?) async -> Bool {
+        launches.append(player)
+        return true
+    }
+
+    func isRunning(player: SupportedPlayer, applicationURL: URL?) async -> Bool {
+        true
+    }
+
+    func dispatch(
+        key: MediaKey,
+        player: SupportedPlayer,
+        executableURL: URL?,
+        applicationURL: URL?
+    ) async -> Bool {
+        dispatches.append(DispatchRecord(key: key, player: player))
+        return dispatchResults.removeFirst()
+    }
 }
 
 private actor HangingLaunchPlayerRuntime: PlayerLaunchRuntime {

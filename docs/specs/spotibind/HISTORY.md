@@ -31,7 +31,11 @@
   wake-ups cannot release a queued gesture into a side effect. Queued
   successors snapshot the tail state on entry, preventing predecessor cleanup
   from releasing a successor that was already blocked. Launch barriers and
-  caller deadlines remain stable under runner load.
+  caller deadlines remain stable under runner load. A completed ordinary
+  dispatch failure no longer suppresses a queued launch that still has budget.
+- Automatic-mode forwarding readiness now follows the failure-aware dispatch
+  selection. When the failed player becomes unavailable, the event tap remains
+  pass-through instead of consuming a gesture that cannot be sent.
 - Automatic routing now retains the player that failed its first launch or
   input-surface handoff until a same-configuration gesture is delivered;
   refreshes and unrelated player lifecycle changes do not trigger fallback.

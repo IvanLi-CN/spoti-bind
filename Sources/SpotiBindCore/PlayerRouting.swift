@@ -372,6 +372,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
     private let runtime: any PlayerLaunchRuntime
     private let timeout: Duration
     private var pending: Task<PlayerDispatchResult, Never>?
+    private var pendingOperationID: UInt64?
     private var launchBarrierActive = false
     private var nextOperationID: UInt64 = 0
     private var timedOutTail: UInt64?
@@ -416,7 +417,10 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
         let operation = Task.detached(priority: .userInitiated) { () -> PlayerDispatchResult in
             defer {
                 Task {
-                    await self.operationFinished(operationID)
+                    await self.operationFinished(
+                        operationID,
+                        blockedByTimedOutTail: blockedByTimedOutTail
+                    )
                 }
             }
             if let previous {
@@ -447,17 +451,16 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
                     return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
                 }
 
-                let previousResult = await previous.value
+                _ = await previous.value
                 guard clock.now.duration(to: deadline) > .zero else {
                     if isLaunchRequest {
                         await self.setLaunchBarrier(active: false)
                     }
                     return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
                 }
-                if isLaunchRequest, !previousResult.isDelivered {
-                    await self.setLaunchBarrier(active: false)
-                    return .launchTimedOut
-                }
+                // A completed predecessor failure has no unresolved side
+                // effect. Continue with a queued launch while budget remains;
+                // only an expired predecessor suppresses the launch above.
             }
             if blockedByTimedOutTail {
                 if isLaunchRequest {
@@ -572,6 +575,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
             }
         }
         pending = operation
+        pendingOperationID = operationID
         let completed = await boolWithinTimeout(timeout, operation: {
             await operation.value.isDelivered
         })
@@ -579,7 +583,10 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
             timedOutTail = operationID
             Task {
                 _ = await operation.value
-                self.operationFinished(operationID)
+                self.operationFinished(
+                    operationID,
+                    blockedByTimedOutTail: blockedByTimedOutTail
+                )
             }
             switch attemptState.phase() {
             case .dispatching:
@@ -597,14 +604,19 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
         launchBarrierActive = active
     }
 
-    private var hasTimedOutTail: Bool {
-        timedOutTail != nil
-    }
-
-    private func operationFinished(_ operationID: UInt64) {
-        if timedOutTail == operationID {
-            timedOutTail = nil
+    private func operationFinished(
+        _ operationID: UInt64,
+        blockedByTimedOutTail: Bool
+    ) {
+        if blockedByTimedOutTail,
+           let timedOutTail,
+           operationID > timedOutTail {
+            self.timedOutTail = operationID
         }
+        guard timedOutTail == operationID, pendingOperationID == operationID else {
+            return
+        }
+        timedOutTail = nil
     }
 }
 

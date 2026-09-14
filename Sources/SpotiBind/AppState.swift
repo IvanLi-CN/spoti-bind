@@ -136,7 +136,7 @@ final class AppState: ObservableObject {
         ForwardingReadiness(
             forwardingEnabled: playerMode != .off,
             accessibilityTrusted: accessibilityTrusted,
-            targetUsable: resolvedSelection != .none
+            targetUsable: dispatchSelection != .none
         )
     }
 

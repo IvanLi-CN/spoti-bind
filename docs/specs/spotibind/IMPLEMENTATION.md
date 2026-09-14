@@ -64,7 +64,10 @@
   cannot release a queued gesture into a side effect. Each queued operation
   snapshots that tail state when it enters the queue, so predecessor cleanup
   cannot release an already-blocked successor. A timed-out launch likewise
-  keeps its barrier and queue tail until the launch task has finished.
+  keeps its barrier and queue tail until the launch task has finished. A
+  predecessor that completes with an ordinary dispatch failure can still be
+  followed by a launch while the launch retains budget; only an expired
+  predecessor or timed-out tail suppresses that launch.
 - PlayerLaunchCoordinator conforms to `PlayerDispatching` and returns a
   `PlayerDispatchResult` for every gesture. Launch failures, launch timeouts,
   target readiness failures, dispatch failures, dispatch timeouts, and launch
@@ -76,7 +79,9 @@
   replace the Finder recovery state, and a successful gesture clears it only
   when the mode, player, and captured application path still match. Finder
   recovery receives the bundle URL captured with the failed attempt, while UI
-  Demo uses a side-effect-free revealer.
+  Demo uses a side-effect-free revealer. Forwarding readiness uses the same
+  failure-aware selection as dispatch, so an unavailable failed player cannot
+  make the event tap consume a gesture that will not be dispatched.
 - SystemPlayerRuntime logs only the player identifier, launch stage, NSError
   domain, and code for an `NSWorkspace` launch callback failure. Finder
   recovery is injected through `PlayerApplicationRevealing`; the production

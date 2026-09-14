@@ -134,6 +134,7 @@ final class AppStateTests: XCTestCase {
             )
         ])
         state.refreshStatus(promptForAccessibility: false)
+        XCTAssertFalse(state.readiness.isReady)
         state.dispatch(.next)
         await waitForDispatchToFinish(state)
 
