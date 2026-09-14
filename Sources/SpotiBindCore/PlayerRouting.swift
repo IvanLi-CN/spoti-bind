@@ -375,7 +375,6 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
     private var pendingOperationID: UInt64?
     private var launchBarrierActive = false
     private var nextOperationID: UInt64 = 0
-    private var timedOutTail: UInt64?
 
     public init(
         runtime: any PlayerLaunchRuntime,
@@ -408,20 +407,11 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: timeout)
         let attemptState = DispatchAttemptState()
-        // Capture the tail state when the request enters the queue. A
-        // predecessor may finish while this operation is waiting, but that
-        // must not turn an already-timed-out successor into a new side effect.
-        let blockedByTimedOutTail = timedOutTail != nil
         let operationID = nextOperationID
         nextOperationID &+= 1
         let operation = Task.detached(priority: .userInitiated) { () -> PlayerDispatchResult in
             defer {
-                Task {
-                    await self.operationFinished(
-                        operationID,
-                        blockedByTimedOutTail: blockedByTimedOutTail
-                    )
-                }
+                Task { await self.operationFinished(operationID) }
             }
             if let previous {
                 let remaining = clock.now.duration(to: deadline)
@@ -461,12 +451,6 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
                 // A completed predecessor failure has no unresolved side
                 // effect. Continue with a queued launch while budget remains;
                 // only an expired predecessor suppresses the launch above.
-            }
-            if blockedByTimedOutTail {
-                if isLaunchRequest {
-                    await self.setLaunchBarrier(active: false)
-                }
-                return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
             }
             guard let player = request.selection.player else {
                 if isLaunchRequest {
@@ -580,14 +564,6 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
             await operation.value.isDelivered
         })
         guard completed != nil else {
-            timedOutTail = operationID
-            Task {
-                _ = await operation.value
-                self.operationFinished(
-                    operationID,
-                    blockedByTimedOutTail: blockedByTimedOutTail
-                )
-            }
             switch attemptState.phase() {
             case .dispatching:
                 return .dispatchTimedOut
@@ -605,18 +581,13 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
     }
 
     private func operationFinished(
-        _ operationID: UInt64,
-        blockedByTimedOutTail: Bool
+        _ operationID: UInt64
     ) {
-        if blockedByTimedOutTail,
-           let timedOutTail,
-           operationID > timedOutTail {
-            self.timedOutTail = operationID
-        }
-        guard timedOutTail == operationID, pendingOperationID == operationID else {
+        guard pendingOperationID == operationID else {
             return
         }
-        timedOutTail = nil
+        pending = nil
+        pendingOperationID = nil
     }
 }
 
