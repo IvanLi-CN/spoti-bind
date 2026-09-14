@@ -28,8 +28,10 @@
   serial tail remains occupied until cancellation-insensitive side effects
   finish. The timeout gate uses a Swift concurrency clock task, while actor
   state records the timed-out tail until its side effect completes so delayed
-  wake-ups cannot release a queued gesture into a side effect. Launch barriers
-  and caller deadlines remain stable under runner load.
+  wake-ups cannot release a queued gesture into a side effect. Queued
+  successors snapshot the tail state on entry, preventing predecessor cleanup
+  from releasing a successor that was already blocked. Launch barriers and
+  caller deadlines remain stable under runner load.
 - Automatic routing now retains the player that failed its first launch or
   input-surface handoff until a same-configuration gesture is delivered;
   refreshes and unrelated player lifecycle changes do not trigger fallback.

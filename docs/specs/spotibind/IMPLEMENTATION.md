@@ -61,8 +61,10 @@
   the tail operation drains the predecessor and skips its own side effect. The
   timeout gate uses an independent Swift concurrency clock task, and the
   coordinator records a timed-out tail in actor state so a delayed wake-up
-  cannot release a queued gesture into a side effect. A timed-out launch
-  likewise keeps its barrier and queue tail until the launch task has finished.
+  cannot release a queued gesture into a side effect. Each queued operation
+  snapshots that tail state when it enters the queue, so predecessor cleanup
+  cannot release an already-blocked successor. A timed-out launch likewise
+  keeps its barrier and queue tail until the launch task has finished.
 - PlayerLaunchCoordinator conforms to `PlayerDispatching` and returns a
   `PlayerDispatchResult` for every gesture. Launch failures, launch timeouts,
   target readiness failures, dispatch failures, dispatch timeouts, and launch
