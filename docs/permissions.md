@@ -29,8 +29,10 @@ The non-sandboxed Ad Hoc boundary is a distribution constraint, not a request
 for elevated user privileges. The process is still launched as the logged-in
 user and only receives the selected Fastpotify executable and fixed arguments,
 or posts ordinary keyboard events to a selected player's existing PID. The
-standalone Fastpotify CLI is permission-independent; it does not require this
-app's Accessibility authorization. When Sonora is tray-resident, the
+standalone Fastpotify CLI is outside SpotiBind's Accessibility gate; invoking
+that CLI does not require this app's authorization. This is an app-boundary
+statement, not a claim about unrelated system permissions. When Sonora is
+tray-resident, the
 activation-policy check causes `NSWorkspace` to reopen and activate Sonora
 before PID delivery; this is the documented exception to background-only
 routing and does not inspect its UI.
@@ -39,10 +41,11 @@ routing and does not inspect its UI.
 
 Fastpotify delivery uses the documented CLI verbs `play-pause`, `next`, and
 `previous`. Sonora and Spotifly delivery uses public Core Graphics
-`CGEvent.postToPid` with their released keyboard shortcuts. The public
+`CGEvent.postToPid` with their released keyboard shortcuts. Apple's public
 `CGEvent.postToPid` contract does not declare a TCC prerequisite; SpotiBind's
 separate Accessibility gate protects its global event-tap capture and tap
-lifecycle. The app does not send Apple Events, inspect private media services,
+lifecycle. This documentation does not infer a runtime TCC result that was not
+tested here. The app does not send Apple Events, inspect private media services,
 run Accessibility UI scripts, or bring Fastpotify or Spotifly to the
 foreground. Sonora may come to the foreground only when it must recreate its
 main-window input surface.

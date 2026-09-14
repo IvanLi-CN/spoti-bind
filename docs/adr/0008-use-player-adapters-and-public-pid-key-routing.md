@@ -52,10 +52,12 @@ timeout.
 
 SpotiBind requires Accessibility before it captures global media keys or
 installs its event tap. The app does not request Automation or private media
-permissions. Its Fastpotify CLI integration is permission-independent, and the
-public `CGEvent.postToPid` contract does not declare a TCC prerequisite; the
-app's Accessibility gate is a product boundary for global capture and tap
-lifecycle, not a claim about that API. After an explicit authorization flow,
+permissions. Its Fastpotify CLI integration is outside SpotiBind's
+Accessibility gate, and invoking that CLI does not require this app's
+authorization. Apple's public `CGEvent.postToPid` contract does not declare a
+TCC prerequisite; the app's Accessibility gate is a product boundary for
+global capture and tap lifecycle, not a runtime TCC conclusion about that API.
+After an explicit authorization flow,
 the app silently polls trust once per second and reconciles the existing tap as
 soon as trust becomes available; the regular revocation refresh remains
 periodic. A Sonora media key may bring its main window to the foreground when
