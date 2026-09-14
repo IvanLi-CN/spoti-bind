@@ -407,6 +407,10 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: timeout)
         let attemptState = DispatchAttemptState()
+        // Capture the tail state when the request enters the queue. A
+        // predecessor may finish while this operation is waiting, but that
+        // must not turn an already-timed-out successor into a new side effect.
+        let blockedByTimedOutTail = timedOutTail != nil
         let operationID = nextOperationID
         nextOperationID &+= 1
         let operation = Task.detached(priority: .userInitiated) { () -> PlayerDispatchResult in
@@ -455,7 +459,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
                     return .launchTimedOut
                 }
             }
-            if await self.hasTimedOutTail {
+            if blockedByTimedOutTail {
                 if isLaunchRequest {
                     await self.setLaunchBarrier(active: false)
                 }
