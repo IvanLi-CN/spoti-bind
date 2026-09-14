@@ -1,3 +1,4 @@
+import ApplicationServices
 import AppKit
 import CoreGraphics
 import Foundation
@@ -17,6 +18,48 @@ guard let application = NSRunningApplication(processIdentifier: pid),
     exit(1)
 }
 
+func attributeString(_ element: AXUIElement, _ attribute: CFString) -> String? {
+    var value: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(element, attribute, &value) == .success else {
+        return nil
+    }
+    return value as? String
+}
+
+func attributeSize(_ element: AXUIElement, _ attribute: CFString) -> CGSize? {
+    var value: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(element, attribute, &value) == .success,
+          let value,
+          CFGetTypeID(value) == AXValueGetTypeID() else {
+        return nil
+    }
+    let axValue = value as! AXValue
+    var size = CGSize.zero
+    guard AXValueGetType(axValue) == .cgSize,
+          AXValueGetValue(axValue, .cgSize, &size) else {
+        return nil
+    }
+    return size
+}
+
+let axApplication = AXUIElementCreateApplication(pid)
+var axValue: CFTypeRef?
+guard AXUIElementCopyAttributeValue(axApplication, kAXWindowsAttribute as CFString, &axValue) == .success,
+      let axWindows = axValue as? [AXUIElement] else {
+    fputs("could not read Accessibility windows\n", stderr)
+    exit(1)
+}
+
+let axPopoverWindows = axWindows.filter { window in
+    attributeString(window, kAXRoleAttribute as CFString) == (kAXWindowRole as String)
+        && attributeString(window, kAXTitleAttribute as CFString) == ""
+}
+guard axPopoverWindows.count == 1,
+      let axPopoverSize = attributeSize(axPopoverWindows[0], kAXSizeAttribute as CFString) else {
+    fputs("popover AX window is not unique\n", stderr)
+    exit(1)
+}
+
 guard let windows = CGWindowListCopyWindowInfo(
     [.optionOnScreenOnly, .excludeDesktopElements],
     kCGNullWindowID
@@ -25,7 +68,12 @@ guard let windows = CGWindowListCopyWindowInfo(
     exit(1)
 }
 
-let candidates = windows.compactMap { info -> CGWindowID? in
+struct Candidate {
+    let id: CGWindowID
+    let bounds: CGRect
+}
+
+let candidates = windows.compactMap { info -> Candidate? in
     guard (info[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == pidValue,
           info[kCGWindowOwnerName as String] as? String == "SpotiBind",
           info[kCGWindowName as String] as? String == "",
@@ -40,7 +88,7 @@ let candidates = windows.compactMap { info -> CGWindowID? in
           windowID == expectedWindowID else {
         return nil
     }
-    return CGWindowID(windowID)
+    return Candidate(id: CGWindowID(windowID), bounds: bounds)
 }
 
 guard candidates.count == 1 else {
@@ -48,4 +96,11 @@ guard candidates.count == 1 else {
     exit(1)
 }
 
-print(candidates[0])
+let candidate = candidates[0]
+guard abs(candidate.bounds.width - axPopoverSize.width) <= 2,
+      abs(candidate.bounds.height - axPopoverSize.height) <= 2 else {
+    fputs("AX and WindowServer popover window sizes do not match\n", stderr)
+    exit(1)
+}
+
+print(candidates[0].id)

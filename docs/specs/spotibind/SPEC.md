@@ -154,8 +154,9 @@
   evidence set and must not be counted as a substitute.
 - Capture: `capture-theme-ui.sh` starts an isolated Demo process. Popover
   capture opens the real `MenuBarExtra(.window)` host through the app-owned
-  status-item button's public `performClick` action, then uses the unique
-  WindowServer popover ID from that same PID with `screencapture -x -l`.
+  status-item button's public `performClick` action, verifies the unique AX
+  `AXWindow` with an empty title and matching size in that PID, then uses the
+  unique WindowServer popover ID from the same PID with `screencapture -x -l`.
   Settings capture uses its unique WindowServer ID from the same PID in the
   same way; missing, ambiguous, non-imageable, empty, or failed outputs are
   errors with no fullscreen or other-surface fallback.

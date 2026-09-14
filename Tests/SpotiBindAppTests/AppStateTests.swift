@@ -69,6 +69,23 @@ final class AppStateTests: XCTestCase {
         XCTAssertNil(state.statusAction)
     }
 
+    func testStaleFailureDoesNotReturnAfterModeLeavesAndReentersSamePlayer() async {
+        let dispatcher = StubPlayerDispatcher(
+            results: [.launchFailed],
+            delay: .milliseconds(50)
+        )
+        let state = makeState(dispatcher: dispatcher)
+
+        state.dispatch(.playPause)
+        state.setPlayerMode(.off)
+        state.setPlayerMode(.sonora)
+        await waitForDispatchToFinish(state)
+
+        XCTAssertNil(state.playerLaunchFailure)
+        XCTAssertNil(state.dispatchFailure)
+        XCTAssertNil(state.statusAction)
+    }
+
     private func makeState(dispatcher: any PlayerDispatching) -> AppState {
         let defaults = UserDefaults(suiteName: "spoti-bind-app-state-tests-\(UUID().uuidString)")!
         defaults.set(PlayerMode.sonora.rawValue, forKey: "playerMode")

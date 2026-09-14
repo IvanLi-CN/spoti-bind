@@ -21,7 +21,8 @@ SpotiBind validates its behavior at four layers.
   `theme-<appearance>-settings.png`. The popover image is captured only from
   the visible real `MenuBarExtra(.window)` host in the app process. Demo mode
   opens that host through the app-owned status-bar window and public AppKit
-  `performClick`, then captures its unique WindowServer window ID with
+  `performClick`, verifies the unique AX `AXWindow` with an empty title and
+  matching size, then captures its unique WindowServer window ID with
   `screencapture -x -l`. The settings image is captured by
   `scripts/macos/capture-settings-window.sh <scene> <out.png>` with a strict
   PID, bundle identity, title, AX role, normal layer, visibility, unique

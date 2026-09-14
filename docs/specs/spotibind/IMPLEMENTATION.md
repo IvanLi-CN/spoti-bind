@@ -16,8 +16,9 @@
 - Visual evidence: the app exposes pre-start `UIDemoScenario` state for seven
   smoke scenes and two explicit appearances. Popover evidence waits for the
   actual `MenuBarExtra(.window)` host, opens its real status button through
-  the app-owned status-bar window, and captures it in-process; settings
-  evidence is delegated to the strict PID/window-ID helper scripts.
+  the app-owned status-bar window, validates the unique AX window and matching
+  WindowServer geometry, and captures it in-process; settings evidence is
+  delegated to the strict PID/window-ID helper scripts.
 
 ## Implementation Coverage
 
@@ -57,10 +58,10 @@
   request remains linked to its predecessor until that predecessor finishes,
   so a late cancellation-insensitive side effect cannot overlap the next
   gesture. Queue wait now returns the caller's timeout at its own deadline while
-  the tail operation drains the predecessor and skips its own side effect; the
-  next non-launch gesture is dropped while that timed-out tail is unresolved.
-  A timed-out launch likewise keeps its barrier and queue tail until the launch
-  task has finished.
+  the tail operation drains the predecessor and skips its own side effect. The
+  timeout gate uses an independent GCD deadline signal so the caller result
+  does not depend on cooperative task scheduling. A timed-out launch likewise
+  keeps its barrier and queue tail until the launch task has finished.
 - PlayerLaunchCoordinator conforms to `PlayerDispatching` and returns a
   `PlayerDispatchResult` for every gesture. Launch failures, launch timeouts,
   target readiness failures, dispatch failures, dispatch timeouts, and launch

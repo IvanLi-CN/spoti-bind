@@ -66,6 +66,7 @@ final class AppState: ObservableObject {
     private var probeTask: Task<Void, Never>?
     private var pendingDispatches = 0
     private var failureContext: DispatchContext?
+    private var dispatchGeneration: UInt64 = 0
 
     init(
         defaults: UserDefaults? = nil,
@@ -230,12 +231,15 @@ final class AppState: ObservableObject {
     }
 
     func setPlayerMode(_ mode: PlayerMode) {
+        let changed = playerMode != mode
+        if changed {
+            dispatchGeneration &+= 1
+        }
         if demoRequested {
             playerMode = mode
             clearDispatchIssue()
             return
         }
-        let changed = playerMode != mode
         playerMode = mode
         defaults.set(mode.rawValue, forKey: Keys.playerMode)
         clearDispatchIssue()
@@ -323,6 +327,7 @@ final class AppState: ObservableObject {
             executableURL: request.executableURL,
             applicationURL: request.applicationURL
         )
+        let generation = dispatchGeneration
         pendingDispatches += 1
         isDispatching = true
         let playerDispatcher = playerDispatcher
@@ -330,7 +335,8 @@ final class AppState: ObservableObject {
             let result = await playerDispatcher.dispatch(key, request: request)
             guard let self else { return }
             if result != .launchBlocked,
-               currentDispatchContext(for: player) != context {
+               (generation != dispatchGeneration
+                   || currentDispatchContext(for: player) != context) {
                 pendingDispatches = max(0, pendingDispatches - 1)
                 isDispatching = pendingDispatches > 0
                 return
@@ -383,6 +389,7 @@ final class AppState: ObservableObject {
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         guard player == .fastpotify || isValidApplication(url, for: player) else {
+            dispatchGeneration &+= 1
             clearDispatchIssue()
             pathProblems[player] = "Selected item is not the expected \(player.displayName) application."
             pathStates[player] = .custom(url, valid: false)
@@ -392,6 +399,7 @@ final class AppState: ObservableObject {
         var updated = pathSettings
         updated.set(.custom(url), for: player)
         pathSettings = updated
+        dispatchGeneration &+= 1
         persistPathSettings()
         clearDispatchIssue()
         refreshStatus(promptForAccessibility: false)
@@ -402,6 +410,7 @@ final class AppState: ObservableObject {
         var updated = pathSettings
         updated.set(.automatic, for: player)
         pathSettings = updated
+        dispatchGeneration &+= 1
         persistPathSettings()
         clearDispatchIssue()
         refreshStatus(promptForAccessibility: false)

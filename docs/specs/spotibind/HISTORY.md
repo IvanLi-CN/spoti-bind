@@ -26,8 +26,9 @@
 - Queue timeout handling now returns each gesture's deadline result without
   allowing a queued operation to execute after its predecessor drains; the
   serial tail remains occupied until cancellation-insensitive side effects
-  finish, and the immediate successor is dropped when a queued dispatch has
-  already timed out.
+  finish. The timeout signal is delivered independently of cooperative task
+  scheduling so launch barriers and caller deadlines remain stable under
+  runner load.
 
 ## Related Changes
 

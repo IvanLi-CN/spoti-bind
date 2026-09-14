@@ -276,20 +276,26 @@ private final class BoolTimeoutGate: @unchecked Sendable {
     private let lock = NSLock()
     private let continuation: CheckedContinuation<Bool?, Never>
     private var didFinish = false
-    private var tasks: [Task<Void, Never>] = []
+    private var operationTask: Task<Void, Never>?
+    private var timeoutWorkItem: DispatchWorkItem?
 
     init(continuation: CheckedContinuation<Bool?, Never>) {
         self.continuation = continuation
     }
 
-    func attach(_ tasks: Task<Void, Never>...) {
+    func attach(
+        operationTask: Task<Void, Never>,
+        timeoutWorkItem: DispatchWorkItem
+    ) {
         lock.lock()
         if didFinish {
             lock.unlock()
-            tasks.forEach { $0.cancel() }
+            operationTask.cancel()
+            timeoutWorkItem.cancel()
             return
         }
-        self.tasks = tasks
+        self.operationTask = operationTask
+        self.timeoutWorkItem = timeoutWorkItem
         lock.unlock()
     }
 
@@ -300,12 +306,27 @@ private final class BoolTimeoutGate: @unchecked Sendable {
             return
         }
         didFinish = true
-        let tasks = self.tasks
+        let operationTask = self.operationTask
+        let timeoutWorkItem = self.timeoutWorkItem
         lock.unlock()
 
-        tasks.forEach { $0.cancel() }
+        operationTask?.cancel()
+        timeoutWorkItem?.cancel()
         continuation.resume(returning: value)
     }
+}
+
+private func dispatchInterval(for duration: Duration) -> DispatchTimeInterval {
+    let components = duration.components
+    let seconds = max(0, components.seconds)
+    let attoseconds = max(0, components.attoseconds)
+    let nanosecondsPerSecond: Int64 = 1_000_000_000
+    let attosecondsPerNanosecond: Int64 = 1_000_000_000
+    let maxSeconds = Int64(Int.max) / nanosecondsPerSecond
+    guard seconds <= maxSeconds else { return .seconds(Int.max) }
+    let totalNanoseconds = seconds * nanosecondsPerSecond
+        + min(attoseconds / attosecondsPerNanosecond, Int64(Int.max) - seconds * nanosecondsPerSecond)
+    return .nanoseconds(Int(totalNanoseconds))
 }
 
 private func boolWithinTimeout(
@@ -317,15 +338,18 @@ private func boolWithinTimeout(
         let operationTask = Task {
             gate.finish(await operation())
         }
-        let timeoutTask = Task {
-            do {
-                try await Task.sleep(for: timeout)
-            } catch {
-                return
-            }
+        let timeoutWorkItem = DispatchWorkItem {
             gate.finish(nil)
         }
-        gate.attach(operationTask, timeoutTask)
+        gate.attach(operationTask: operationTask, timeoutWorkItem: timeoutWorkItem)
+        if timeout <= .zero {
+            gate.finish(nil)
+        } else {
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(
+                deadline: .now() + dispatchInterval(for: timeout),
+                execute: timeoutWorkItem
+            )
+        }
     }
 }
 
@@ -358,7 +382,6 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
     private let timeout: Duration
     private var pending: Task<PlayerDispatchResult, Never>?
     private var launchBarrierActive = false
-    private var timedOutQueueTail = false
 
     public init(
         runtime: any PlayerLaunchRuntime,
@@ -380,13 +403,6 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
         }
         if launchBarrierActive {
             return .launchBlocked
-        }
-        if !isLaunchRequest, timedOutQueueTail {
-            // A queued gesture already expired while its predecessor was
-            // draining. Drop this immediate successor without replacing the
-            // serial tail or starting a late side effect.
-            timedOutQueueTail = false
-            return .dispatchTimedOut
         }
         if isLaunchRequest {
             launchBarrierActive = true
@@ -550,12 +566,6 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
             await operation.value.isDelivered
         })
         guard completed != nil else {
-            if !isLaunchRequest, previous != nil, attemptState.phase() == .queued {
-                // Preserve the unresolved tail and suppress the next queued
-                // gesture. The marker is consumed by the next non-launch
-                // request.
-                timedOutQueueTail = true
-            }
             switch attemptState.phase() {
             case .dispatching:
                 return .dispatchTimedOut
@@ -571,7 +581,6 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
     private func setLaunchBarrier(active: Bool) {
         launchBarrierActive = active
     }
-
 }
 
 public enum PlayerModeMigration {
