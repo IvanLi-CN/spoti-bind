@@ -82,6 +82,31 @@ final class AppStateAccessibilityPollingTests: XCTestCase {
         XCTAssertEqual(checker.prompts, promptsBeforeStoppedFire)
     }
 
+    func testStartIsIdempotentAndStopInvalidatesQueuedRefresh() async {
+        let checker = RecordingTrustChecker(responses: [false])
+        let scheduler = ManualPollingScheduler()
+        let state = makeState(checker: checker, scheduler: scheduler)
+
+        state.start()
+        let promptsAfterStart = checker.prompts
+        state.start()
+        XCTAssertEqual(checker.prompts, promptsAfterStart)
+
+        NotificationCenter.default.post(
+            name: NSApplication.didBecomeActiveNotification,
+            object: nil
+        )
+        state.stop()
+        await Task.yield()
+        XCTAssertEqual(checker.prompts, promptsAfterStart)
+
+        state.start()
+        XCTAssertEqual(checker.prompts.count, promptsAfterStart.count + 1)
+        await Task.yield()
+        XCTAssertEqual(checker.prompts.count, promptsAfterStart.count + 1)
+        state.stop()
+    }
+
     private func makeState(
         checker: RecordingTrustChecker,
         scheduler: ManualPollingScheduler,

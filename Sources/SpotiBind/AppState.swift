@@ -68,6 +68,7 @@ final class AppState: ObservableObject {
     private var refreshTimer: Timer?
     private var accessibilityPollingHandle: (any AccessibilityPollingHandle)?
     private var accessibilityPollingGeneration = 0
+    private var lifecycleGeneration = 0
     private var activationObserver: NSObjectProtocol?
     private var probeTask: Task<Void, Never>?
     private var pendingDispatches = 0
@@ -209,10 +210,14 @@ final class AppState: ObservableObject {
             onReadinessChanged?()
             return
         }
+        guard refreshTimer == nil, activationObserver == nil else { return }
+
+        lifecycleGeneration += 1
+        let generation = lifecycleGeneration
         refreshStatus(promptForAccessibility: false)
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.refreshStatus(promptForAccessibility: false)
+                self?.refreshStatusIfCurrent(generation: generation)
             }
         }
         activationObserver = NotificationCenter.default.addObserver(
@@ -221,12 +226,13 @@ final class AppState: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.refreshStatus(promptForAccessibility: false)
+                self?.refreshStatusIfCurrent(generation: generation)
             }
         }
     }
 
     func stop() {
+        lifecycleGeneration += 1
         refreshTimer?.invalidate()
         refreshTimer = nil
         stopAccessibilityPolling()
@@ -236,6 +242,11 @@ final class AppState: ObservableObject {
         }
         probeTask?.cancel()
         probeTask = nil
+    }
+
+    private func refreshStatusIfCurrent(generation: Int) {
+        guard generation == lifecycleGeneration else { return }
+        refreshStatus(promptForAccessibility: false)
     }
 
     func refreshStatus(promptForAccessibility: Bool) {
