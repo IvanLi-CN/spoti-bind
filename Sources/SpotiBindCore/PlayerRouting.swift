@@ -277,7 +277,7 @@ private final class BoolTimeoutGate: @unchecked Sendable {
     private let continuation: CheckedContinuation<Bool?, Never>
     private var didFinish = false
     private var operationTask: Task<Void, Never>?
-    private var timeoutTask: Task<Void, Never>?
+    private var timeoutTimer: DispatchSourceTimer?
 
     init(continuation: CheckedContinuation<Bool?, Never>) {
         self.continuation = continuation
@@ -285,17 +285,17 @@ private final class BoolTimeoutGate: @unchecked Sendable {
 
     func attach(
         operationTask: Task<Void, Never>,
-        timeoutTask: Task<Void, Never>
+        timeoutTimer: DispatchSourceTimer
     ) {
         lock.lock()
         if didFinish {
             lock.unlock()
             operationTask.cancel()
-            timeoutTask.cancel()
+            timeoutTimer.cancel()
             return
         }
         self.operationTask = operationTask
-        self.timeoutTask = timeoutTask
+        self.timeoutTimer = timeoutTimer
         lock.unlock()
     }
 
@@ -307,13 +307,30 @@ private final class BoolTimeoutGate: @unchecked Sendable {
         }
         didFinish = true
         let operationTask = self.operationTask
-        let timeoutTask = self.timeoutTask
+        let timeoutTimer = self.timeoutTimer
         lock.unlock()
 
         operationTask?.cancel()
-        timeoutTask?.cancel()
+        timeoutTimer?.cancel()
         continuation.resume(returning: value)
     }
+}
+
+private func dispatchNanoseconds(for timeout: Duration) -> Int {
+    let components = timeout.components
+    guard components.seconds > 0 || components.attoseconds > 0 else {
+        return 0
+    }
+    let (secondsInNanoseconds, overflow) = components.seconds.multipliedReportingOverflow(by: 1_000_000_000)
+    if overflow {
+        return Int.max
+    }
+    let fractionalNanoseconds = components.attoseconds / 1_000_000_000
+    let (total, fractionalOverflow) = secondsInNanoseconds.addingReportingOverflow(fractionalNanoseconds)
+    if fractionalOverflow {
+        return Int.max
+    }
+    return Int(clamping: total)
 }
 
 private func boolWithinTimeout(
@@ -328,19 +345,13 @@ private func boolWithinTimeout(
             guard !Task.isCancelled else { return }
             gate.finish(value)
         }
-        let timeoutTask = Task.detached(priority: .userInitiated) {
-            do {
-                try await Task.sleep(for: timeout)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
+        let timeoutTimer = DispatchSource.makeTimerSource(queue: .global(qos: .userInitiated))
+        timeoutTimer.schedule(deadline: .now() + .nanoseconds(dispatchNanoseconds(for: timeout)))
+        timeoutTimer.setEventHandler {
             gate.finish(nil)
         }
-        gate.attach(operationTask: operationTask, timeoutTask: timeoutTask)
-        if timeout <= .zero {
-            gate.finish(nil)
-        }
+        gate.attach(operationTask: operationTask, timeoutTimer: timeoutTimer)
+        timeoutTimer.resume()
     }
 }
 
@@ -375,6 +386,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
     private var pendingOperationID: UInt64?
     private var launchBarrierActive = false
     private var nextOperationID: UInt64 = 0
+    private var timedOutTail: UInt64?
 
     public init(
         runtime: any PlayerLaunchRuntime,
@@ -407,6 +419,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: timeout)
         let attemptState = DispatchAttemptState()
+        let blockedByTimedOutTail = timedOutTail != nil
         let operationID = nextOperationID
         nextOperationID &+= 1
         let operation = Task.detached(priority: .userInitiated) { () -> PlayerDispatchResult in
@@ -451,6 +464,12 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
                 // A completed predecessor failure has no unresolved side
                 // effect. Continue with a queued launch while budget remains;
                 // only an expired predecessor suppresses the launch above.
+            }
+            if blockedByTimedOutTail {
+                if isLaunchRequest {
+                    await self.setLaunchBarrier(active: false)
+                }
+                return isLaunchRequest ? .launchTimedOut : .dispatchTimedOut
             }
             guard let player = request.selection.player else {
                 if isLaunchRequest {
@@ -564,6 +583,7 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
             await operation.value.isDelivered
         })
         guard completed != nil else {
+            timedOutTail = operationID
             switch attemptState.phase() {
             case .dispatching:
                 return .dispatchTimedOut
@@ -585,6 +605,9 @@ public actor PlayerLaunchCoordinator: PlayerDispatching {
     ) {
         guard pendingOperationID == operationID else {
             return
+        }
+        if let timedOutTail, operationID >= timedOutTail {
+            self.timedOutTail = nil
         }
         pending = nil
         pendingOperationID = nil
