@@ -118,6 +118,10 @@ minimum="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$plist")"
 [[ "$minimum" == "13.0" ]] || { printf 'Unexpected minimum system version: %s\n' "$minimum" >&2; exit 1; }
 identifier="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")"
 [[ "$identifier" == "cc.ivanli.spotibind" ]] || { printf 'Unexpected bundle identifier: %s\n' "$identifier" >&2; exit 1; }
+short_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")"
+[[ "$short_version" == "$version" ]] || { printf 'Bundle short version does not match VERSION: %s != %s\n' "$short_version" "$version" >&2; exit 1; }
+build_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")"
+[[ "$build_version" == "$version" ]] || { printf 'Bundle version does not match VERSION: %s != %s\n' "$build_version" "$version" >&2; exit 1; }
 multiple_instances="$(/usr/libexec/PlistBuddy -c 'Print :LSMultipleInstancesProhibited' "$plist")"
 [[ "$multiple_instances" == "true" ]] || { printf 'Multiple instances must be prohibited: %s\n' "$multiple_instances" >&2; exit 1; }
 icon_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$plist")"
