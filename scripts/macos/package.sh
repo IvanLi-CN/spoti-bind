@@ -39,7 +39,7 @@ if [[ "$output_dir" != /* ]]; then
 fi
 mkdir -p "$output_dir"
 
-for tool in swift lipo codesign hdiutil shasum; do
+for tool in swift lipo codesign ditto hdiutil osascript SetFile shasum; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         printf 'Required macOS tool is missing: %s\n' "$tool" >&2
         exit 1
@@ -47,7 +47,16 @@ for tool in swift lipo codesign hdiutil shasum; do
 done
 
 build_root="$(mktemp -d "${TMPDIR:-/tmp}/spotibind-build.XXXXXX")"
-trap 'rm -rf "$build_root"' EXIT
+dmg_mount=""
+dmg_mounted=0
+
+cleanup() {
+    if ((dmg_mounted == 1)) && [[ -n "$dmg_mount" ]]; then
+        hdiutil detach "$dmg_mount" -quiet >/dev/null 2>&1 || true
+    fi
+    rm -rf "$build_root"
+}
+trap cleanup EXIT
 
 build_arch() {
     local arch="$1"
@@ -82,6 +91,17 @@ app_path="$output_dir/SpotiBind.app"
 dmg_path="$output_dir/SpotiBind-${version}-universal.dmg"
 checksums_path="$output_dir/SHA256SUMS"
 merged_binary="$build_root/SpotiBind-universal"
+dmg_staging="$build_root/dmg-staging"
+dmg_readwrite="$build_root/SpotiBind-installer.dmg"
+dmg_background="$repo_root/packaging/macos/dmg-background.png"
+attach_info="$build_root/dmg-attach.plist"
+volume_name="SpotiBind $version"
+finder_volume_name=""
+
+if [[ ! -s "$dmg_background" ]]; then
+    printf 'DMG background is missing or empty: %s\n' "$dmg_background" >&2
+    exit 1
+fi
 
 mkdir -p "$output_dir"
 rm -rf "$app_path"
@@ -94,12 +114,102 @@ lipo -create "$arm64_binary" "$x86_64_binary" -output "$merged_binary"
 
 codesign --force --sign - --timestamp=none "$app_path"
 codesign --verify --strict --verbose=2 "$app_path"
+
+mkdir -p "$dmg_staging/.background"
+ditto "$app_path" "$dmg_staging/SpotiBind.app"
+ln -s /Applications "$dmg_staging/Applications"
+cp "$dmg_background" "$dmg_staging/.background/background.png"
+
 hdiutil create \
-    -volname "SpotiBind $version" \
-    -srcfolder "$app_path" \
+    -fs HFS+ \
+    -volname "$volume_name" \
+    -srcfolder "$dmg_staging" \
     -ov \
+    -format UDRW \
+    "$dmg_readwrite" >&2
+
+hdiutil attach \
+    -readwrite \
+    -noverify \
+    -plist \
+    "$dmg_readwrite" > "$attach_info"
+dmg_mount=""
+for entity_index in {0..9}; do
+    candidate_mount="$(/usr/libexec/PlistBuddy -c "Print :system-entities:$entity_index:mount-point" "$attach_info" 2>/dev/null || true)"
+    if [[ -n "$candidate_mount" && -d "$candidate_mount" ]]; then
+        dmg_mount="$candidate_mount"
+        break
+    fi
+done
+if [[ -z "$dmg_mount" || ! -d "$dmg_mount" ]]; then
+    printf 'Could not determine the mounted DMG path from: %s\n' "$attach_info" >&2
+    exit 1
+fi
+dmg_mounted=1
+finder_volume_name="$(basename "$dmg_mount")"
+
+for hidden_path in \
+    "$dmg_mount/.background" \
+    "$dmg_mount/.fseventsd" \
+    "$dmg_mount/.DS_Store"; do
+    if [[ -e "$hidden_path" ]]; then
+        chflags hidden "$hidden_path"
+        SetFile -a V "$hidden_path"
+    fi
+done
+
+osascript <<EOF
+tell application "Finder"
+    tell disk "$finder_volume_name"
+        open
+        set containerWindow to container window
+        set current view of containerWindow to icon view
+        set toolbar visible of containerWindow to false
+        set statusbar visible of containerWindow to false
+        set bounds of containerWindow to {100, 100, 920, 600}
+        set viewOptions to icon view options of containerWindow
+        set arrangement of viewOptions to not arranged
+        set icon size of viewOptions to 128
+        set text size of viewOptions to 14
+        set background picture of viewOptions to (POSIX file "$dmg_mount/.background/background.png" as alias)
+        set position of item "SpotiBind.app" to {170, 300}
+        set position of item "Applications" to {650, 300}
+        try
+            set position of item ".background" to {1200, 900}
+        end try
+        try
+            set position of item ".fseventsd" to {1320, 900}
+        end try
+        try
+            set position of item ".DS_Store" to {1440, 900}
+        end try
+        update without registering applications
+        delay 1
+        close
+    end tell
+end tell
+EOF
+
+# Finder creates or updates .DS_Store while applying the view settings; keep
+# all metadata entries invisible after that write as well.
+for hidden_path in \
+    "$dmg_mount/.background" \
+    "$dmg_mount/.fseventsd" \
+    "$dmg_mount/.DS_Store"; do
+    if [[ -e "$hidden_path" ]]; then
+        chflags hidden "$hidden_path"
+        SetFile -a V "$hidden_path"
+    fi
+done
+
+sync
+hdiutil detach "$dmg_mount" -quiet
+dmg_mounted=0
+hdiutil convert "$dmg_readwrite" \
     -format UDZO \
-    "$dmg_path" >&2
+    -ov \
+    -imagekey zlib-level=9 \
+    -o "$dmg_path" >&2
 
 (cd "$output_dir" && shasum -a 256 "$(basename "$dmg_path")" > "$(basename "$checksums_path")")
 

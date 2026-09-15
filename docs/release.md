@@ -9,7 +9,8 @@
 5. Confirm `lipo -archs` reports both `arm64` and `x86_64`, the bundle
    identifier is `cc.ivanli.spotibind`, `CFBundleIconName` is `SpotiBind`,
    `Assets.car`, `SpotiBind.icns`, `StatusBarMark.svg`, and `SpotifyMark.svg`
-   are present, and the signature is Ad Hoc.
+   are present, the mounted DMG contains its guided installation layout, and
+   the signature is Ad Hoc.
 
 After all required PR checks pass, `Prepare release version` creates a
 GitHub-verified `VERSION`-only commit on the PR branch. Merging that PR to

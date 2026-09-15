@@ -38,8 +38,10 @@ SpotiBind validates its behavior at four layers.
 - The app build and release jobs use `macos-26` with Xcode 26.4+ for the
   Icon Composer resource target; Swift test jobs remain on `macos-15`.
 - Release validation verifies both universal architectures, the Ad Hoc
-  signature, DMG mountability, the Icon Composer `Assets.car`, the macOS 13
-  fallback icon, and published SHA-256 checksums.
+  signature, the DMG's mounted installation layout (application bundle,
+  `/Applications` alias, Finder view metadata, and background), the Icon
+  Composer `Assets.car`, the macOS 13 fallback icon, and published SHA-256
+  checksums.
 - A real Mac release checklist covers Accessibility authorization changes,
   target liveness, another player in the foreground, sleep/wake, and event-tap
   recovery. Fastpotify and Sonora checks run on macOS 13+; Spotifly checks run
