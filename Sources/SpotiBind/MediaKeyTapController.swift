@@ -2,12 +2,15 @@
 @preconcurrency import CoreGraphics
 import SpotiBindCore
 
+// IOKit NX_SUBTYPE_AUX_CONTROL_BUTTONS is the subtype used by media keys;
+// NX_SUBTYPE_AUX_MOUSE_BUTTONS (7) must remain pass-through.
+private let mediaKeySystemDefinedSubtype: Int16 = 8
+
 @MainActor
 protocol MediaKeyTapState: AnyObject {
     var readiness: ForwardingReadiness { get }
     var accessibilityTrusted: Bool { get }
 
-    func accessibilityTrustedForEvent() -> Bool
     func dispatch(_ key: MediaKey)
     func setTapStatus(_ status: String)
     func setPlayerMode(_ mode: PlayerMode)
@@ -75,11 +78,15 @@ final class MediaKeyTapController {
             return Unmanaged.passUnretained(event)
         }
 
-        let data1 = UInt32(truncatingIfNeeded: NSEvent(cgEvent: event)?.data1 ?? 0)
+        guard let systemDefinedEvent = NSEvent(cgEvent: event),
+              systemDefinedEvent.subtype.rawValue == mediaKeySystemDefinedSubtype else {
+            return Unmanaged.passUnretained(event)
+        }
+        let data1 = UInt32(truncatingIfNeeded: systemDefinedEvent.data1)
         guard SystemDefinedMediaKeyDecoder().decode(data1: data1) != nil else {
             return Unmanaged.passUnretained(event)
         }
-        guard !state.readiness.isReady || state.accessibilityTrustedForEvent() else {
+        guard !state.readiness.isReady || state.accessibilityTrusted else {
             return Unmanaged.passUnretained(event)
         }
 

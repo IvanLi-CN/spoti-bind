@@ -285,6 +285,7 @@ final class PlayerLaunchCoordinatorTests: XCTestCase {
         let second = await secondTask.value
 
         await runtime.finishLaunch()
+        await runtime.waitForLaunchEnd()
         let third = await dispatchEventuallyDelivered(
             .next,
             coordinator: coordinator,
@@ -535,6 +536,12 @@ private actor HangingLaunchPlayerRuntime: PlayerLaunchRuntime {
 
     func waitForLaunchStart() async {
         while !launchStarted {
+            await Task.yield()
+        }
+    }
+
+    func waitForLaunchEnd() async {
+        while !events.contains("launch-end") {
             await Task.yield()
         }
     }

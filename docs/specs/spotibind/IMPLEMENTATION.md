@@ -46,10 +46,11 @@
 - Accessibility checks are silent at startup. The system prompt is deferred
   until an explicit active-mode selection or a menu media-control click. Status
   refreshes run from the app lifecycle and periodic timer without prompting;
-  the synchronous event callback only decodes a recognized media key, performs
-  a silent trust check, and routes from the cached readiness and application URL
-  state. It never scans player availability or waits for launch. Unknown
-  system-defined events and all mouse/keyboard events pass through unchanged.
+  the synchronous event callback only accepts the media-key system-defined
+  subtype, decodes a recognized media key, and routes from cached readiness
+  and application URL state. It never queries Accessibility, scans player
+  availability, or waits for launch. Auxiliary mouse, unknown system-defined,
+  and all other mouse/keyboard events pass through unchanged.
   A readiness change reconciles the event tap outside the callback.
 - PlayerLaunchCoordinator starts the ten-second launch deadline when a launch
   request enters the serial queue. A queued request that expires while an
