@@ -70,6 +70,27 @@ installed Fastpotify executable; Ad Hoc builds are not notarized.
 6. When macOS asks for access, open **System Settings > Privacy & Security >
    Accessibility**, enable SpotiBind, then return to the menu.
 
+### Homebrew
+
+Install the same release from this repository's third-party tap:
+
+```sh
+brew tap IvanLi-CN/spoti-bind https://github.com/IvanLi-CN/spoti-bind.git
+brew install --cask IvanLi-CN/spoti-bind/spotibind
+```
+
+To upgrade or uninstall the cask:
+
+```sh
+brew upgrade --cask IvanLi-CN/spoti-bind/spotibind
+brew uninstall --cask spotibind
+```
+
+The cask installs the same Ad Hoc, non-notarized application. If macOS blocks
+the first launch, open `SpotiBind.app` from Finder with **Control-click, then
+Open**. The Accessibility permission step above is still required for media-key
+forwarding.
+
 The first explicit active-mode selection or menu transport control can trigger
 macOS's standard Accessibility prompt. Startup checks are silent. See
 [docs/permissions.md](docs/permissions.md) for the permission and event-tap
