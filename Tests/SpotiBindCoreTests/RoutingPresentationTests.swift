@@ -91,4 +91,22 @@ final class RoutingPresentationTests: XCTestCase {
         XCTAssertEqual(presentation.title, "Media key capture restarted")
         XCTAssertNil(presentation.action)
     }
+
+    func testQuarantinedCaptureExplainsHowToResumeForwarding() {
+        let presentation = RoutingPresentation.make(
+            mode: .spotify,
+            accessibilityTrusted: true,
+            issue: nil,
+            selection: .running(.spotify),
+            tapStatus: "Media key capture paused",
+            targetDetail: "/Applications/Spotify.app"
+        )
+
+        XCTAssertEqual(presentation.title, "Media key capture paused")
+        XCTAssertEqual(
+            presentation.detail,
+            "Revoke and re-enable Accessibility to resume forwarding."
+        )
+        XCTAssertEqual(presentation.action, .accessibility)
+    }
 }

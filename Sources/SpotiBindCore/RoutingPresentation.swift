@@ -69,6 +69,13 @@ public struct RoutingPresentation: Equatable, Sendable {
                 action: .settings
             )
         }
+        if tapStatus == "Media key capture paused" {
+            return RoutingPresentation(
+                title: tapStatus,
+                detail: "Revoke and re-enable Accessibility to resume forwarding.",
+                action: .accessibility
+            )
+        }
         switch selection {
         case .none:
             return RoutingPresentation(

@@ -5,20 +5,20 @@
 The app checks Accessibility authorization with the public
 `AXIsProcessTrustedWithOptions` API. Startup checks are silent. An explicit
 active-mode selection or menu media-control click may ask macOS to show its
-standard prompt; opening the Accessibility settings link never prompts. While
-forwarding is in an active mode, either explicit authorization flow starts a
-silent trust recheck once per second and immediately reconciles the existing
-event tap when trust is granted. In Off mode, the settings link opens without
-starting that poll. The menu and Advanced Settings window expose a direct link
-to System Settings > Privacy & Security > Accessibility.
+standard prompt; opening the Accessibility settings link never prompts. A
+silent trust monitor runs once per second in the main run loop's common modes,
+so it observes both revocation and restoration while menu tracking is active.
+The menu and Advanced Settings window expose a direct link to System Settings
+> Privacy & Security > Accessibility.
 
 Without authorization, or while forwarding is Off or has no usable target, no
 event tap is installed and all media keys remain normal system events. Revoking
-authorization while the app is running is handled by the periodic status
-refresh; forwarding becomes unready, the existing tap is removed, and it is not
-re-created until access and a usable target are restored.
-The synchronous tap callback only reads that cached readiness; it does not make
-an Accessibility query on the system input path.
+authorization while the app is running makes forwarding unready and removes the
+existing tap. When Core Graphics disables the tap for any reason, SpotiBind
+enters Tap Quarantine: it keeps the Player Mode but does not retry the active
+tap. Reinstallation requires the trust monitor to observe revocation and a
+later restoration. The synchronous tap callback only reads cached readiness;
+it does not make an Accessibility query on the system input path.
 
 ## What the app does not request
 
@@ -57,7 +57,7 @@ main-window input surface.
 
 ## Event-tap failures
 
-If macOS disables the tap once, the controller enables it again. A second
-failure within the ten-second recovery window disables forwarding visibly and
-persists the Off mode. A successful installation resets that window. No
-failure path replays a consumed event.
+If macOS disables the tap, the controller disables and invalidates it without
+retrying or changing the selected Player Mode. The app emits a Unified Logging
+event for the quarantine and for every trust or tap lifecycle transition; it
+does not log raw input data. No failure path replays a consumed event.

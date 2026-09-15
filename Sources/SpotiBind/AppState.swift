@@ -215,6 +215,7 @@ final class AppState: ObservableObject {
         lifecycleGeneration += 1
         let generation = lifecycleGeneration
         refreshStatus(promptForAccessibility: false)
+        startAccessibilityPollingIfNeeded()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.refreshStatusIfCurrent(generation: generation)
@@ -251,9 +252,10 @@ final class AppState: ObservableObject {
 
     func refreshStatus(promptForAccessibility: Bool) {
         guard !demoRequested else { return }
-        accessibilityTrusted = accessibilityTrustChecker.check(prompt: promptForAccessibility)
-        if accessibilityTrusted || playerMode == .off {
-            stopAccessibilityPolling()
+        let trusted = accessibilityTrustChecker.check(prompt: promptForAccessibility)
+        if trusted != accessibilityTrusted {
+            accessibilityTrusted = trusted
+            InputSafetyDiagnostics.accessibilityTrustChanged(to: trusted)
         }
         resolveTargets()
         updateAvailability()
@@ -278,9 +280,6 @@ final class AppState: ObservableObject {
             return
         }
         playerMode = mode
-        if mode == .off {
-            stopAccessibilityPolling()
-        }
         defaults.set(mode.rawValue, forKey: Keys.playerMode)
         clearDispatchIssue()
         updateAvailability()
@@ -351,8 +350,6 @@ final class AppState: ObservableObject {
 
     private func startAccessibilityPollingIfNeeded() {
         guard !demoRequested,
-              playerMode != .off,
-              !accessibilityTrusted,
               accessibilityPollingHandle == nil else {
             return
         }
@@ -373,18 +370,15 @@ final class AppState: ObservableObject {
 
     private func pollAccessibilityTrust(generation: Int) {
         guard generation == accessibilityPollingGeneration else { return }
-        guard !demoRequested, playerMode != .off else {
+        guard !demoRequested else {
             stopAccessibilityPolling()
             return
         }
-        guard !accessibilityTrusted else {
-            stopAccessibilityPolling()
-            return
-        }
-        guard accessibilityTrustChecker.check(prompt: false) else { return }
+        let trusted = accessibilityTrustChecker.check(prompt: false)
+        guard trusted != accessibilityTrusted else { return }
 
-        accessibilityTrusted = true
-        stopAccessibilityPolling()
+        accessibilityTrusted = trusted
+        InputSafetyDiagnostics.accessibilityTrustChanged(to: trusted)
         onReadinessChanged?()
     }
 
