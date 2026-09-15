@@ -52,6 +52,24 @@ SpotiBind 以当前登录用户运行，不需要管理员密码、root 权限�
 5. 打开菜单栏中的 SpotiBind，选择 **自动** 或某个具体播放器。
 6. macOS 请求权限时，前往 **系统设置 → 隐私与安全性 → 辅助功能**，启用 SpotiBind，然后返回菜单栏。
 
+### Homebrew
+
+可以从当前仓库的第三方 tap 安装同一个发布版本：
+
+```sh
+brew tap IvanLi-CN/spoti-bind https://github.com/IvanLi-CN/spoti-bind.git
+brew install --cask IvanLi-CN/spoti-bind/spotibind
+```
+
+升级或卸载 cask：
+
+```sh
+brew upgrade --cask IvanLi-CN/spoti-bind/spotibind
+brew uninstall --cask spotibind
+```
+
+该 cask 安装的仍是同一个 Ad Hoc、未经过公证的应用。如果 macOS 阻止首次启动，请在 Finder 中按住 Control 点击 `SpotiBind.app`，选择 **打开**。媒体按键转发仍需要完成上面的辅助功能授权步骤。
+
 第一次明确选择启用的转发模式，或点击菜单中的媒体控制按钮时，可能会触发 macOS 的标准辅助功能权限提示。应用启动时只进行静默检查。权限和事件 Tap 的边界说明见 [docs/permissions.md](docs/permissions.md)（英文）。
 
 公开构建由 CI 构建并验证。发布就绪前还需要对每个已宣传支持的 GUI 播放器进行手动检查：完成 Finder 首次启动授权后，关闭播放器，冷启动 SpotiBind，并确认第一枚媒体按键只投递一次。请记录 macOS 版本、架构、播放器版本和结果。
