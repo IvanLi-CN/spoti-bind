@@ -16,6 +16,8 @@ event tap is installed and all media keys remain normal system events. Revoking
 authorization while the app is running is handled by the periodic status
 refresh; forwarding becomes unready, the existing tap is removed, and it is not
 re-created until access and a usable target are restored.
+The synchronous tap callback only reads that cached readiness; it does not make
+an Accessibility query on the system input path.
 
 ## What the app does not request
 

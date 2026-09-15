@@ -80,9 +80,10 @@ The automated contract names are `PlayerSelectionTests`, `PlayerDispatchTests`,
 `PlayerLaunchCoordinatorTests`, `RoutingPolicyTests`,
 `MediaKeyDecoderTests`, and `FastpotifyIntegrationTests`.
 
-`MediaKeyEventRouterTests` is the input-safety regression suite: it asserts
-that mouse and ordinary keyboard event types cannot enter media-key routing or
-be consumed by the event tap.
+`MediaKeyEventRouterTests` and `MediaKeyTapControllerTests` form the
+input-safety regression suite: they assert that auxiliary mouse system-defined
+events, mouse events, and ordinary keyboard event types cannot enter
+media-key routing or be consumed by the event tap.
 
 `UIDemoScenarioTests` and `UIAppearanceTests` cover the pre-start demo
 projection and the light/dark appearance contract. Full healthy visual

@@ -118,6 +118,8 @@ minimum="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$plist")"
 [[ "$minimum" == "13.0" ]] || { printf 'Unexpected minimum system version: %s\n' "$minimum" >&2; exit 1; }
 identifier="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")"
 [[ "$identifier" == "cc.ivanli.spotibind" ]] || { printf 'Unexpected bundle identifier: %s\n' "$identifier" >&2; exit 1; }
+multiple_instances="$(/usr/libexec/PlistBuddy -c 'Print :LSMultipleInstancesProhibited' "$plist")"
+[[ "$multiple_instances" == "true" ]] || { printf 'Multiple instances must be prohibited: %s\n' "$multiple_instances" >&2; exit 1; }
 icon_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$plist")"
 [[ "$icon_name" == "SpotiBind" ]] || { printf 'Unexpected bundle icon name: %s\n' "$icon_name" >&2; exit 1; }
 

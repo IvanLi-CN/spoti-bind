@@ -11,4 +11,4 @@ SpotiBind captures media-key events with the public Swift `CGEvent.tapCreate` AP
 
 ## Implementation Boundary
 
-The tap listens for AppKit's public `NSEvent.EventType.systemDefined` event type. Its decoder recognizes only the documented IOKit auxiliary-control key values for play/pause, next, and previous. The event payload has no dedicated high-level public media-key model, so its small decoding boundary is isolated, unit-tested, and passes through unrecognized payloads. The tap callback never launches or waits for a process.
+The tap listens for AppKit's public `NSEvent.EventType.systemDefined` event type and the IOKit auxiliary-control subtype used by media keys. Its decoder recognizes only the documented IOKit auxiliary-control key values for play/pause, next, and previous. The event payload has no dedicated high-level public media-key model, so its small decoding boundary is isolated, unit-tested, and passes through unrecognized payloads and auxiliary mouse events. The tap callback never launches, waits for a process, or performs a synchronous Accessibility query.

@@ -53,13 +53,17 @@ The executable target owns only platform lifecycle:
   reopened before PID keyboard delivery. A missing or invalid custom path
   remains unavailable instead of silently falling back.
 - `ApplicationDelegate` sets the accessory activation policy and starts/stops
-  the tap.
+  the tap. The bundle prohibits multiple instances so only one process can
+  own the global event tap.
 - `MediaKeyTapController` installs the public session event tap only while
   Accessibility is authorized and the current mode resolves to a usable
   player. The callback returns the original event for pass-through or `nil`
   for a consumed event, and removes the tap when forwarding becomes unready.
-  It filters the exact `systemDefined` event type before decoding; mouse,
-  keyboard, and all other event types are always returned unchanged.
+  It filters the exact `systemDefined` event type and the media-key subtype
+  before decoding; auxiliary mouse, mouse, keyboard, and all other event types
+  are always returned unchanged. The synchronous callback reads cached
+  readiness only; Accessibility queries stay on the lifecycle and explicit
+  permission paths.
 - `SystemPlayerRuntime` discovers and starts application bundles with
   `NSWorkspace`, checks Sonora's public `NSRunningApplication.activationPolicy`
   to determine whether its main-window input surface is ready, reopens and
