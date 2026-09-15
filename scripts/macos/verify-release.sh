@@ -89,7 +89,19 @@ if [[ -z "$iconutil_bin" ]]; then
 fi
 iconset_parent="$(mktemp -d "${TMPDIR:-/tmp}/spotibind-release-iconset.XXXXXX")"
 iconset_check="$iconset_parent/fallback.iconset"
-trap 'rm -rf "$iconset_parent"' EXIT
+dmg_mount=""
+dmg_mounted=0
+
+cleanup() {
+    if ((dmg_mounted == 1)) && [[ -n "$dmg_mount" ]]; then
+        hdiutil detach "$dmg_mount" -quiet >/dev/null 2>&1 || true
+    fi
+    if [[ -n "$dmg_mount" ]]; then
+        rm -rf "$dmg_mount"
+    fi
+    rm -rf "$iconset_parent"
+}
+trap cleanup EXIT
 "$iconutil_bin" --convert iconset --output "$iconset_check" "$fallback_icon"
 for icon_file in \
     icon_16x16.png icon_16x16@2x.png \
@@ -128,6 +140,46 @@ icon_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$plist")"
 [[ "$icon_name" == "SpotiBind" ]] || { printf 'Unexpected bundle icon name: %s\n' "$icon_name" >&2; exit 1; }
 
 hdiutil imageinfo "$dmg_path" >/dev/null
+dmg_mount="$(mktemp -d "${TMPDIR:-/tmp}/spotibind-release-dmg.XXXXXX")"
+hdiutil attach \
+    -readonly \
+    -noverify \
+    -nobrowse \
+    -mountpoint "$dmg_mount" \
+    "$dmg_path" >/dev/null
+dmg_mounted=1
+
+for resource in \
+    "$dmg_mount/SpotiBind.app" \
+    "$dmg_mount/.background/background.png" \
+    "$dmg_mount/.DS_Store"; do
+    if [[ ! -s "$resource" ]]; then
+        printf 'DMG resource is missing or empty: %s\n' "$resource" >&2
+        exit 1
+    fi
+done
+for hidden_path in \
+    "$dmg_mount/.background" \
+    "$dmg_mount/.DS_Store"; do
+    if ! GetFileInfo "$hidden_path" 2>/dev/null | grep -q 'attributes:.*V'; then
+        printf 'DMG hidden resource is missing Finder invisible attribute: %s\n' "$hidden_path" >&2
+        exit 1
+    fi
+done
+if [[ ! -L "$dmg_mount/Applications" ]]; then
+    printf 'DMG Applications entry is not a symbolic link: %s\n' "$dmg_mount/Applications" >&2
+    exit 1
+fi
+if [[ "$(readlink "$dmg_mount/Applications")" != "/Applications" ]]; then
+    printf 'DMG Applications link has an unexpected target: %s\n' "$(readlink "$dmg_mount/Applications")" >&2
+    exit 1
+fi
+
+hdiutil detach "$dmg_mount" -quiet
+dmg_mounted=0
+rm -rf "$dmg_mount"
+dmg_mount=""
+
 checksum_dir="$(cd "$(dirname "$checksums_path")" && pwd)"
 (cd "$checksum_dir" && shasum -a 256 -c "$(basename "$checksums_path")")
 
