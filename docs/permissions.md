@@ -5,11 +5,12 @@
 The app checks Accessibility authorization with the public
 `AXIsProcessTrustedWithOptions` API. Startup checks are silent. An explicit
 active-mode selection or menu media-control click may ask macOS to show its
-standard prompt; opening the Accessibility settings link never prompts. After
-either explicit authorization flow starts, the app silently rechecks trust
-once per second and immediately reconciles its existing event tap when trust
-is granted. The menu and Advanced Settings window expose a direct link to
-System Settings > Privacy & Security > Accessibility.
+standard prompt; opening the Accessibility settings link never prompts. While
+forwarding is in an active mode, either explicit authorization flow starts a
+silent trust recheck once per second and immediately reconciles the existing
+event tap when trust is granted. In Off mode, the settings link opens without
+starting that poll. The menu and Advanced Settings window expose a direct link
+to System Settings > Privacy & Security > Accessibility.
 
 Without authorization, or while forwarding is Off or has no usable target, no
 event tap is installed and all media keys remain normal system events. Revoking
@@ -31,9 +32,11 @@ The non-sandboxed Ad Hoc boundary is a distribution constraint, not a request
 for elevated user privileges. The process is still launched as the logged-in
 user and only receives the selected Fastpotify executable and fixed arguments,
 or posts ordinary keyboard events to a selected player's existing PID. The
-standalone Fastpotify CLI is outside SpotiBind's Accessibility gate; invoking
-that CLI does not require this app's authorization. This is an app-boundary
-statement, not a claim about unrelated system permissions. When Sonora is
+standalone Fastpotify CLI is permission-independent; invoking that standalone
+tool does not require this app's authorization. SpotiBind's own global capture
+and menu dispatch remain gated by Accessibility, including when Fastpotify is
+the selected target. This is an app-boundary statement, not a claim about
+unrelated system permissions. When Sonora is
 tray-resident, the
 activation-policy check causes `NSWorkspace` to reopen and activate Sonora
 before PID delivery; this is the documented exception to background-only
