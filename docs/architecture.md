@@ -32,8 +32,6 @@ NSEvent systemDefined decoder -> RoutingPolicy -> pass-through / consume / dispa
   `now-playing --raw` through a `FastpotifyProcessRunner` interface.
 - `PlayerDispatch` and `PlayerLaunchCoordinator`, which map media keys to the
   four adapter contracts and serialize asynchronous cold-start handoffs.
-- `TapFailureTracker`, which makes the event-tap recovery rule deterministic
-  and unit-testable.
 
 The process interface accepts a URL and argument array, never a shell command.
 This prevents shell expansion and keeps the integration limited to Fastpotify's
@@ -46,7 +44,8 @@ The executable target owns only platform lifecycle:
 - `MenuBarExtra(.window)` renders the status, transport controls, routing
   selector, issue action, and footer actions in a custom panel. A retained
   `SettingsWindowController` hosts the single Advanced Settings window.
-- `AppState` polls Accessibility, installed/running player availability, and
+- `AppState` monitors Accessibility continuously across common run-loop modes,
+  detects both revocation and restoration, and polls installed/running player availability and
   Fastpotify health, persisting the Player Mode, login-item, and per-player
   path settings. Running availability includes the adapter's input surface; a
   Sonora process with only a tray icon is launchable so its main window can be
@@ -58,12 +57,15 @@ The executable target owns only platform lifecycle:
 - `MediaKeyTapController` installs the public session event tap only while
   Accessibility is authorized and the current mode resolves to a usable
   player. The callback returns the original event for pass-through or `nil`
-  for a consumed event, and removes the tap when forwarding becomes unready.
+  for a consumed event, removes the tap when forwarding becomes unready, and
+  quarantines it after any Core Graphics disable notification until
+  Accessibility has been observed as revoked and then restored.
   It filters the exact `systemDefined` event type and the media-key subtype
   before decoding; auxiliary mouse, mouse, keyboard, and all other event types
   are always returned unchanged. The synchronous callback reads cached
   readiness only; Accessibility queries stay on the lifecycle and explicit
-  permission paths.
+  permission paths. It is appended to the event-tap chain and never retries a
+  system-disabled tap automatically.
 - `SystemPlayerRuntime` discovers and starts application bundles with
   `NSWorkspace`, checks Sonora's public `NSRunningApplication.activationPolicy`
   to determine whether its main-window input surface is ready, reopens and

@@ -43,9 +43,10 @@ SpotiBind validates its behavior at four layers.
   Composer `Assets.car`, the macOS 13 fallback icon, and published SHA-256
   checksums.
 - A real Mac release checklist covers Accessibility authorization changes,
-  target liveness, another player in the foreground, sleep/wake, and event-tap
-  recovery. Fastpotify and Sonora checks run on macOS 13+; Spotifly checks run
-  only on a macOS 26.2+ environment that can install its current release.
+  Tap Quarantine recovery through revocation and restoration, target liveness,
+  another player in the foreground, and sleep/wake. Fastpotify and Sonora
+  checks run on macOS 13+; Spotifly checks run only on a macOS 26.2+
+  environment that can install its current release.
 
 Before a GUI player is claimed as supported, the candidate artifact must pass a
 pre-merge real-Mac check: approve the player's first launch from Finder, close
@@ -82,10 +83,12 @@ The automated contract names are `PlayerSelectionTests`, `PlayerDispatchTests`,
 `PlayerLaunchCoordinatorTests`, `RoutingPolicyTests`,
 `MediaKeyDecoderTests`, and `FastpotifyIntegrationTests`.
 
-`MediaKeyEventRouterTests` and `MediaKeyTapControllerTests` form the
-input-safety regression suite: they assert that auxiliary mouse system-defined
-events, mouse events, and ordinary keyboard event types cannot enter
-media-key routing or be consumed by the event tap.
+`MediaKeyEventRouterTests`, `MediaKeyTapControllerTests`, and
+`AppStateAccessibilityPollingTests` form the input-safety regression suite:
+they assert that auxiliary mouse system-defined events, mouse events, and
+ordinary keyboard event types cannot enter media-key routing or be consumed by
+the event tap; that running Accessibility revocation is observed; and that a
+system-disabled tap remains quarantined until trust is revoked and restored.
 
 `UIDemoScenarioTests` and `UIAppearanceTests` cover the pre-start demo
 projection and the light/dark appearance contract. Full healthy visual

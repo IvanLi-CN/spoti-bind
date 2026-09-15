@@ -28,6 +28,10 @@ _Avoid_: Connected, installed
 Leaving a Media Key unconsumed so macOS performs its normal media-key routing.
 _Avoid_: Fallback command, replay
 
+**Tap Quarantine**:
+The input-safety state entered after macOS disables the event tap, in which SpotiBind retains the selected Player Mode but leaves every input unconsumed until Accessibility has been revoked and granted again.
+_Avoid_: Off mode, tap retry
+
 **Dispatch Failure**:
 A failure discovered after an event was consumed for forwarding; it is reported to the person using the app but does not cause the original event to be emitted again.
 _Avoid_: Retry, pass-through

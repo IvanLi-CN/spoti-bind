@@ -28,7 +28,7 @@ final class AppStateAccessibilityPollingTests: XCTestCase {
         scheduler.fire()
 
         XCTAssertTrue(state.accessibilityTrusted)
-        XCTAssertTrue(scheduler.handle?.cancelled == true)
+        XCTAssertFalse(scheduler.handle?.cancelled == true)
         XCTAssertEqual(readinessChanges, readinessChangesAfterRequest + 1)
         let calls = await runner.calls
         XCTAssertTrue(calls.isEmpty)
@@ -57,10 +57,10 @@ final class AppStateAccessibilityPollingTests: XCTestCase {
         scheduler.fire()
 
         XCTAssertTrue(state.accessibilityTrusted)
-        XCTAssertTrue(scheduler.handle?.cancelled == true)
+        XCTAssertFalse(scheduler.handle?.cancelled == true)
     }
 
-    func testOffModeAndStopCancelPendingAccessibilityPolling() {
+    func testOffModeKeepsTrustMonitoringAndStopCancelsIt() {
         let checker = RecordingTrustChecker(responses: [false, false])
         let scheduler = ManualPollingScheduler()
         let state = makeState(checker: checker, scheduler: scheduler)
@@ -69,6 +69,8 @@ final class AppStateAccessibilityPollingTests: XCTestCase {
         XCTAssertFalse(scheduler.handle?.cancelled == true)
 
         state.setPlayerMode(.off)
+        XCTAssertFalse(scheduler.handle?.cancelled == true)
+        state.stop()
         XCTAssertTrue(scheduler.handle?.cancelled == true)
 
         let secondScheduler = ManualPollingScheduler()
@@ -80,6 +82,28 @@ final class AppStateAccessibilityPollingTests: XCTestCase {
         secondScheduler.fire()
         XCTAssertFalse(secondState.accessibilityTrusted)
         XCTAssertEqual(checker.prompts, promptsBeforeStoppedFire)
+    }
+
+    func testContinuousTrustMonitoringObservesRevocationAndRestoration() {
+        let checker = RecordingTrustChecker(responses: [true, false, true])
+        let scheduler = ManualPollingScheduler()
+        let state = makeState(checker: checker, scheduler: scheduler)
+        var readinessChanges = 0
+        state.onReadinessChanged = { readinessChanges += 1 }
+
+        state.start()
+        XCTAssertTrue(state.accessibilityTrusted)
+        let changesAfterStart = readinessChanges
+
+        scheduler.fire()
+        XCTAssertFalse(state.accessibilityTrusted)
+        XCTAssertEqual(readinessChanges, changesAfterStart + 1)
+
+        scheduler.fire()
+        XCTAssertTrue(state.accessibilityTrusted)
+        XCTAssertEqual(readinessChanges, changesAfterStart + 2)
+        XCTAssertFalse(scheduler.handle?.cancelled == true)
+        state.stop()
     }
 
     func testStartIsIdempotentAndStopInvalidatesQueuedRefresh() async {

@@ -13,7 +13,6 @@ protocol MediaKeyTapState: AnyObject {
 
     func dispatch(_ key: MediaKey)
     func setTapStatus(_ status: String)
-    func setPlayerMode(_ mode: PlayerMode)
 }
 
 extension AppState: MediaKeyTapState {}
@@ -22,18 +21,13 @@ extension AppState: MediaKeyTapState {}
 final class MediaKeyTapController {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    private var retryTimer: Timer?
     private weak var state: (any MediaKeyTapState)?
-    private var failureTracker = TapFailureTracker()
+    private(set) var isTapQuarantined = false
+    private var observedUntrustedSinceQuarantine = false
 
     func start(state: any MediaKeyTapState) {
         self.state = state
         installIfPossible()
-        retryTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.installIfPossible()
-            }
-        }
     }
 
     func reconcile() {
@@ -41,12 +35,11 @@ final class MediaKeyTapController {
     }
 
     func stop() {
-        retryTimer?.invalidate()
-        retryTimer = nil
         removeEventTap()
     }
 
     private func removeEventTap() {
+        let hadEventTap = eventTap != nil
         if let eventTap {
             CGEvent.tapEnable(tap: eventTap, enable: false)
         }
@@ -58,14 +51,21 @@ final class MediaKeyTapController {
         }
         runLoopSource = nil
         eventTap = nil
+        if hadEventTap {
+            InputSafetyDiagnostics.tapRemoved()
+        }
     }
 
     func handle(
         event: CGEvent,
         type: CGEventType
     ) -> Unmanaged<CGEvent>? {
-        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            handleDisabledTap()
+        if type == .tapDisabledByTimeout {
+            quarantineTap(after: .timeout)
+            return Unmanaged.passUnretained(event)
+        }
+        if type == .tapDisabledByUserInput {
+            quarantineTap(after: .userInput)
             return Unmanaged.passUnretained(event)
         }
 
@@ -109,10 +109,17 @@ final class MediaKeyTapController {
     }
 
     private func installIfPossible() {
-        guard let state, state.readiness.isReady else {
+        guard let state else {
             removeEventTap()
-            if state?.accessibilityTrusted == false {
-                state?.setTapStatus("Waiting for Accessibility")
+            return
+        }
+        updateTapQuarantine(for: state)
+        guard !isTapQuarantined, state.readiness.isReady else {
+            removeEventTap()
+            if !state.accessibilityTrusted {
+                state.setTapStatus("Waiting for Accessibility")
+            } else if isTapQuarantined {
+                state.setTapStatus("Media key capture paused")
             }
             return
         }
@@ -122,46 +129,63 @@ final class MediaKeyTapController {
         let userInfo = Unmanaged.passUnretained(self).toOpaque()
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
-            place: .headInsertEventTap,
+            place: .tailAppendEventTap,
             options: .defaultTap,
             eventsOfInterest: mask,
             callback: mediaKeyTapCallback,
             userInfo: userInfo
         ) else {
             state.setTapStatus("Media key capture unavailable")
+            InputSafetyDiagnostics.tapUnavailable()
             return
         }
 
         guard let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0) else {
             CFMachPortInvalidate(tap)
             state.setTapStatus("Media key capture unavailable")
+            InputSafetyDiagnostics.tapUnavailable()
             return
         }
 
         eventTap = tap
         runLoopSource = source
-        failureTracker.reset()
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
         state.setTapStatus("Ready")
+        InputSafetyDiagnostics.tapInstalled()
     }
 
-    private func handleDisabledTap() {
-        guard let eventTap else {
-            state?.setPlayerMode(.off)
-            state?.setTapStatus("Media key capture disabled after repeated failures")
+    private func updateTapQuarantine(for state: any MediaKeyTapState) {
+        guard isTapQuarantined else { return }
+        guard !state.accessibilityTrusted else {
+            guard observedUntrustedSinceQuarantine else { return }
+            isTapQuarantined = false
+            observedUntrustedSinceQuarantine = false
+            InputSafetyDiagnostics.tapQuarantineReleased()
             return
         }
+        observedUntrustedSinceQuarantine = true
+    }
 
-        switch failureTracker.recordFailure(at: Date()) {
-        case .disableForwarding:
-            state?.setPlayerMode(.off)
-            state?.setTapStatus("Media key capture disabled after repeated failures")
-        case .retryOnce:
-            CGEvent.tapEnable(tap: eventTap, enable: true)
-            state?.setTapStatus("Ready")
+    private func quarantineTap(after reason: TapDisableReason) {
+        isTapQuarantined = true
+        if state?.accessibilityTrusted == false {
+            observedUntrustedSinceQuarantine = true
+        }
+        removeEventTap()
+        state?.setTapStatus("Media key capture paused")
+        switch reason {
+        case .timeout:
+            InputSafetyDiagnostics.tapQuarantinedAfterTimeout()
+        case .userInput:
+            InputSafetyDiagnostics.tapQuarantinedAfterUserInput()
         }
     }
+}
+
+private enum TapDisableReason {
+    case timeout
+    case userInput
 }
 
 private func mediaKeyTapCallback(

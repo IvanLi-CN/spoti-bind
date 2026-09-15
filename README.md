@@ -147,8 +147,9 @@ reopens and activates Sonora's main window before delivering the command.
 - Fastpotify commands are serialized and have a two-second process timeout.
   Dispatch failures are shown in the menu and are not replayed to another
   player.
-- If macOS disables the event tap, SpotiBind retries once. A second failure
-  within the recovery window disables forwarding and sets the mode to **Off**.
+- If macOS disables the event tap, SpotiBind removes it immediately but keeps
+  the selected mode. It resumes forwarding only after Accessibility has been
+  revoked and granted again.
 - The event boundary accepts only the public `systemDefined` media-key event
   type. Ordinary keyboard and mouse events are returned unchanged.
 

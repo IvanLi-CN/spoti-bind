@@ -50,11 +50,12 @@ struct MainRunLoopAccessibilityPollingScheduler: AccessibilityPollingScheduling 
         every interval: TimeInterval,
         action: @escaping @MainActor () -> Void
     ) -> any AccessibilityPollingHandle {
-        let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
+        let timer = Timer(timeInterval: interval, repeats: true) { _ in
             Task { @MainActor in
                 action()
             }
         }
+        RunLoop.main.add(timer, forMode: .common)
         return TimerAccessibilityPollingHandle(timer: timer)
     }
 }

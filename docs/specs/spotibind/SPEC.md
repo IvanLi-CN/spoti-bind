@@ -19,6 +19,7 @@
 - `Player Launch Failure`: A launch, launch-timeout, or input-surface readiness failure that keeps the selected player and gesture unchanged and offers a Finder recovery action.
 - `Forwarding Readiness`: The cached state where a non-Off mode is selected, Accessibility is authorized, and the resolver has a usable target.
 - `Pass-through`: Leaving the original event unconsumed so macOS performs normal routing.
+- `Tap Quarantine`: The input-safety state after macOS disables the event tap. It retains the Player Mode but leaves all input unconsumed until Accessibility has been observed as revoked and then granted again.
 - `Application Icon`: The layered SpotiBind mark compiled by Icon Composer into the bundle's `Assets.car`, with a macOS 13 fallback generated from the same source.
 - `Status Bar Template Mark`: The transparent monochrome SVG used by the menu-bar extra; it is tintable and independent of the application icon.
 - `Bundle Assembly`: The deterministic step that combines a SwiftPM executable, metadata, compiled icon resources, and the status-bar template before signing.
@@ -30,12 +31,14 @@
 ### REQ-FASTPOTIFY-001
 
 - The system MUST capture only supported standard `systemDefined` media-key events through the public Core Graphics event-tap API after Accessibility authorization.
+- The event tap MUST consume only `NX_SUBTYPE_AUX_CONTROL_BUTTONS` events for the supported play/pause, next, and previous keys. Every other event, including keyboard, mouse, auxiliary mouse, and unknown system-defined input, MUST pass through unchanged.
 - Inputs: play/pause, next, previous press/release payloads and unknown system-defined payloads.
 - Outputs: a decoded supported command or an unchanged event for pass-through.
 
 ### REQ-FASTPOTIFY-002
 
 - The system MUST persist one Player Mode and consume a supported key only when Accessibility is authorized and that mode resolves to a usable target; Off and unresolved modes MUST pass the event through.
+- Accessibility trust MUST be monitored for both revocation and restoration while the app runs. Revocation MUST immediately remove the event tap while retaining the Player Mode. A system-disabled tap MUST enter Tap Quarantine without an automatic retry, and it MUST not be reinstalled until the monitor has observed an untrusted-to-trusted transition.
 - Automatic mode MUST prefer running targets in `Spotify`, `Fastpotify`, `Sonora`, `Spotifly` order, then launch the first installed launchable target in that order. A tray-resident Sonora counts as running for this ordering but resolves to a reopen handoff. A standalone Fastpotify CLI MUST NOT be launched without an application bundle.
 - A player MUST be considered running for PID routing only when its adapter has a usable input surface. Sonora running with only its tray icon MUST resolve as a launchable target; the system MUST reopen its main window before consuming and dispatching the media-key gesture.
 - Inputs: Player Mode, Accessibility state, and a Player Availability Snapshot.
@@ -96,7 +99,7 @@
 
 ### VER-FASTPOTIFY-001
 
-- Method: `PlayerSelectionTests`, `RoutingPolicyTests`, and `MediaKeyDecoderTests` with injected availability snapshots.
+- Method: `PlayerSelectionTests`, `RoutingPolicyTests`, `MediaKeyDecoderTests`, `MediaKeyEventRouterTests`, `MediaKeyTapControllerTests`, and `AppStateAccessibilityPollingTests` with injected availability snapshots and trust monitors.
 - covers: `REQ-FASTPOTIFY-001`, `REQ-FASTPOTIFY-002`
 - Pass condition: automatic ordering, manual selection, Off, unknown, and unresolved events match the contract.
 
@@ -138,6 +141,7 @@
 - [Use player adapters and public PID-directed key routing](../../adr/0008-use-player-adapters-and-public-pid-key-routing.md)
 - [Automate public release after a verified main merge](../../adr/0009-automate-public-release-after-verified-main-merge.md)
 - [Use Icon Composer only for native application icon resources](../../adr/0010-use-icon-composer-for-native-application-icon-resources.md)
+- [Quarantine the media event tap after any system disable](../../adr/0011-quarantine-media-event-tap-after-system-disable.md)
 
 ## Visual Evidence
 

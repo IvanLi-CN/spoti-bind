@@ -26,37 +26,6 @@ public enum RoutingDecision: Sendable, Equatable {
     case dispatch(MediaKey)
 }
 
-public enum TapFailureAction: Sendable, Equatable {
-    case retryOnce
-    case disableForwarding
-}
-
-public struct TapFailureTracker: Sendable, Equatable {
-    public let retryWindow: TimeInterval
-    private var lastFailureAt: Date?
-    private var failureCount = 0
-
-    public init(retryWindow: TimeInterval = 10) {
-        self.retryWindow = max(0, retryWindow)
-    }
-
-    public mutating func recordFailure(at date: Date) -> TapFailureAction {
-        if let lastFailureAt,
-           date.timeIntervalSince(lastFailureAt) <= retryWindow {
-            failureCount += 1
-        } else {
-            failureCount = 1
-        }
-        lastFailureAt = date
-        return failureCount == 1 ? .retryOnce : .disableForwarding
-    }
-
-    public mutating func reset() {
-        lastFailureAt = nil
-        failureCount = 0
-    }
-}
-
 public struct RoutingPolicy: Sendable {
     public init() {}
 
