@@ -20,6 +20,10 @@ next, and previous keys to the desktop music player you choose. It keeps
 playback ownership with the player and gives you one place to switch targets,
 check readiness, and configure player locations.
 
+## Community
+
+Discuss SpotiBind on [https://linux.do](https://linux.do).
+
 ## Features
 
 - **Automatic routing** selects the first usable running player in Spotify,
@@ -124,10 +128,10 @@ accounts, or playback content.
 
 | Player | Delivery surface | Play/pause | Next | Previous | Requirement |
 | --- | --- | --- | --- | --- | --- |
-| Spotify | PID-targeted keyboard shortcut | Space | Down Arrow | Up Arrow | Spotify Desktop |
-| Fastpotify | `fastpotify` CLI | `fastpotify play-pause` | `fastpotify next` | `fastpotify previous` | Fastpotify 0.4.1+ |
-| Sonora | PID-targeted keyboard shortcut | Space | Control-Right | Control-Left | Sonora |
-| Spotifly | PID-targeted keyboard shortcut | Space | Command-Right | Command-Left | Spotifly; macOS 26.2+ |
+| [Spotify](https://www.spotify.com/) | PID-targeted keyboard shortcut | Space | Down Arrow | Up Arrow | Spotify Desktop |
+| [Fastpotify](https://github.com/crmne/spotifast) | `fastpotify` CLI | `fastpotify play-pause` | `fastpotify next` | `fastpotify previous` | Fastpotify 0.4.1+ |
+| [Sonora](https://github.com/Nurik-dz/Sonora) | PID-targeted keyboard shortcut | Space | Control-Right | Control-Left | Sonora |
+| [Spotifly](https://github.com/ralph/Spotifly) | PID-targeted keyboard shortcut | Space | Command-Right | Command-Left | Spotifly; macOS 26.2+ |
 
 Automatic mode prefers a usable running player in the table order. If no
 supported player is running, it chooses the first installed player that can be
@@ -245,6 +249,10 @@ The architecture boundary and player adapter rules are documented in
 [docs/architecture.md](docs/architecture.md). New delivery surfaces should
 use a public, documented input contract and keep shell expansion and privileged
 helpers out of the app.
+
+## Inspiration
+
+SpotiBind was inspired by [macmediakeyforwarder](https://github.com/milgra/macmediakeyforwarder).
 
 ## License
 
