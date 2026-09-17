@@ -17,6 +17,10 @@
 
 SpotiBind 是一款轻量的 macOS 菜单栏工具，可将硬件播放/暂停、下一首和上一首按键路由到你选择的桌面音乐播放器。播放控制仍由播放器负责，SpotiBind 负责统一切换目标、显示就绪状态和配置播放器位置。
 
+## 社区
+
+欢迎在 [https://linux.do](https://linux.do) 讨论 SpotiBind。
+
 ## 功能
 
 - **自动路由**：按 Spotify、Fastpotify、Sonora、Spotifly 的顺序选择当前可用的运行中播放器；如果都未运行，则启动第一个已安装且可启动的播放器。
@@ -85,10 +89,10 @@ brew uninstall --cask spotibind
 
 | 播放器 | 交付方式 | 播放/暂停 | 下一首 | 上一首 | 要求 |
 | --- | --- | --- | --- | --- | --- |
-| Spotify | 按 PID 定向发送键盘快捷键 | Space | Down Arrow | Up Arrow | Spotify Desktop |
-| Fastpotify | `fastpotify` CLI | `fastpotify play-pause` | `fastpotify next` | `fastpotify previous` | Fastpotify 0.4.1+ |
-| Sonora | 按 PID 定向发送键盘快捷键 | Space | Control-Right | Control-Left | Sonora |
-| Spotifly | 按 PID 定向发送键盘快捷键 | Space | Command-Right | Command-Left | Spotifly；macOS 26.2+ |
+| [Spotify](https://www.spotify.com/) | 按 PID 定向发送键盘快捷键 | Space | Down Arrow | Up Arrow | Spotify Desktop |
+| [Fastpotify](https://github.com/crmne/spotifast) | `fastpotify` CLI | `fastpotify play-pause` | `fastpotify next` | `fastpotify previous` | Fastpotify 0.4.1+ |
+| [Sonora](https://github.com/Nurik-dz/Sonora) | 按 PID 定向发送键盘快捷键 | Space | Control-Right | Control-Left | Sonora |
+| [Spotifly](https://github.com/ralph/Spotifly) | 按 PID 定向发送键盘快捷键 | Space | Command-Right | Command-Left | Spotifly；macOS 26.2+ |
 
 自动模式会优先选择表格顺序中可用的运行中播放器。如果没有支持的播放器正在运行，则选择第一个已安装且可启动的播放器。Sonora 仅驻留菜单栏时也会被视为可启动目标；SpotiBind 会先重新打开并激活 Sonora 的主窗口，再发送指令。
 
@@ -169,6 +173,10 @@ scripts/macos/verify-release.sh
 - 使用 `git commit --signoff` 签署提交。
 
 架构边界和播放器适配规则见 [docs/architecture.md](docs/architecture.md)（英文）。新的交付方式应使用公开且有文档的输入契约，避免在应用中引入 shell 展开或特权辅助进程。
+
+## 灵感来源
+
+SpotiBind 的灵感来自 [macmediakeyforwarder](https://github.com/milgra/macmediakeyforwarder)。
 
 ## 许可证
 
