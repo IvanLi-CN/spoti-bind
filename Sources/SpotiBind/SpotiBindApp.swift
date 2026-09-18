@@ -294,35 +294,64 @@ private struct MenuFooterView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Button {
-                state.openAdvancedSettings()
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 18, weight: .medium))
-                    Text("Advanced Settings")
-                }
-            }
-            .buttonStyle(.plain)
-
-            Spacer(minLength: 12)
-
-            Button("About") {
-                NSApplication.shared.orderFrontStandardAboutPanel(nil)
-            }
-            .buttonStyle(.plain)
+            footerIconButton(
+                "gearshape",
+                label: "Advanced Settings",
+                help: "Open Advanced Settings",
+                action: state.openAdvancedSettings
+            )
 
             Divider()
                 .frame(height: 18)
 
-            Button("Quit") {
+            Toggle("Launch at login", isOn: Binding(
+                get: { state.launchAtLogin },
+                set: { state.setLaunchAtLogin($0) }
+            ))
+            .toggleStyle(.checkbox)
+            .help("Launch at login")
+
+            Spacer(minLength: 12)
+
+            footerIconButton(
+                "info.circle",
+                label: "About",
+                help: "About SpotiBind"
+            ) {
+                NSApplication.shared.orderFrontStandardAboutPanel(nil)
+            }
+
+            Divider()
+                .frame(height: 18)
+
+            footerIconButton(
+                "power",
+                label: "Quit",
+                help: "Quit SpotiBind"
+            ) {
                 NSApplication.shared.terminate(nil)
             }
-            .buttonStyle(.plain)
             .foregroundStyle(.red)
         }
         .font(.subheadline.weight(.medium))
         .frame(minHeight: 28)
+    }
+
+    private func footerIconButton(
+        _ systemName: String,
+        label: String,
+        help: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 18, weight: .medium))
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .help(help)
     }
 }
 

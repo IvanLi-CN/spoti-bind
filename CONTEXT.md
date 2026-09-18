@@ -46,6 +46,10 @@ _Avoid_: Arbitrary command, script
 The stable macOS bundle identifier `cc.ivanli.spotibind`, used to associate the app with its Accessibility authorization, preferences, and login-item registration.
 _Avoid_: Package name, display name
 
+**Launch-at-Login Preference**:
+The user's choice to have SpotiBind start after the current macOS user logs in.
+_Avoid_: Boot startup, system daemon, background service
+
 **Ad Hoc Build**:
 A macOS application build signed without a Developer ID identity and therefore not notarized or attributable to a verified publisher.
 _Avoid_: Notarized release, App Store build
