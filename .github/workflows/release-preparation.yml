@@ -48,6 +48,19 @@ jobs:
           source="${{ github.event.pull_request.head.sha }}"
           base="${{ github.event.pull_request.base.sha }}"
           git fetch --no-tags origin "$source"
+          if [[ "$PR_BRANCH" == automation/cask-release-* ]]; then
+            [[ "$type" == 'type:none' && "$channel" == 'channel:stable' ]] || {
+              echo 'Cask release PRs must use type:none and channel:stable' >&2
+              exit 1
+            }
+            message="$(git show -s --format=%B "${{ github.event.pull_request.head.sha }}")"
+            grep -qx 'Release-Mode: no-release' <<<"$message" || {
+              echo 'Cask release PR is missing its immutable no-release marker' >&2
+              exit 1
+            }
+            echo 'Cask release PR is excluded from VERSION preparation.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           source_verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${source}" --jq ".commit.verification.verified")"
           [[ "$source_verified" == 'true' ]] || { echo 'source commit is not GitHub-verified' >&2; exit 1; }
           if git show -s --format=%B "$source" | grep -q '^Release-Source-SHA:'; then

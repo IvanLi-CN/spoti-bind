@@ -4,6 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
 python3 .github/scripts/test_release_chain.py
+python3 .github/scripts/test_homebrew_cask.py
 python3 check_quality_gates.py
 for workflow in label-gate release-preparation release-completion; do
   file=".github/workflows/${workflow}.yml"
@@ -12,6 +13,8 @@ for workflow in label-gate release-preparation release-completion; do
   grep -q 'ref:.*default_branch' "$file"
   grep -q 'persist-credentials: false' "$file"
 done
+grep -A2 '^concurrency:' .github/workflows/label-gate.yml | grep -q 'cancel-in-progress: false'
+grep -A2 '^concurrency:' .github/workflows/release-completion.yml | grep -q 'cancel-in-progress: false'
 if grep -R -q 'pulls/.*\/labels' .github/workflows; then
   echo 'GitHub label reads must use the issue labels endpoint' >&2
   exit 1
@@ -24,8 +27,27 @@ grep -q 'workflow_dispatch:' .github/workflows/release.yml
 grep -q 'commit_sha:' .github/workflows/release.yml
 grep -q 'gh release create' .github/workflows/release.yml
 grep -q -- '--verify-tag' .github/workflows/release.yml
-grep -q 'prerelease=false' .github/workflows/release.yml
+grep -q -- '--draft' .github/workflows/release.yml
+! grep -q -- '--draft=false' .github/workflows/release.yml
 grep -q 'gh release upload' .github/workflows/release.yml
+grep -q 'gh api -X PATCH' .github/workflows/finalize-cask-release.yml
+grep -q 'draft=false' .github/workflows/finalize-cask-release.yml
+grep -q 'prerelease=false' .github/workflows/finalize-cask-release.yml
+grep -q 'workflow_run:' .github/workflows/cask-release-sync.yml
+grep -q 'actions: write' .github/workflows/cask-release-sync.yml
+grep -q 'group: cask-release-gate' .github/workflows/cask-release-sync.yml
+grep -q 'another Draft release is waiting for Cask finalization' .github/workflows/cask-release-sync.yml
+grep -q 'pull_request_target:' .github/workflows/finalize-cask-release.yml
+grep -q 'Initialize Cask finalization context' .github/workflows/finalize-cask-release.yml
+grep -q 'cask-finalize-context.json' .github/workflows/finalize-cask-release.yml
+grep -q 'workflow_dispatch:' .github/workflows/pr.yml
+grep -q 'workflow_dispatch:' .github/workflows/label-gate.yml
+grep -q 'workflow_dispatch:' .github/workflows/release-completion.yml
+grep -q 'for workflow in pr.yml label-gate.yml release-completion.yml' .github/workflows/cask-release-sync.yml
+grep -q 'gh run watch' .github/workflows/cask-release-sync.yml
+grep -q 'check-checks' .github/workflows/cask-release-sync.yml
+grep -q 'automation/cask-release-' .github/workflows/cask-release-sync.yml
+grep -q 'homebrew_cask.py check' .github/workflows/finalize-cask-release.yml
 grep -q 'select-swift6.sh' .github/workflows/release.yml
 grep -q 'TARGET_SHA' .github/workflows/release.yml
 grep -q 'Resolve merged PR identity' .github/workflows/release.yml

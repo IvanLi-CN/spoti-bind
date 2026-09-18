@@ -24,6 +24,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           set -euo pipefail
           gh label create 'type:patch' --color 1D76DB --description 'Release patch bump (default)' --force
@@ -31,6 +32,12 @@ jobs:
           gh label create 'type:major' --color B60205 --description 'Release major bump' --force
           gh label create 'type:none' --color C5DEF5 --description 'No product release' --force
           gh label create 'channel:stable' --color 0E8A16 --description 'Public stable release' --force
+          if [[ "$PR_BRANCH" == automation/cask-release-* ]]; then
+            gh pr edit "$PR_NUMBER" --add-label 'type:none' --add-label 'channel:stable' \
+              --remove-label 'type:patch' --remove-label 'type:minor' --remove-label 'type:major'
+            echo 'Cask release PR defaults to the immutable type:none/no-release contract.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels" --jq '[.[].name]')"
           if ! jq -e 'any(.[]; startswith("type:"))' <<<"$labels" >/dev/null; then
             gh pr edit "$PR_NUMBER" --add-label 'type:patch'

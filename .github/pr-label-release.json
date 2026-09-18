@@ -13,6 +13,13 @@
       "snapshot_artifact": "release-intent.json",
       "backfill_entrypoint": "workflow_dispatch",
       "queue_strategy": "none"
+    },
+    "same_repository_cask": {
+      "path": "Casks/spotibind.rb",
+      "branch_prefix": "automation/cask-release-",
+      "release_mode": "type:none",
+      "auto_merge": true,
+      "public_release_gate": "Finalize Cask release"
     }
   },
   "label_groups": [
@@ -42,6 +49,9 @@
       "channel",
       "version",
       "artifact_names",
+      "cask_version",
+      "cask_sha256",
+      "cask_url",
       "run_url"
     ]
   },

@@ -72,7 +72,7 @@ brew upgrade --cask IvanLi-CN/spoti-bind/spotibind
 brew uninstall --cask spotibind
 ```
 
-该 cask 安装的仍是同一个 Ad Hoc、未经过公证的应用。如果 macOS 阻止首次启动，请在 Finder 中按住 Control 点击 `SpotiBind.app`，选择 **打开**。媒体按键转发仍需要完成上面的辅助功能授权步骤。
+该 cask 安装的仍是同一个 Ad Hoc、未经过公证的应用。如果 macOS 阻止首次启动，请在 Finder 中按住 Control 点击 `SpotiBind.app`，选择 **打开**。媒体按键转发仍需要完成上面的辅助功能授权步骤。公开 Release 会先保持 Draft，直到同仓库 Cask 已同步，并且其版本、下载 URL 和 checksum 已针对同一份 DMG 完成校验。
 
 第一次明确选择启用的转发模式，或点击菜单中的媒体控制按钮时，可能会触发 macOS 的标准辅助功能权限提示。应用启动时只进行静默检查。权限和事件 Tap 的边界说明见 [docs/permissions.md](docs/permissions.md)（英文）。
 

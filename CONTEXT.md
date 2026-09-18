@@ -59,8 +59,24 @@ The app's only visible application scene, providing forwarding status and comman
 _Avoid_: Preferences window, background-only daemon
 
 **Draft Release**:
-A GitHub Release created from a version tag with its universal Ad Hoc DMG and checksum attached, but held unpublished until the real-Mac release checklist passes.
+A GitHub Release created from a version tag with its universal Ad Hoc DMG and checksum attached, but held unpublished until the real-Mac release checklist and distribution-consistency checks pass.
 _Avoid_: Automatic publication, updater channel
+
+**Release Identity**:
+The immutable tuple connecting one verified main merge, one numeric version and tag, and the exact universal DMG plus its checksum.
+_Avoid_: Current version, latest build, release label
+
+**Same-repository Homebrew Cask**:
+The Homebrew Cask under the same repository's `Casks/` tree that points to the public Release asset for the same Release Identity.
+_Avoid_: Separate tap version, livecheck result
+
+**Cask Sync PR**:
+A non-product pull request whose only product-facing change is aligning the same-repository Homebrew Cask with one Release Identity; it does not allocate a version or create a product Release.
+_Avoid_: Release PR, version bump PR
+
+**Distribution Consistency Gap**:
+The state in which the public GitHub Release and same-repository Homebrew Cask identify different versions or different release assets.
+_Avoid_: Homebrew upgrade bug, Release Authorization
 
 **Compatibility Baseline**:
 The lowest macOS version the V1 app and its core package promise to support: macOS 13.0.

@@ -27,7 +27,16 @@
     "tag_pattern": "vX.Y.Z",
     "draft": false,
     "public": true,
-    "version_source": "VERSION"
+    "version_source": "VERSION",
+    "draft_until_distribution_consistency": true,
+    "cask": {
+      "path": "Casks/spotibind.rb",
+      "sync_workflow": "Cask release sync",
+      "finalize_workflow": "Finalize Cask release",
+      "branch_prefix": "automation/cask-release-",
+      "single_build_artifact": true,
+      "public_release_gate": "version-url-sha256"
+    }
   },
   "remote_alignment": {
     "mode": "declaration-and-idempotent-gh-check",

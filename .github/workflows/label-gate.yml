@@ -4,14 +4,20 @@ on:
   pull_request_target:
     branches: [main]
     types: [opened, reopened, synchronize, ready_for_review, labeled, unlabeled]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to validate
+        required: true
+        type: string
 
 permissions:
   contents: read
   pull-requests: read
 
 concurrency:
-  group: label-gate-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: label-gate-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: false
 
 jobs:
   gate:
@@ -25,14 +31,22 @@ jobs:
       - name: Validate trusted label snapshot
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: |
           set -euo pipefail
-          if [[ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]]; then
+          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || { echo 'pull request number is invalid' >&2; exit 1; }
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          head_repo="$(jq -r '.head.repo.full_name // empty' <<<"$pr_json")"
+          base_repo="$(jq -r '.base.repo.full_name // empty' <<<"$pr_json")"
+          base_ref="$(jq -r '.base.ref // empty' <<<"$pr_json")"
+          if [[ "$head_repo" != "$GITHUB_REPOSITORY" ]]; then
             echo 'fork pull requests cannot receive release preparation' >&2
             exit 1
           fi
+          [[ "$base_repo" == "$GITHUB_REPOSITORY" && "$base_ref" == 'main' ]] || {
+            echo 'label gate requires the trusted main base' >&2
+            exit 1
+          }
           labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels" --jq '[.[].name]')"
           python3 .github/scripts/release_chain.py validate-labels \
             --labels "$labels" --policy .github/pr-label-release.json | tee release-intent.json
