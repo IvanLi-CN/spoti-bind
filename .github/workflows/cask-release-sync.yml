@@ -1,0 +1,273 @@
+name: Cask release sync
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: cask-release-gate
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync Homebrew Cask
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve draft release identity
+        id: identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          echo "work=$work" >> "$GITHUB_OUTPUT"
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name release-provenance --dir "$work/provenance"
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name release-identity --dir "$work/target"
+          identity="$work/provenance/release-identity.json"
+          target_sha="$(tr -d '\r\n' < "$work/target/release-target-sha.txt")"
+          [[ "$target_sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'release target SHA is invalid' >&2; exit 1; }
+          [[ "$(jq -r '.type' "$identity")" != 'type:none' ]] || {
+            echo 'type:none merge has no Cask release surface' >> "$GITHUB_STEP_SUMMARY"
+            echo 'skip=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          [[ "$(jq -r '.merge_sha' "$identity")" == "$target_sha" ]] || {
+            echo 'release provenance and recovery identity disagree' >&2
+            exit 1
+          }
+          version="$(jq -r '.version' "$identity")"
+          tag="v${version}"
+          main_version="$(tr -d '[:space:]' < VERSION)"
+          [[ "$main_version" == "$version" ]] || {
+            echo 'current main VERSION does not match the release identity' >&2
+            exit 1
+          }
+          release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}")"
+          [[ "$(jq -r '.draft' <<<"$release_json")" == 'true' ]] || {
+            echo 'release must remain a Draft until Cask finalization' >&2
+            exit 1
+          }
+          tag_ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}")"
+          tag_type="$(jq -r '.object.type' <<<"$tag_ref")"
+          tag_target="$(jq -r '.object.sha' <<<"$tag_ref")"
+          if [[ "$tag_type" == 'tag' ]]; then
+            tag_target="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_target}" --jq '.object.sha')"
+          fi
+          [[ "$tag_target" == "$target_sha" ]] || {
+            echo 'release tag does not point to the immutable merge SHA' >&2
+            exit 1
+          }
+          dmg="SpotiBind-${version}-universal.dmg"
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" \
+            --pattern "$dmg" --pattern SHA256SUMS --dir "$work/assets"
+          (
+            cd "$work/assets"
+            shasum -a 256 -c SHA256SUMS
+          )
+          sha256="$(awk -v file="$dmg" '$2 == file { print $1 }' "$work/assets/SHA256SUMS")"
+          [[ "$sha256" =~ ^[0-9a-f]{64}$ ]] || { echo 'release checksum is missing' >&2; exit 1; }
+          python3 .github/scripts/homebrew_cask.py render \
+            --path Casks/spotibind.rb --version "$version" --sha256 "$sha256" > "$work/spotibind.rb"
+          python3 .github/scripts/homebrew_cask.py check \
+            --path "$work/spotibind.rb" --version "$version" --sha256 "$sha256"
+          jq -n --arg tag "$tag" --arg version "$version" --arg target "$target_sha" \
+            --arg sha256 "$sha256" --arg run_id "$RUN_ID" \
+            '{tag:$tag,version:$version,merge_sha:$target,sha256:$sha256,release_run_id:$run_id}' \
+            > "$work/cask-release-context.json"
+          {
+            echo "skip=false"
+            echo "work=$work"
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "target_sha=$target_sha"
+            echo "sha256=$sha256"
+            echo "dmg=$dmg"
+          } >> "$GITHUB_OUTPUT"
+      - name: Stop for non-product merge
+        if: steps.identity.outputs.skip == 'true'
+        run: echo 'No Cask sync is required for a type:none merge.'
+      - name: Create signed Cask sync commit
+        if: steps.identity.outputs.skip != 'true'
+        id: cask
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORK: ${{ steps.identity.outputs.work }}
+          TAG: ${{ steps.identity.outputs.tag }}
+          VERSION: ${{ steps.identity.outputs.version }}
+          TARGET_SHA: ${{ steps.identity.outputs.target_sha }}
+          SHA256: ${{ steps.identity.outputs.sha256 }}
+          RELEASE_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          # shellcheck disable=SC2016
+          set -euo pipefail
+          branch="automation/cask-release-${VERSION}"
+          draft_tags="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq '.[] | select(.draft == true) | .tag_name')"
+          while IFS= read -r draft_tag; do
+            [[ -z "$draft_tag" || "$draft_tag" == "$TAG" ]] || {
+              echo "another Draft release is waiting for Cask finalization: ${draft_tag}" >&2
+              exit 1
+            }
+          done <<< "$draft_tags"
+          other_open_prs="$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --state open \
+            --json number,headRefName | jq -r --arg branch "$branch" \
+            '.[] | select((.headRefName | startswith("automation/cask-release-")) and .headRefName != $branch) | .number')"
+          [[ -z "$other_open_prs" ]] || {
+            echo "another Cask sync PR is still open: ${other_open_prs//$'\n'/, }" >&2
+            exit 1
+          }
+          main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          branch_ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${branch}" 2>/dev/null || true)"
+          if [[ -n "$branch_ref" ]]; then
+            expected_head="$(jq -r '.object.sha' <<<"$branch_ref")"
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f "ref=refs/heads/${branch}" -f "sha=${main_sha}" >/dev/null
+            expected_head="$main_sha"
+          fi
+          current="$WORK/current-cask.rb"
+          if gh api "repos/${GITHUB_REPOSITORY}/contents/Casks/spotibind.rb?ref=${branch}" \
+            --jq '.content' > "$WORK/current-cask.b64" 2>/dev/null; then
+            tr -d '\r\n' < "$WORK/current-cask.b64" | base64 --decode > "$current"
+          else
+            : > "$current"
+          fi
+          if [[ -s "$current" ]] && cmp -s "$current" "$WORK/spotibind.rb"; then
+            echo 'Cask branch already contains the required identity.' >> "$GITHUB_STEP_SUMMARY"
+            open_prs="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" --base main --state open --json number --jq '.[].number')"
+            if [[ -z "$open_prs" ]]; then
+              merged_pr="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" --base main --state merged \
+                --json number,mergeCommit --jq '.[0] | select(.mergeCommit.oid != null) | [.number, .mergeCommit.oid] | @tsv')"
+              [[ -n "$merged_pr" ]] || {
+                echo 'Cask branch is already aligned but has no protected sync PR to finalize' >&2
+                exit 1
+              }
+              cask_merge_sha="$(cut -f2 <<<"$merged_pr")"
+              gh workflow run finalize-cask-release.yml --repo "$GITHUB_REPOSITORY" --ref main \
+                -f tag="$TAG" -f merge_sha="$TARGET_SHA" -f release_run_id="$RELEASE_RUN_ID" \
+                -f cask_merge_sha="$cask_merge_sha"
+              echo "Dispatched Cask finalization for merged PR $(cut -f1 <<<"$merged_pr")." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          else
+            content="$(base64 < "$WORK/spotibind.rb" | tr -d '\r\n')"
+            message="$(printf 'chore: sync Homebrew Cask for SpotiBind %s\n\nCask-Release-Tag: %s\nCask-Release-Merge-SHA: %s\nCask-Release-Run-ID: %s\nRelease-Mode: no-release\nRelease-Type: type:none\nRelease-Channel: channel:stable\nSigned-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>\n' "$VERSION" "$TAG" "$TARGET_SHA" "$RELEASE_RUN_ID")"
+            input="$(jq -n --arg repo "$GITHUB_REPOSITORY" --arg branch "$branch" --arg expected "$expected_head" \
+              --arg headline "chore: sync Homebrew Cask for SpotiBind ${VERSION}" \
+              --arg body "$message" --arg content "$content" \
+              '{branch:{repositoryNameWithOwner:$repo,branchName:$branch},expectedHeadOid:$expected,message:{headline:$headline,body:$body},fileChanges:{additions:[{path:"Casks/spotibind.rb",contents:$content}]}}')"
+            request="$(jq -n --arg query 'mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid}}}' \
+              --argjson input "$input" '{query:$query,variables:{input:$input}}')"
+            response="$(gh api graphql --input - <<<"$request")"
+            if jq -e '.errors' <<<"$response" >/dev/null; then
+              echo "$response" >&2
+              exit 1
+            fi
+            commit="$(jq -r '.data.createCommitOnBranch.commit.oid // empty' <<<"$response")"
+            [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo 'Cask commit OID is invalid' >&2; exit 1; }
+            for _ in {1..10}; do
+              verified="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${commit}" --jq '.commit.verification.verified')"
+              [[ "$verified" == 'true' ]] && break
+              sleep 2
+            done
+            [[ "$verified" == 'true' ]] || { echo 'Cask commit is not GitHub-verified' >&2; exit 1; }
+          fi
+          body="$WORK/cask-release-body.md"
+          cat > "$body" <<EOF
+          Automated same-repository Homebrew Cask synchronization for the immutable
+          SpotiBind release identity below. This PR changes only Casks/spotibind.rb.
+
+          Cask-Release-Tag: ${TAG}
+          Cask-Release-Merge-SHA: ${TARGET_SHA}
+          Cask-Release-Run-ID: ${RELEASE_RUN_ID}
+
+          The public GitHub Release remains Draft until this protected PR is merged and
+          the finalizer verifies the exact DMG and SHA256SUMS assets.
+          EOF
+          open_prs="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" --base main --state open --json number --jq '.[].number')"
+          if [[ -n "$open_prs" ]]; then
+            pr_number="$(head -n1 <<<"$open_prs")"
+          else
+            pr_url="$(gh pr create --repo "$GITHUB_REPOSITORY" --head "$branch" --base main \
+              --title "chore: sync Homebrew Cask for SpotiBind ${VERSION}" \
+              --body-file "$body" --label 'type:none' --label 'channel:stable')"
+            pr_number="$(gh pr view "$pr_url" --json number --jq '.number')"
+          fi
+          for label in type:patch type:minor type:major; do
+            gh pr edit "$pr_number" --remove-label "$label" >/dev/null 2>&1 || true
+          done
+          gh pr edit "$pr_number" --add-label 'type:none' --add-label 'channel:stable' >/dev/null
+          labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${pr_number}/labels" --jq '[.[].name]')"
+          python3 .github/scripts/release_chain.py validate-labels \
+            --labels "$labels" --policy .github/pr-label-release.json >/dev/null
+          head_sha="$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+          [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'Cask PR head SHA is invalid' >&2; exit 1; }
+          dispatch_since="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          dispatch_workflow() {
+            local workflow="$1"
+            if [[ "$workflow" == 'pr.yml' ]]; then
+              gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref "$branch"
+            else
+              gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref "$branch" \
+                -f pr_number="$pr_number"
+            fi
+          }
+          find_dispatch_run() {
+            local workflow="$1"
+            local run_id=''
+            for _ in {1..30}; do
+              run_id="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" \
+                --branch "$branch" --event workflow_dispatch --limit 20 \
+                --json databaseId,headSha,createdAt | \
+                jq -r --arg sha "$head_sha" --arg since "$dispatch_since" \
+                '[.[] | select(.headSha == $sha and .createdAt >= $since)] | sort_by(.createdAt) | last | .databaseId // empty')"
+              [[ -n "$run_id" ]] && { printf '%s\n' "$run_id"; return 0; }
+              sleep 2
+            done
+            echo "workflow_dispatch run was not created: $workflow" >&2
+            return 1
+          }
+          declare -A check_runs=()
+          for workflow in pr.yml label-gate.yml release-completion.yml; do
+            dispatch_workflow "$workflow"
+            check_runs["$workflow"]="$(find_dispatch_run "$workflow")"
+          done
+          : > "$WORK/cask-checks.jsonl"
+          for workflow in pr.yml label-gate.yml release-completion.yml; do
+            gh run watch "${check_runs[$workflow]}" --repo "$GITHUB_REPOSITORY" --exit-status
+            gh run view "${check_runs[$workflow]}" --repo "$GITHUB_REPOSITORY" \
+              --json jobs --jq '.jobs[] | {name, conclusion}' >> "$WORK/cask-checks.jsonl"
+          done
+          jq -s . "$WORK/cask-checks.jsonl" > "$WORK/cask-checks.json"
+          python3 .github/scripts/release_chain.py check-checks \
+            --checks "$WORK/cask-checks.json" \
+            --required 'PR / Swift tests' \
+            --required 'PR / Build app' \
+            --required 'Label Gate' \
+            --required 'Release completion'
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "Cask sync PR #${pr_number} passed explicitly dispatched required checks and is ready for protected auto-merge." >> "$GITHUB_STEP_SUMMARY"
+          gh pr merge "$pr_number" --repo "$GITHUB_REPOSITORY" --auto --merge
+      - name: Upload Cask release context
+        if: always() && steps.identity.outputs.work != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cask-release-context
+          path: ${{ steps.identity.outputs.work }}/cask-release-context.json
+          if-no-files-found: ignore

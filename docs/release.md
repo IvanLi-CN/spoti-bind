@@ -15,8 +15,20 @@
 After all required PR checks pass, `Prepare release version` creates a
 GitHub-verified `VERSION`-only commit on the PR branch. Merging that PR to
 `main` runs the `Release` workflow, verifies the merge -> preparation -> source
-identity, builds the universal Ad Hoc DMG, reserves `vX.Y.Z` for the merge SHA,
-and publishes a public GitHub Release with the DMG and `SHA256SUMS`.
+identity, builds the universal Ad Hoc DMG once, reserves `vX.Y.Z` for the merge
+SHA, and creates a Draft GitHub Release with the DMG and `SHA256SUMS`.
+
+`Cask release sync` reads the exact Draft assets, validates `SHA256SUMS`, and
+creates a same-repository Cask Sync PR that changes only
+`Casks/spotibind.rb`. The PR uses `type:none`, `channel:stable`, and an
+immutable `no-release` marker. Because a `GITHUB_TOKEN`-created PR does not
+automatically trigger another workflow, the sync explicitly dispatches the
+same PR, label, and release-completion checks for that branch, waits for the
+exact job results, and then enables protected auto-merge. After the PR merges,
+`Finalize Cask release` verifies the Cask `version`, canonical release URL, and
+`sha256` against the exact Draft DMG. Only then is the Draft made public. A
+failed sync or finalization leaves the Draft and the same Release Identity
+available for recovery; the DMG is never rebuilt for Cask alignment.
 
 `type:none` is the explicit non-product exception and produces no release. Its
 final same-repository PR head must carry the immutable trailers
@@ -25,7 +37,7 @@ final same-repository PR head must carry the immutable trailers
 `workflow_dispatch` with the exact merged `commit_sha`; post-merge labels are
 not consulted, and a tag or asset belonging to another SHA fails closed. The
 failure sidecar records the PR, labels, source/merge SHA, version, tag, assets,
-run URL, and this recovery instruction.
+run URL, Cask sync/finalization context, and the same-SHA recovery instruction.
 
 ## Required pre-merge real-Mac evidence
 
@@ -40,8 +52,8 @@ version, and result:
   other player receives a fallback dispatch.
 
 This is a merge-readiness evidence gate, not a new GitHub Actions required
-context. The existing CI checks and post-merge automatic release workflow are
-unchanged.
+context. The existing CI checks and post-merge automatic release workflow now
+also include the Draft-to-Cask-to-public-release gate.
 
 ## Additional real-Mac evidence
 

@@ -26,7 +26,7 @@
 - Verification commands: `swift test`, `scripts/macos/build.sh`,
   `scripts/macos/compile-icon-resources.sh`, `scripts/macos/package.sh`, and
   `scripts/macos/verify-release.sh`.
-- Rollout facts: verified main merges publish a public Ad Hoc Release automatically; each GUI player requires a pre-merge Finder trust and cold-start media-key check before it is advertised as supported.
+- Rollout facts: verified main merges build one Ad Hoc asset set, create a Draft Release, synchronize the same-repository Homebrew Cask through a protected non-product PR, and publish only after Cask identity verification; each GUI player requires a pre-merge Finder trust and cold-start media-key check before it is advertised as supported.
 
 ## Coverage / rollout summary
 

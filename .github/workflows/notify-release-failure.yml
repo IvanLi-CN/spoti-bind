@@ -2,16 +2,20 @@ name: Notify release failure
 
 on:
   workflow_run:
-    workflows: [Release]
+    workflows: [Release, Cask release sync, Finalize Cask release]
     types: [completed]
-    branches: [main]
 
 permissions: {}
 
 jobs:
   context:
     name: Build release failure context
-    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch == 'main'
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'failure' &&
+      (github.event.workflow_run.name == 'Release' ||
+      github.event.workflow_run.name == 'Cask release sync' ||
+      github.event.workflow_run.name == 'Finalize Cask release')
     permissions:
       actions: read
       contents: read
@@ -30,6 +34,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
           RUN_EVENT: ${{ github.event.workflow_run.event }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
           TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -41,6 +46,8 @@ jobs:
           trap 'rm -rf "$work"' EXIT
           gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name release-identity --dir "$work" 2>/dev/null || true
           gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name release-provenance --dir "$work" 2>/dev/null || true
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name cask-release-context --dir "$work" 2>/dev/null || true
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name cask-finalization-context --dir "$work" 2>/dev/null || true
           if [[ -s "$work/release-target-sha.txt" ]]; then
             TARGET_SHA="$(tr -d '\r\n' < "$work/release-target-sha.txt")"
           elif [[ "$RUN_EVENT" == 'workflow_dispatch' ]]; then
@@ -51,11 +58,39 @@ jobs:
           if [[ -s "$work/release-identity.json" ]]; then
             source_sha="$(jq -r '.source_sha // "unknown"' "$work/release-identity.json")"
           fi
+          context_file=""
+          if [[ -s "$work/cask-finalize-context.json" ]]; then
+            context_file="$work/cask-finalize-context.json"
+          elif [[ -s "$work/finalize-context.json" ]]; then
+            context_file="$work/finalize-context.json"
+          elif [[ -s "$work/cask-release-context.json" ]]; then
+            context_file="$work/cask-release-context.json"
+          fi
+          version="unknown"
+          tag="unknown"
+          cask_merge_sha="unknown"
+          if [[ -n "$context_file" ]]; then
+            TARGET_SHA="$(jq -r '.merge_sha // "unknown"' "$context_file")"
+            version="$(jq -r '.version // "unknown"' "$context_file")"
+            tag="$(jq -r '.tag // "unknown"' "$context_file")"
+            cask_merge_sha="$(jq -r '.cask_merge_sha // "unknown"' "$context_file")"
+          fi
           prs="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${TARGET_SHA}/pulls" --jq '[.[] | {number,source_sha:.head.sha,labels:[.labels[].name]}]' 2>/dev/null || printf '[]')"
-          version="$(gh api "repos/${GITHUB_REPOSITORY}/contents/VERSION?ref=${TARGET_SHA}" --jq '.content' | tr -d '\n' | base64 -d | tr -d '\r\n' || echo unknown)"
-          tag="v${version}"
-          assets="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name]' 2>/dev/null || printf '["SpotiBind-%s-universal.dmg","SHA256SUMS"]' "$version")"
-          details="status=failure; workflow=Release; event=${RUN_EVENT}; attempt=${RUN_ATTEMPT}; actor=${ACTOR}; PR and labels: ${prs}; source SHA: ${source_sha}; merge SHA: ${TARGET_SHA}; version: ${version}; tag: ${tag}; assets: ${assets}; run URL: ${RUN_URL}; recovery: rerun Release with workflow_dispatch commit_sha=${TARGET_SHA}"
+          if [[ "$version" == 'unknown' && "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            version="$(gh api "repos/${GITHUB_REPOSITORY}/contents/VERSION?ref=${TARGET_SHA}" --jq '.content' | tr -d '\n' | base64 -d | tr -d '\r\n' || echo unknown)"
+          fi
+          if [[ "$tag" == 'unknown' && "$version" != 'unknown' ]]; then
+            tag="v${version}"
+          fi
+          assets="[]"
+          if [[ "$tag" != 'unknown' ]]; then
+            assets="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name]' 2>/dev/null || printf '["SpotiBind-%s-universal.dmg","SHA256SUMS"]' "$version")"
+          fi
+          recovery="rerun ${WORKFLOW_NAME} run ${RUN_ID} after preserving tag=${tag} and merge_sha=${TARGET_SHA}"
+          if [[ "$WORKFLOW_NAME" == 'Release' ]]; then
+            recovery="rerun Release with workflow_dispatch commit_sha=${TARGET_SHA}"
+          fi
+          details="status=failure; workflow=${WORKFLOW_NAME}; event=${RUN_EVENT}; attempt=${RUN_ATTEMPT}; actor=${ACTOR}; PR and labels: ${prs}; source SHA: ${source_sha}; merge SHA: ${TARGET_SHA}; Cask merge SHA: ${cask_merge_sha}; version: ${version}; tag: ${tag}; assets: ${assets}; run URL: ${RUN_URL}; recovery: ${recovery}"
           {
             echo "target_sha=${TARGET_SHA}"
             echo "source_sha=${source_sha}"

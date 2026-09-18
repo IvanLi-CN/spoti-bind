@@ -185,7 +185,7 @@ jobs:
           name: release-provenance
           path: release-identity.json
           if-no-files-found: ignore
-      - name: Publish public GitHub Release
+      - name: Create or update Draft GitHub Release
         if: steps.provenance.outputs.type != 'type:none'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -203,6 +203,11 @@ jobs:
           fi
           [[ "$final_target" == "$TARGET_SHA" ]] || { echo 'tag target changed before release creation' >&2; exit 1; }
           if gh release view "$TAG" >/dev/null 2>&1; then
+            draft="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.draft')"
+            [[ "$draft" == 'true' ]] || {
+              echo 'existing release is already public; refusing to mutate a published release' >&2
+              exit 1
+            }
             current_type="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.type')"
             current="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha')"
             if [[ "$current_type" == 'tag' ]]; then
@@ -210,11 +215,13 @@ jobs:
             fi
             [[ "$current" == "$TARGET_SHA" ]] || { echo 'tag target changed during publication' >&2; exit 1; }
             gh release upload "$TAG" "${assets[@]}" --clobber
-            gh release edit "$TAG" --draft=false --title "SpotiBind ${VERSION}" \
-              --notes "Automated public release for verified main merge ${TARGET_SHA}."
-            release_id="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.id')"
-            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" -F draft=false -F prerelease=false >/dev/null
+            gh release edit "$TAG" --draft --title "SpotiBind ${VERSION}" \
+              --notes "Draft release for verified main merge ${TARGET_SHA}; publication awaits same-repository Homebrew Cask verification."
           else
-            gh release create "$TAG" "${assets[@]}" --verify-tag --title "SpotiBind ${VERSION}" \
-              --notes "Automated public release for verified main merge ${TARGET_SHA}."
+            gh release create "$TAG" "${assets[@]}" --verify-tag --draft \
+              --title "SpotiBind ${VERSION}" \
+              --notes "Draft release for verified main merge ${TARGET_SHA}; publication awaits same-repository Homebrew Cask verification."
           fi
+          release_state="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '[.draft, .prerelease] | @tsv')"
+          [[ "$release_state" == $'true\tfalse' ]] || { echo 'Draft release state is invalid' >&2; exit 1; }
+          echo "Created Draft ${TAG}; Cask release sync will gate public publication." >> "$GITHUB_STEP_SUMMARY"

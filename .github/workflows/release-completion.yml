@@ -4,6 +4,12 @@ on:
   pull_request_target:
     branches: [main]
     types: [opened, reopened, synchronize, ready_for_review, labeled, unlabeled]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to validate
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -11,8 +17,8 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: release-completion-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: release-completion-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: false
 
 jobs:
   completion:
@@ -26,12 +32,16 @@ jobs:
       - name: Verify release identity and source CI
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: |
           set -euo pipefail
+          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || { echo 'pull request number is invalid' >&2; exit 1; }
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          HEAD_REPO="$(jq -r '.head.repo.full_name // empty' <<<"$pr_json")"
+          BASE_REPO="$(jq -r '.base.repo.full_name // empty' <<<"$pr_json")"
+          BASE_REF="$(jq -r '.base.ref // empty' <<<"$pr_json")"
+          PR_BRANCH="$(jq -r '.head.ref // empty' <<<"$pr_json")"
+          PR_HEAD_SHA="$(jq -r '.head.sha // empty' <<<"$pr_json")"
           if [[ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]]; then
             echo 'fork pull requests are not eligible for release completion' >&2
             exit 1
@@ -40,6 +50,10 @@ jobs:
           labels="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels" --jq '[.[].name]')"
           intent="$(python3 .github/scripts/release_chain.py validate-labels --labels "$labels" --policy .github/pr-label-release.json)"
           type="$(jq -r '.type' <<<"$intent")"
+          if [[ "$PR_BRANCH" == automation/cask-release-* && "$type" != 'type:none' ]]; then
+            echo 'Cask release PRs must use type:none' >&2
+            exit 1
+          fi
           mapfile -t pr_commits < <(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits" --jq '.[].sha')
           [[ "${#pr_commits[@]}" -gt 0 ]]
           for commit in "${pr_commits[@]}"; do
@@ -50,7 +64,7 @@ jobs:
             }
           done
           if [[ "$type" == 'type:none' ]]; then
-            message="$(git show -s --format=%B "${{ github.event.pull_request.head.sha }}")"
+            message="$(git show -s --format=%B "$PR_HEAD_SHA")"
             grep -Eq '^Release-Mode: (bootstrap|no-release)$' <<<"$message" || {
               echo 'type:none requires an immutable no-release mode marker on the PR head' >&2
               exit 1
@@ -60,7 +74,7 @@ jobs:
             echo 'type:none: immutable no-release marker verified' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          preparation="${{ github.event.pull_request.head.sha }}"
+          preparation="$PR_HEAD_SHA"
           git fetch --no-tags origin "$preparation"
           source="$(git show -s --format=%P "$preparation")"
           [[ "$source" =~ ^[0-9a-f]{40}$ ]]

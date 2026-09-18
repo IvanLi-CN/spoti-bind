@@ -93,7 +93,9 @@ brew uninstall --cask spotibind
 The cask installs the same Ad Hoc, non-notarized application. If macOS blocks
 the first launch, open `SpotiBind.app` from Finder with **Control-click, then
 Open**. The Accessibility permission step above is still required for media-key
-forwarding.
+forwarding. Public Releases are staged as Draft until this same-repository Cask
+has been synchronized and its version, download URL, and checksum have been
+verified against the exact DMG.
 
 The first explicit active-mode selection or menu transport control can trigger
 macOS's standard Accessibility prompt. Startup checks are silent. See

@@ -63,7 +63,8 @@
 
 - The project MUST produce a macOS 13+ Ad Hoc universal artifact containing `arm64` and `x86_64` executable slices, a verifiable checksum, and a public GitHub Release after a verified PR merge to `main`.
 - Inputs: PR `type:*` and `channel:stable` labels, the numeric `VERSION` source, and two SwiftPM target-triple builds.
-- Outputs: signed `.app`, DMG, `SHA256SUMS`, and a public `vX.Y.Z` Release; `type:none` explicitly emits no release.
+- Outputs: signed `.app`, one DMG, `SHA256SUMS`, and a public `vX.Y.Z` Release whose same-repository `Casks/spotibind.rb` entry has the matching version, canonical URL, and checksum; `type:none` explicitly emits no release.
+- The release MUST be built once and remain Draft until the same-repository Homebrew Cask has been merged through a protected Cask Sync PR and verified against the exact Draft assets. A failed Cask sync MUST leave the Draft unpublished and MUST NOT rebuild the artifact or allocate a successor version.
 - Release and pull-request automation MUST select a toolchain whose compiler
   reports Swift 6 before invoking SwiftPM. Selection MUST resolve the compiler
   through the Xcode developer directory (`DEVELOPER_DIR`/`xcrun`), rather than
@@ -142,6 +143,7 @@
 - [Automate public release after a verified main merge](../../adr/0009-automate-public-release-after-verified-main-merge.md)
 - [Use Icon Composer only for native application icon resources](../../adr/0010-use-icon-composer-for-native-application-icon-resources.md)
 - [Quarantine the media event tap after any system disable](../../adr/0011-quarantine-media-event-tap-after-system-disable.md)
+- [Gate public release on the same-repository Homebrew Cask](../../adr/0012-gate-public-release-on-same-repository-homebrew-cask.md)
 
 ## Visual Evidence
 

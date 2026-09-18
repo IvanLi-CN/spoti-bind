@@ -19,6 +19,7 @@
   Xcode target.
 - SwiftPM is the single repository build entrypoint according to ADR-0006; Xcode remains an optional IDE.
 - ADR-0009 replaces tag-triggered Draft Releases with a label-gated, identity-bound public Release after verified main merges. `VERSION` remains the only numeric source and `type:none` is the explicit no-release exception.
+- ADR-0012 makes the same-repository Homebrew Cask part of the public Release contract: the single-build asset remains Draft until the Cask-only `type:none` PR is merged and its version, URL, and checksum are verified.
 - The player launch boundary now exposes structured dispatch outcomes and a
   Finder recovery action for first-launch trust failures. Support claims use a
   pre-merge manual trust, close, cold-start, and single-key check; Gatekeeper
