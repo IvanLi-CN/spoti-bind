@@ -54,7 +54,7 @@
 
 ### REQ-FASTPOTIFY-004
 
-- The system MUST expose a window-style menu-bar panel with previous, play-or-pause, and next transport controls; a single-choice target picker containing Automatic, Spotify, Fastpotify, Sonora, Spotifly, and Off; Accessibility guidance; and Advanced Settings, About, and Quit actions. The picker MUST use three columns and two rows with Automatic / Off in the first column.
+- The system MUST expose a window-style menu-bar panel with previous, play-or-pause, and next transport controls; a single-choice target picker containing Automatic, Spotify, Fastpotify, Sonora, Spotifly, and Off; Accessibility guidance; and icon-only Advanced Settings, About, and Quit actions. The footer MUST also expose a Launch at login checkbox between the Settings and About groups, with a vertical separator between Settings and the checkbox and the existing separator between About and Quit. Each icon-only action MUST retain an accessible label and tooltip. The picker MUST use three columns and two rows with Automatic / Off in the first column.
 - Advanced Settings MUST reuse the six-mode selector and expose per-player location controls, Accessibility settings, and the login-start preference. Its window MUST fit its content height when first presented and when the Accessibility guidance appears or disappears, while remaining user-resizable at other times.
 - Inputs: current service state and user preferences stored in `UserDefaults`.
 - Outputs: a single menu-bar control surface and a retained settings window with actionable status and settings links.
@@ -113,7 +113,7 @@
 
 - Method: menu interaction on a real app bundle and Accessibility permission cycle.
 - covers: `REQ-FASTPOTIFY-004`
-- Pass condition: the three transport actions, six single-choice modes, status, Accessibility link, login toggle, Advanced Settings, and Quit are visible from the menu-bar panel and update their state. The retained settings window fits its content on first presentation and after an Accessibility-guidance visibility change.
+- Pass condition: the three transport actions, six single-choice modes, status, Accessibility link, Launch at login checkbox, icon-only Advanced Settings/About/Quit actions, and their separators are visible from the menu-bar panel and update their state. The retained settings window fits its content on first presentation and after an Accessibility-guidance visibility change.
 
 ### VER-FASTPOTIFY-004
 
@@ -175,8 +175,10 @@
   - [player-launch-failure-dark-settings.png](./assets/player-launch-failure-dark-settings.png)
 - Current delivery evidence, verified with owner confirmation and scoped to
   the target application only:
-  - [menu-automatic-light.png](./assets/menu-automatic-light.png)
-  - [settings-automatic-light.png](./assets/settings-automatic-light.png)
+  - [theme-light-popover.png](./assets/theme-light-popover.png)
+  - [theme-light-settings.png](./assets/theme-light-settings.png)
+  - [theme-dark-popover.png](./assets/theme-dark-popover.png)
+  - [theme-dark-settings.png](./assets/theme-dark-settings.png)
 
 ## References
 

@@ -97,6 +97,10 @@
   window material and fits its content height on first presentation and on an
   Accessibility-guidance visibility change, without overriding subsequent
   user resizing.
+- The menu footer uses fixed-size icon-only actions for Advanced Settings, About,
+  and Quit, with accessible labels and tooltips. Its Launch at login checkbox
+  shares AppState's persisted login-item state with Advanced Settings; vertical
+  separators group the Settings, login preference, About, and Quit actions.
 - The menu-bar label loads the tightly cropped `spotibind-status-bar.svg` as
   `StatusBarMark.svg`, preserving the full mark at menu-bar scale, and falls
   back to `waveform` when the resource is absent. Opening retained Advanced
