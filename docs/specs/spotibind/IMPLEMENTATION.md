@@ -22,10 +22,15 @@
 
 ## Implementation Coverage
 
-- Requirement coverage: `REQ-FASTPOTIFY-001` through `REQ-FASTPOTIFY-007` are implemented by the Core, App, scripts, workflows, and documentation paths in this repository.
+- Requirement coverage: `REQ-FASTPOTIFY-001` through `REQ-FASTPOTIFY-008` are implemented by the Core, App, scripts, workflows, and documentation paths in this repository.
 - Verification commands: `swift test`, `scripts/macos/build.sh`,
   `scripts/macos/compile-icon-resources.sh`, `scripts/macos/package.sh`, and
   `scripts/macos/verify-release.sh`.
+- Duplicate-launch verification uses a temporary Ad Hoc packaged app and
+  `NSWorkspace.openApplication` twice with the normal Launch Services path;
+  the existing PID and unique Accessibility settings window are retained.
+  The shell `open` wrapper is not used with `-n` or any other forced-new-
+  instance option.
 - Rollout facts: verified main merges build one Ad Hoc asset set, create a Draft Release, synchronize the same-repository Homebrew Cask through a protected non-product PR, and publish only after Cask identity verification; each GUI player requires a pre-merge Finder trust and cold-start media-key check before it is advertised as supported.
 
 ## Coverage / rollout summary
@@ -101,6 +106,10 @@
   and Quit, with accessible labels and tooltips. Its Launch at login checkbox
   shares AppState's persisted login-item state with Advanced Settings; vertical
   separators group the Settings, login preference, About, and Quit actions.
+- Launch Services reopen requests are handled by `ApplicationDelegate` in the
+  existing process. They reuse the retained settings presenter, switch to
+  regular activation, restore hidden or minimized windows, and bring the
+  window to the front without resetting its frame or SwiftUI state.
 - The menu-bar label loads the tightly cropped `spotibind-status-bar.svg` as
   `StatusBarMark.svg`, preserving the full mark at menu-bar scale, and falls
   back to `waveform` when the resource is absent. Opening retained Advanced

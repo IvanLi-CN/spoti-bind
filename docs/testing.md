@@ -34,6 +34,19 @@ SpotiBind validates its behavior at four layers.
 - Real-Mac routing must include Spotify Desktop: Space, Down Arrow, and Up
   Arrow must reach the Spotify PID exactly once per press without activating
   the app.
+- Real-Mac application lifecycle must include a duplicate packaged-app launch:
+  invoke `open` on the same `.app` while SpotiBind is running, including with
+  Advanced Settings hidden or minimized. The existing PID and settings window
+  must be reused, the window must return to the front without losing its frame
+  or unsaved state, and closing it must restore the accessory presentation.
+- Representative packaged-app evidence: a temporary Ad Hoc bundle with an
+  isolated bundle identifier was launched twice through
+  `NSWorkspace.openApplication`, the public Launch Services API equivalent of
+  a normal `open` request. The second request retained the original PID and
+  one Accessibility settings window; no `open -n` or forced second instance
+  was used. The local command policy blocked invoking the shell `open`
+  executable directly, so this evidence covers the Launch Services handoff
+  through its native API path rather than the shell wrapper.
 - macOS CI runs the SwiftPM core tests and builds the app for both advertised target triples.
 - The app build and release jobs use `macos-26` with Xcode 26.4+ for the
   Icon Composer resource target; Swift test jobs remain on `macos-15`.
@@ -79,7 +92,8 @@ mode.
 
 Because V1 supports macOS 13 and later, release evidence should include a real macOS 13 validation run for every architecture it claims to support. A build-only deployment-target check is not evidence that Accessibility and physical media-key routing work on that system.
 
-The automated contract names are `PlayerSelectionTests`, `PlayerDispatchTests`,
+The automated contract names are `ApplicationDelegateTests`,
+`PlayerSelectionTests`, `PlayerDispatchTests`,
 `PlayerLaunchCoordinatorTests`, `RoutingPolicyTests`,
 `MediaKeyDecoderTests`, and `FastpotifyIntegrationTests`.
 

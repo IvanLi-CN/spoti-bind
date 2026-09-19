@@ -53,7 +53,9 @@ The executable target owns only platform lifecycle:
   remains unavailable instead of silently falling back.
 - `ApplicationDelegate` sets the accessory activation policy and starts/stops
   the tap. The bundle prohibits multiple instances so only one process can
-  own the global event tap.
+  own the global event tap. Launch Services reopen requests are handled by
+  the existing process and route to the retained Advanced Settings window,
+  which is restored, activated, and brought to the front.
 - `MediaKeyTapController` installs the public session event tap only while
   Accessibility is authorized and the current mode resolves to a usable
   player. The callback returns the original event for pass-through or `nil`
