@@ -33,6 +33,9 @@ grep -q 'gh release upload' .github/workflows/release.yml
 grep -q 'releases?per_page=100' .github/workflows/release.yml
 grep -q 'releases?per_page=100' .github/workflows/cask-release-sync.yml
 grep -q 'releases?per_page=100' .github/workflows/finalize-cask-release.yml
+grep -q 'or .name == \$name' .github/workflows/release.yml
+grep -q 'or .name == \$name' .github/workflows/cask-release-sync.yml
+grep -q 'or .name == \$name' .github/workflows/finalize-cask-release.yml
 ! grep -q 'releases/tags/' .github/workflows/release.yml
 ! grep -q 'releases/tags/' .github/workflows/cask-release-sync.yml
 ! grep -q 'releases/tags/' .github/workflows/finalize-cask-release.yml
