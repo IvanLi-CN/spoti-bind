@@ -5,7 +5,7 @@
 ## Context and Scope
 
 - Context: macOS hardware media keys normally follow the system's current Now Playing owner, while SpotiBind must direct supported transport commands to one selected supported player.
-- In scope: public event capture, persistent player selection, deterministic automatic discovery, Fastpotify CLI control, PID-directed Spotify/Spotifly/Sonora shortcuts, Sonora main-window reopening when required for its input surface, Accessibility status, menu-bar control, native Default/Dark/Mono application icon resources, settings presentation policy, and Ad Hoc universal distribution.
+- In scope: public event capture, persistent player selection, deterministic automatic discovery, Fastpotify CLI control, PID-directed Spotify/Spotifly/Sonora shortcuts, Sonora main-window reopening when required for its input surface, Accessibility status, menu-bar control, native Default/Dark/Mono application icon resources, settings presentation policy, duplicate-launch settings handoff, and Ad Hoc universal distribution.
 - Out of scope: playback ownership inside any player, private MediaRemote APIs, Apple Events, Accessibility UI scripting, upstream player changes, and unrelated distribution channels.
 
 ## Terms and Interfaces
@@ -24,6 +24,8 @@
 - `Status Bar Template Mark`: The transparent monochrome SVG used by the menu-bar extra; it is tintable and independent of the application icon.
 - `Bundle Assembly`: The deterministic step that combines a SwiftPM executable, metadata, compiled icon resources, and the status-bar template before signing.
 - `Settings Presentation Mode`: The app activation policy used while the retained Advanced Settings window is open (`regular`) and after it closes (`accessory`); UI Demo remains `regular`.
+- `Duplicate Launch Request`: A Launch Services request for the SpotiBind Application Identity received while its existing process is still alive; it does not create a second process.
+- `Settings Handoff`: The existing instance's response to a Duplicate Launch Request by reusing and foregrounding the retained Advanced Settings window.
 - Interfaces: Spotify PID shortcuts Space, Down Arrow, Up Arrow; Fastpotify CLI verbs `play-pause`, `next`, `previous`, and probe `now-playing --raw`; Spotifly PID shortcuts Space, Cmd-Right, Cmd-Left; Sonora PID shortcuts Space, Ctrl-Right, Ctrl-Left.
 
 ## Requirements
@@ -96,6 +98,16 @@
   Xcode target MAY compile Icon Composer resources but MUST NOT own Swift source
   or business logic.
 
+### REQ-FASTPOTIFY-008
+
+- The packaged application MUST remain single-instance while its existing process is alive. A Duplicate Launch Request received through macOS Launch Services MUST be handled by that existing process and MUST NOT create a second SpotiBind process, second event tap, or second Advanced Settings window.
+- A Duplicate Launch Request MUST trigger a Settings Handoff. The existing process MUST reuse the retained Advanced Settings window, switch to Settings Presentation Mode `regular`, restore it when minimized or otherwise hidden, activate SpotiBind, and make the window key and ordered in front. The handoff MUST preserve the window's user position and size, current settings state, scroll position, and unsaved edits. If the window is already frontmost, the operation MUST be idempotent.
+- A visible menu-bar popover MUST yield to the Advanced Settings window. Closing the window MUST retain the existing settings lifecycle and restore the shipped app to `accessory` without changing Player Mode, player paths, login-start preference, or other settings.
+- A Duplicate Launch Request received while the existing process is still starting or is entering termination MUST be handed to that process on a best-effort basis. Once the old process has terminated, a later launch MAY start a new instance normally. Handoff failure MUST not create a second stateful instance or a new user-facing error surface; diagnostics MAY be recorded.
+- This contract applies to Launch Services requests for the packaged application, including normal Finder, Dock, Spotlight, `open`, and login-item launches. Direct execution of a SwiftPM binary and UI Demo process behavior are outside the product contract, although the handoff path MUST remain unit-testable.
+- Inputs: a Duplicate Launch Request, existing process lifecycle, and the retained settings-window state.
+- Outputs: one existing process with its Advanced Settings window foregrounded, or a normal new launch after no existing process remains.
+
 ## Verification
 
 ### VER-FASTPOTIFY-001
@@ -131,6 +143,12 @@
 - Pass condition: all three renditions and fallback resources are present,
   template loading/fallback and activation-policy transitions pass, and no
   bundle is signed before resource assembly.
+
+### VER-FASTPOTIFY-006
+
+- Method: unit tests for the application duplicate-launch callback and retained settings-window handoff, plus one representative Launch Services launch against a packaged app (Finder, Dock, Spotlight, `open`, or login item).
+- covers: `REQ-FASTPOTIFY-008`
+- Pass condition: the running app keeps one PID and one event tap; a repeated packaged-app launch reuses one settings window, restores and foregrounds it with regular activation, preserves geometry and unsaved state, yields any menu-bar popover, and produces no second process or duplicate window. Closing the window restores accessory presentation. A launch after the original process has terminated starts normally.
 
 ## Related ADRs
 

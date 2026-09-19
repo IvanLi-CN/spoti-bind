@@ -47,6 +47,31 @@ final class ApplicationPresentationTests: XCTestCase {
         XCTAssertNil(controller.currentPolicy)
     }
 
+    func testSettingsWindowShowRestoresHiddenWindowAndPreservesFrame() throws {
+        let state = AppState(environment: ["SPOTIBIND_UI_DEMO": "1"])
+        let controller = SettingsWindowController(state: state)
+        let window = try XCTUnwrap(controller.window)
+        defer { window.close() }
+
+        controller.showAndActivate()
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+        window.setFrame(
+            NSRect(x: 120, y: 140, width: 680, height: 580),
+            display: false
+        )
+        let expectedFrame = window.frame
+
+        window.orderOut(nil)
+        XCTAssertFalse(window.isVisible)
+
+        controller.showAndActivate()
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05))
+
+        XCTAssertFalse(window.isMiniaturized)
+        XCTAssertTrue(window.isVisible)
+        XCTAssertEqual(window.frame, expectedFrame)
+    }
+
     func testStatusBarTemplateLoadsFromBundle() {
         let image = StatusBarIcon.templateImage(bundle: .module)
 

@@ -97,3 +97,11 @@ _Avoid_: SwiftPM build graph, source compilation
 **Settings Presentation Mode**:
 The visible application state represented by a regular app when retained Advanced Settings is open and an accessory app during normal menu-bar operation.
 _Avoid_: Window size, player mode
+
+**Duplicate Launch Request**:
+A Launch Services request for the SpotiBind Application Identity received while its existing process is still alive; it does not represent permission to create a second process.
+_Avoid_: Second instance, restart
+
+**Settings Handoff**:
+The existing SpotiBind instance's response to a Duplicate Launch Request: reuse the retained Advanced Settings window and bring it to the foreground.
+_Avoid_: New settings window, process handoff

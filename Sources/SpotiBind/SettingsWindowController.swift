@@ -2,12 +2,16 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class SettingsWindowController: NSWindowController, NSWindowDelegate {
+final class SettingsWindowController: NSWindowController, NSWindowDelegate, SettingsWindowPresenting {
     private let hostingController: NSHostingController<AnyView>
     private let contentMetrics = SettingsContentMetrics()
     private var isProblemBannerVisible = false
     private var isFitScheduled = false
     private var needsContentHeightFit = false
+    private var hasBeenPresented = false
+    private var hasCompletedInitialFit = false
+    private var isApplyingContentFit = false
+    private var expectedContentFitHeight: CGFloat?
     private let onClose: () -> Void
 
     init(state: AppState, onClose: @escaping () -> Void = {}) {
@@ -64,17 +68,36 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func showAndActivate() {
-        let wasVisible = window?.isVisible ?? false
         showWindow(nil)
-        window?.makeKeyAndOrderFront(nil)
+        window?.deminiaturize(nil)
         NSApplication.shared.activate(ignoringOtherApps: true)
-        if !wasVisible {
+        window?.makeKeyAndOrderFront(nil)
+        if !hasBeenPresented {
+            hasBeenPresented = true
+            scheduleContentHeightFit()
+        } else if hasCompletedInitialFit {
+            needsContentHeightFit = false
+        } else if needsContentHeightFit {
             scheduleContentHeightFit()
         }
     }
 
     func windowWillClose(_ notification: Notification) {
         onClose()
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        guard !isApplyingContentFit, hasBeenPresented else { return }
+        if let window,
+           let expectedContentFitHeight,
+           abs(window.contentLayoutRect.height - expectedContentFitHeight) <= 1 {
+            self.expectedContentFitHeight = nil
+            return
+        }
+
+        expectedContentFitHeight = nil
+        hasCompletedInitialFit = true
+        needsContentHeightFit = false
     }
 
     private func problemBannerVisibilityDidChange(_ isVisible: Bool) {
@@ -99,6 +122,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     }
 
     private func fitHeightToContent() {
+        guard needsContentHeightFit else { return }
         guard let window, window.isVisible else { return }
 
         window.contentView?.layoutSubtreeIfNeeded()
@@ -114,11 +138,15 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             maximumHeight
         )
 
+        hasCompletedInitialFit = true
         needsContentHeightFit = false
         guard abs(window.contentLayoutRect.height - targetHeight) > 1 else { return }
+        expectedContentFitHeight = targetHeight
+        isApplyingContentFit = true
         window.setContentSize(
             NSSize(width: window.contentLayoutRect.width, height: targetHeight)
         )
+        isApplyingContentFit = false
     }
 
     private func contentHeightDidChange() {
