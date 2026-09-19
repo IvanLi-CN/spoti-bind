@@ -131,7 +131,8 @@ jobs:
           set -euo pipefail
           branch="automation/cask-release-${VERSION}"
           draft_tags="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-            --jq '.[] | select(.draft == true) | .tag_name')"
+            | jq -s --arg tag "${TAG}" --arg name "SpotiBind ${VERSION}" \
+              '[.[][] | select(.draft == true and .tag_name != $tag and .name != $name) | .name] | .[]')"
           while IFS= read -r draft_tag; do
             [[ -z "$draft_tag" || "$draft_tag" == "$TAG" ]] || {
               echo "another Draft release is waiting for Cask finalization: ${draft_tag}" >&2
