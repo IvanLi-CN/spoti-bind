@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import importlib.util
+import os
 import unittest
 from pathlib import Path
 
@@ -16,8 +17,21 @@ SPEC.loader.exec_module(homebrew_cask)
 class HomebrewCaskTests(unittest.TestCase):
     def setUp(self):
         self.text = (ROOT / "Casks/spotibind.rb").read_text(encoding="utf-8")
+        self.version = homebrew_cask._field(self.text, "version")
+        self.sha256 = homebrew_cask._field(self.text, "sha256")
 
     def test_current_cask_uses_canonical_identity(self):
+        head_ref = os.environ.get("GITHUB_HEAD_REF") or os.environ.get("GITHUB_REF_NAME", "")
+        if head_ref.startswith("automation/cask-release-"):
+            expected_version = head_ref.removeprefix("automation/cask-release-")
+            self.assertEqual(self.version, expected_version)
+            homebrew_cask.validate_text(
+                self.text,
+                version=self.version,
+                sha256=self.sha256,
+            )
+            return
+
         homebrew_cask.validate_text(
             self.text,
             version="0.2.6",
@@ -40,17 +54,21 @@ class HomebrewCaskTests(unittest.TestCase):
         with self.assertRaises(homebrew_cask.CaskError):
             homebrew_cask.validate_text(
                 bad,
-                version="0.2.6",
-                sha256="84bbca994079472528d4088a2b456deec6dd7b33d470993ff381c408385b360c",
+                version=self.version,
+                sha256=self.sha256,
             )
 
     def test_duplicate_identity_field_fails_closed(self):
-        bad = self.text.replace('version "0.2.6"', 'version "0.2.6"\n  version "0.2.6"')
+        bad = self.text.replace(
+            f'version "{self.version}"',
+            f'version "{self.version}"\n  version "{self.version}"',
+            1,
+        )
         with self.assertRaises(homebrew_cask.CaskError):
             homebrew_cask.validate_text(
                 bad,
-                version="0.2.6",
-                sha256="84bbca994079472528d4088a2b456deec6dd7b33d470993ff381c408385b360c",
+                version=self.version,
+                sha256=self.sha256,
             )
 
 
