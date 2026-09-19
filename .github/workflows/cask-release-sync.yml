@@ -57,7 +57,13 @@ jobs:
             echo 'current main VERSION does not match the release identity' >&2
             exit 1
           }
-          release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}")"
+          release_matches="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            | jq -s --arg tag "$tag" '[.[][] | select(.tag_name == $tag)]')"
+          [[ "$(jq 'length' <<<"$release_matches")" == '1' ]] || {
+            echo "expected exactly one release for ${tag}" >&2
+            exit 1
+          }
+          release_json="$(jq -c '.[0]' <<<"$release_matches")"
           [[ "$(jq -r '.draft' <<<"$release_json")" == 'true' ]] || {
             echo 'release must remain a Draft until Cask finalization' >&2
             exit 1
