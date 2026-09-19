@@ -1,6 +1,6 @@
 cask "spotibind" do
-  version "0.2.6"
-  sha256 "84bbca994079472528d4088a2b456deec6dd7b33d470993ff381c408385b360c"
+  version "0.2.7"
+  sha256 "ce84009c0daa005864e88920c93541a153d0a6d4992a6582510f8ff60b7e1e5b"
 
   url "https://github.com/IvanLi-CN/spoti-bind/releases/download/v#{version}/SpotiBind-#{version}-universal.dmg"
   name "SpotiBind"
