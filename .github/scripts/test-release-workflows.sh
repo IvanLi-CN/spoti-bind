@@ -30,6 +30,12 @@ grep -q -- '--verify-tag' .github/workflows/release.yml
 grep -q -- '--draft' .github/workflows/release.yml
 ! grep -q -- '--draft=false' .github/workflows/release.yml
 grep -q 'gh release upload' .github/workflows/release.yml
+grep -q 'releases?per_page=100' .github/workflows/release.yml
+grep -q 'releases?per_page=100' .github/workflows/cask-release-sync.yml
+grep -q 'releases?per_page=100' .github/workflows/finalize-cask-release.yml
+! grep -q 'releases/tags/' .github/workflows/release.yml
+! grep -q 'releases/tags/' .github/workflows/cask-release-sync.yml
+! grep -q 'releases/tags/' .github/workflows/finalize-cask-release.yml
 grep -q 'gh api -X PATCH' .github/workflows/finalize-cask-release.yml
 grep -q 'draft=false' .github/workflows/finalize-cask-release.yml
 grep -q 'prerelease=false' .github/workflows/finalize-cask-release.yml
