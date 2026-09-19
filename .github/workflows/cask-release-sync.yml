@@ -148,9 +148,8 @@ jobs:
           }
           main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           branch_ref="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${branch}" 2>/dev/null || true)"
-          if [[ -n "$branch_ref" ]]; then
-            expected_head="$(jq -r '.object.sha' <<<"$branch_ref")"
-          else
+          expected_head="$(jq -r '.object.sha // empty' <<<"$branch_ref" 2>/dev/null || true)"
+          if [[ -z "$expected_head" ]]; then
             gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
               -f "ref=refs/heads/${branch}" -f "sha=${main_sha}" >/dev/null
             expected_head="$main_sha"
