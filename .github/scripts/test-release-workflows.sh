@@ -50,6 +50,7 @@ grep -q 'workflow_run:' .github/workflows/cask-release-sync.yml
 grep -q 'actions: write' .github/workflows/cask-release-sync.yml
 grep -q 'group: cask-release-gate' .github/workflows/cask-release-sync.yml
 grep -q 'another Draft release is waiting for Cask finalization' .github/workflows/cask-release-sync.yml
+grep -q 'and .tag_name != \$tag and .name != \$name' .github/workflows/cask-release-sync.yml
 grep -q 'pull_request_target:' .github/workflows/finalize-cask-release.yml
 grep -q 'Initialize Cask finalization context' .github/workflows/finalize-cask-release.yml
 grep -q 'cask-finalize-context.json' .github/workflows/finalize-cask-release.yml
