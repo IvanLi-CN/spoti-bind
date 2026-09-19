@@ -80,8 +80,15 @@ jobs:
             exit 1
           }
           dmg="SpotiBind-${version}-universal.dmg"
-          gh release download "$tag" --repo "$GITHUB_REPOSITORY" \
-            --pattern "$dmg" --pattern SHA256SUMS --dir "$work/assets"
+          release_id="$(jq -r '.id' <<<"$release_json")"
+          mkdir -p "$work/assets"
+          for asset_name in "$dmg" SHA256SUMS; do
+            asset_id="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases/${release_id}/assets?per_page=100" \
+              | jq -s --arg name "$asset_name" -r 'add[] | select(.name == $name) | .id' | head -n1)"
+            [[ -n "$asset_id" ]] || { echo "release asset is missing: ${asset_name}" >&2; exit 1; }
+            gh api -H 'Accept: application/octet-stream' \
+              "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}" > "$work/assets/$asset_name"
+          done
           (
             cd "$work/assets"
             shasum -a 256 -c SHA256SUMS

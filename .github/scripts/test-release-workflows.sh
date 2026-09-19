@@ -29,7 +29,11 @@ grep -q 'gh release create' .github/workflows/release.yml
 grep -q -- '--verify-tag' .github/workflows/release.yml
 grep -q -- '--draft' .github/workflows/release.yml
 ! grep -q -- '--draft=false' .github/workflows/release.yml
-grep -q 'gh release upload' .github/workflows/release.yml
+grep -q 'releases/${release_id}/assets' .github/workflows/release.yml
+! grep -q 'gh release download' .github/workflows/cask-release-sync.yml
+! grep -q 'gh release download' .github/workflows/finalize-cask-release.yml
+grep -q 'releases/assets/' .github/workflows/cask-release-sync.yml
+grep -q 'releases/assets/' .github/workflows/finalize-cask-release.yml
 grep -q 'releases?per_page=100' .github/workflows/release.yml
 grep -q 'releases?per_page=100' .github/workflows/cask-release-sync.yml
 grep -q 'releases?per_page=100' .github/workflows/finalize-cask-release.yml
@@ -77,6 +81,7 @@ grep -q 'merge methods do not match declaration' .github/scripts/align-github-re
 grep -q 'release-target-sha.txt' .github/workflows/notify-release-failure.yml
 grep -q -- "--repo \"\$GITHUB_REPOSITORY\"" .github/workflows/notify-release-failure.yml
 ! grep -q 'workflow_dispatch:' .github/workflows/notify-release-failure.yml
+! grep -q 'gh release view' .github/workflows/notify-release-failure.yml
 ! grep -q 'smoke_test:' .github/workflows/notify-release-failure.yml
 grep -q 'id-token: write' .github/workflows/notify-release-failure.yml
 grep -q 'on_gateway_failure: warn' .github/workflows/notify-release-failure.yml
