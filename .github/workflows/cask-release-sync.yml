@@ -58,7 +58,8 @@ jobs:
             exit 1
           }
           release_matches="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-            | jq -s --arg tag "$tag" '[.[][] | select(.tag_name == $tag)]')"
+            | jq -s --arg tag "$tag" --arg name "SpotiBind ${version}" \
+              '[.[][] | select(.tag_name == $tag or .name == $name)]')"
           [[ "$(jq 'length' <<<"$release_matches")" == '1' ]] || {
             echo "expected exactly one release for ${tag}" >&2
             exit 1
