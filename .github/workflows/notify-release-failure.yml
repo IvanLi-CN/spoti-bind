@@ -84,7 +84,14 @@ jobs:
           fi
           assets="[]"
           if [[ "$tag" != 'unknown' ]]; then
-            assets="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name]' 2>/dev/null || printf '["SpotiBind-%s-universal.dmg","SHA256SUMS"]' "$version")"
+            release_matches="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" 2>/dev/null \
+              | jq -s --arg tag "$tag" --arg name "SpotiBind ${version}" \
+                '[.[][] | select(.tag_name == $tag or .name == $name)]' || printf '[]')"
+            if [[ "$(jq 'length' <<<"$release_matches")" == '1' ]]; then
+              assets="$(jq -c '.[0].assets | map(.name)' <<<"$release_matches")"
+            else
+              assets="[\"SpotiBind-${version}-universal.dmg\",\"SHA256SUMS\"]"
+            fi
           fi
           recovery="rerun ${WORKFLOW_NAME} run ${RUN_ID} after preserving tag=${tag} and merge_sha=${TARGET_SHA}"
           if [[ "$WORKFLOW_NAME" == 'Release' ]]; then
