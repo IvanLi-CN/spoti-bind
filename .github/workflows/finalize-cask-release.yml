@@ -273,6 +273,7 @@ jobs:
         run: |
           set -euo pipefail
           gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+            -f tag_name="${TAG}" \
             -F draft=false -F prerelease=false \
             -f name="SpotiBind ${VERSION}" \
             -f body="Automated public release for verified main merge ${TARGET_SHA}; Homebrew Cask identity verified from the same DMG."

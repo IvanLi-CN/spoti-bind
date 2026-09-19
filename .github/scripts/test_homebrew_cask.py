@@ -17,6 +17,7 @@ SPEC.loader.exec_module(homebrew_cask)
 class HomebrewCaskTests(unittest.TestCase):
     def setUp(self):
         self.text = (ROOT / "Casks/spotibind.rb").read_text(encoding="utf-8")
+        self.project_version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
         self.version = homebrew_cask._field(self.text, "version")
         self.sha256 = homebrew_cask._field(self.text, "sha256")
 
@@ -32,10 +33,11 @@ class HomebrewCaskTests(unittest.TestCase):
             )
             return
 
+        self.assertEqual(self.version, self.project_version)
         homebrew_cask.validate_text(
             self.text,
-            version="0.2.6",
-            sha256="84bbca994079472528d4088a2b456deec6dd7b33d470993ff381c408385b360c",
+            version=self.version,
+            sha256=self.sha256,
         )
 
     def test_render_updates_only_identity_fields(self):

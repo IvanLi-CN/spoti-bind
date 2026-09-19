@@ -44,6 +44,7 @@ grep -q 'or .name == \$name' .github/workflows/finalize-cask-release.yml
 ! grep -q 'releases/tags/' .github/workflows/cask-release-sync.yml
 ! grep -q 'releases/tags/' .github/workflows/finalize-cask-release.yml
 grep -q 'gh api -X PATCH' .github/workflows/finalize-cask-release.yml
+grep -q 'tag_name=' .github/workflows/finalize-cask-release.yml
 grep -q 'draft=false' .github/workflows/finalize-cask-release.yml
 grep -q 'prerelease=false' .github/workflows/finalize-cask-release.yml
 grep -q 'workflow_run:' .github/workflows/cask-release-sync.yml
